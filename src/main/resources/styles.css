@@ -1,0 +1,129 @@
+.app-root {
+    -fx-background-color: #15181d;
+    -fx-font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+}
+
+.top-bar,
+.controls {
+    -fx-background-color: #15181d;
+}
+
+.sidebar {
+    -fx-background-color: #1d2229;
+    -fx-border-color: #2d333d;
+    -fx-border-width: 0 1 0 0;
+}
+
+.content {
+    -fx-background-color: #15181d;
+}
+
+.section-title {
+    -fx-text-fill: #f0f3f7;
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+}
+
+.track-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 30px;
+    -fx-font-weight: 800;
+}
+
+.track-artist {
+    -fx-text-fill: #c4ccd6;
+    -fx-font-size: 17px;
+}
+
+.muted-label,
+.time-label {
+    -fx-text-fill: #8e9aaa;
+}
+
+.button,
+.combo-box,
+.search-field {
+    -fx-background-color: #252b34;
+    -fx-text-fill: #edf2f7;
+    -fx-background-radius: 6px;
+    -fx-border-color: #384250;
+    -fx-border-radius: 6px;
+    -fx-padding: 8 13;
+    -fx-cursor: hand;
+}
+
+.button:hover,
+.combo-box:hover {
+    -fx-background-color: #303744;
+}
+
+.search-field {
+    -fx-prompt-text-fill: #7f8a99;
+    -fx-padding: 9 12;
+}
+
+.primary-button {
+    -fx-background-color: #2f80ed;
+    -fx-border-color: #2f80ed;
+    -fx-text-fill: white;
+}
+
+.primary-button:hover {
+    -fx-background-color: #3c8df5;
+}
+
+.list-view {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 4 0;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #dce3ec;
+    -fx-padding: 10 12;
+    -fx-background-radius: 6px;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: #2a303a;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: #314761;
+    -fx-text-fill: #ffffff;
+}
+
+.lyrics-view {
+    -fx-background-color: #101318;
+    -fx-background-radius: 8px;
+    -fx-border-color: #2b323c;
+    -fx-border-radius: 8px;
+    -fx-padding: 14;
+}
+
+.lyrics-view .list-cell {
+    -fx-font-size: 16px;
+    -fx-padding: 8 12;
+}
+
+.lyrics-view .list-cell:filled:selected {
+    -fx-background-color: transparent;
+    -fx-text-fill: #7cc7ff;
+    -fx-font-weight: 700;
+}
+
+.slider .track {
+    -fx-background-color: #303844;
+    -fx-background-radius: 4px;
+    -fx-pref-height: 5px;
+}
+
+.slider .thumb {
+    -fx-background-color: #76b7ff;
+}
+
+.progress-indicator {
+    -fx-progress-color: #76b7ff;
+}

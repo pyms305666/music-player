@@ -1,0 +1,14 @@
+.gradle/
+.idea/
+.tools/
+build/
+music-player.db
+*.db
+*.sqlite
+*.sqlite3
+
+*.class
+*.log
+
+.DS_Store
+Thumbs.db

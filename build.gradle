@@ -1,0 +1,35 @@
+plugins {
+    id "application"
+    id "org.openjfx.javafxplugin" version "0.1.0"
+}
+
+group = "app.musicplayer"
+version = "1.0.0"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+application {
+    mainClass = "app.musicplayer.MusicPlayerApp"
+    applicationDefaultJvmArgs = [
+            "--enable-native-access=ALL-UNNAMED",
+            "--enable-native-access=javafx.graphics",
+            "--enable-native-access=javafx.media"
+    ]
+}
+
+javafx {
+    version = "25.0.1"
+    modules = ["javafx.controls", "javafx.media"]
+}
+
+dependencies {
+    implementation "org.xerial:sqlite-jdbc:3.50.3.0"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
