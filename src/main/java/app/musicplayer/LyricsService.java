@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 
 public final class LyricsService {
     private final MusicDatabase database;
+    private final Path lyricsCacheDir;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .build();
@@ -23,8 +24,13 @@ public final class LyricsService {
             new LrclibLyricsProvider()
     );
 
-    public LyricsService(MusicDatabase database) {
+    public LyricsService(MusicDatabase database, Path lyricsCacheDir) {
         this.database = database;
+        this.lyricsCacheDir = lyricsCacheDir;
+        try {
+            Files.createDirectories(lyricsCacheDir);
+        } catch (IOException ignored) {
+        }
     }
 
     public CompletableFuture<LyricsLookupResult> findLyrics(Track track, Duration duration) {
@@ -37,9 +43,16 @@ public final class LyricsService {
             return CompletableFuture.completedFuture(LyricsLookupResult.lyricsOnly(cachedLyrics.get()));
         }
 
+        Optional<Lyrics> fileCacheLyrics = readCachedLyrics(track);
+        if (fileCacheLyrics.isPresent()) {
+            database.saveLyrics(track, fileCacheLyrics.get());
+            return CompletableFuture.completedFuture(LyricsLookupResult.lyricsOnly(fileCacheLyrics.get()));
+        }
+
         Optional<Lyrics> localLyrics = readLocalLyrics(track);
         if (localLyrics.isPresent()) {
             database.saveLyrics(track, localLyrics.get());
+            saveCachedLyrics(track, localLyrics.get());
             return CompletableFuture.completedFuture(LyricsLookupResult.lyricsOnly(localLyrics.get()));
         }
 
@@ -50,7 +63,10 @@ public final class LyricsService {
         return CompletableFuture.supplyAsync(() -> {
             Optional<LyricsLookupResult> result = searchOnline(track, duration);
             // 联网搜到后立即写入缓存，后续播放同一首歌不再依赖网络。
-            result.ifPresent(found -> database.saveLyrics(track, found.lyrics()));
+            result.ifPresent(found -> {
+                database.saveLyrics(track, found.lyrics());
+                saveCachedLyrics(track, found.lyrics());
+            });
             return result.orElseGet(() -> LyricsLookupResult.lyricsOnly(
                     Lyrics.empty("没有找到歌词，正在后台继续搜索")));
         });
@@ -88,5 +104,30 @@ public final class LyricsService {
             }
         }
         return Optional.empty();
+    }
+
+    private Optional<Lyrics> readCachedLyrics(Track track) {
+        Path cachePath = lyricsCachePath(track);
+        if (!Files.isRegularFile(cachePath)) return Optional.empty();
+        try {
+            String content = Files.readString(cachePath, StandardCharsets.UTF_8);
+            return Optional.of(LrcParser.parse("缓存歌词：" + cachePath.getFileName(), content));
+        } catch (IOException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private void saveCachedLyrics(Track track, Lyrics lyrics) {
+        if (track == null || lyrics == null || lyrics.rawText() == null || lyrics.rawText().isBlank()) return;
+        try {
+            Files.createDirectories(lyricsCacheDir);
+            Files.writeString(lyricsCachePath(track), lyrics.rawText(), StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+        }
+    }
+
+    private Path lyricsCachePath(Track track) {
+        String key = Integer.toHexString(track.path().toAbsolutePath().normalize().toString().hashCode());
+        return lyricsCacheDir.resolve(key + ".lrc");
     }
 }

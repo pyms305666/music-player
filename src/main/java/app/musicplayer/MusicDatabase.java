@@ -17,6 +17,9 @@ public final class MusicDatabase implements AutoCloseable {
 
     public MusicDatabase(Path databasePath) throws SQLException {
         connection = DriverManager.getConnection("jdbc:sqlite:" + databasePath.toAbsolutePath());
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("pragma foreign_keys = on");
+        }
         initialize();
     }
 
@@ -171,6 +174,23 @@ public final class MusicDatabase implements AutoCloseable {
             statement.setString(3, rawLyrics);
             statement.setString(4, Instant.now().toString());
             statement.executeUpdate();
+        } catch (SQLException ignored) {
+            // A cache failure should not stop playback.
+        }
+    }
+
+    public synchronized void removeTrack(Track track) {
+        if (track == null) {
+            return;
+        }
+
+        String absolutePath = track.path().toAbsolutePath().toString();
+        try (PreparedStatement deleteLyrics = connection.prepareStatement("delete from lyrics where track_path = ?");
+             PreparedStatement deleteTrack = connection.prepareStatement("delete from tracks where path = ?")) {
+            deleteLyrics.setString(1, absolutePath);
+            deleteLyrics.executeUpdate();
+            deleteTrack.setString(1, absolutePath);
+            deleteTrack.executeUpdate();
         } catch (SQLException ignored) {
             // A cache failure should not stop playback.
         }
