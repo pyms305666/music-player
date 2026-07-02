@@ -589,7 +589,7 @@
     /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
     /* 说明：设置控件最小宽度。 */
-    -fx-min-width: 198px;
+    -fx-min-width: 120px;
     /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 210px;
     /* 说明：设置控件最大宽度。 */
@@ -602,9 +602,9 @@
     /* 说明：设置控件最小宽度。 */
     -fx-min-width: 120px;
     /* 说明：设置控件首选宽度。 */
-    -fx-pref-width: 140px;
+    -fx-pref-width: 210px;
     /* 说明：设置控件最大宽度。 */
-    -fx-max-width: 140px;
+    -fx-max-width: 220px;
 /* 说明：结束当前选择器的样式定义。 */
 }
 
