@@ -2,6 +2,8 @@
 .idea/
 .tools/
 build/
+downloads/
+__pycache__/
 music-player.db
 *.db
 *.sqlite
