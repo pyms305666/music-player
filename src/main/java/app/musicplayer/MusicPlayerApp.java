@@ -38,6 +38,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaException;
 import javafx.scene.media.MediaPlayer;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -74,6 +75,11 @@ import java.util.stream.Stream;
 import java.util.prefs.Preferences;
 
 public final class MusicPlayerApp extends Application {
+    private static final String TEXT_PREV = new String(new char[]{19978, 19968, 39318});
+    private static final String TEXT_PLAY = new String(new char[]{25773, 25918});
+    private static final String TEXT_PAUSE = new String(new char[]{26242, 20572});
+    private static final String TEXT_NEXT = new String(new char[]{19979, 19968, 39318});
+    private static final String TEXT_VOLUME = new String(new char[]{38899, 37327});
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of("mp3", "m4a", "aac", "wav", "aif", "aiff");
     private static final int[] LYRIC_RETRY_DELAYS_SECONDS = {10, 20, 30, 60};
     private static final Path APP_BASE_DIR = resolveAppBaseDir();
@@ -557,35 +563,43 @@ public final class MusicPlayerApp extends Application {
     }
 
     private VBox createControls() {
-        Button prevBtn = new Button("\u4e0a\u4e00\u9996");
+        Button prevBtn = new Button(TEXT_PREV);
         prevBtn.getStyleClass().add("control-button");
         prevBtn.setOnAction(e -> previousTrack());
 
-        playPauseButton = new Button("\u64ad\u653e");
+        playPauseButton = new Button(TEXT_PLAY);
         playPauseButton.getStyleClass().addAll("primary-button", "control-button", "play-button");
         playPauseButton.setOnAction(e -> togglePlayPause());
 
-        Button nextBtn = new Button("\u4e0b\u4e00\u9996");
+        Button nextBtn = new Button(TEXT_NEXT);
         nextBtn.getStyleClass().add("control-button");
         nextBtn.setOnAction(e -> nextTrack(true));
 
         progressSlider = new Slider(0, 1, 0);
         progressSlider.setMaxWidth(Double.MAX_VALUE);
+        progressSlider.setMinHeight(28);
+        progressSlider.setPrefHeight(28);
+        progressSlider.setMaxHeight(28);
         progressSlider.valueChangingProperty().addListener((o, was, is) -> { seeking = is; if (!is) seekToProgress(); });
         progressSlider.setOnMouseReleased(e -> seekToProgress());
 
         timeLabel = new Label("00:00 / 00:00");
         timeLabel.getStyleClass().add("time-label");
         timeLabel.setMinWidth(112);
+        timeLabel.setMinHeight(28);
+        timeLabel.setPrefHeight(28);
         timeLabel.setAlignment(Pos.CENTER_RIGHT);
 
-        Label volLbl = new Label("\u97f3\u91cf");
+        Label volLbl = new Label(TEXT_VOLUME);
         volLbl.getStyleClass().add("muted-label");
         volumeSlider = new Slider(0, 1, 0.75);
         volumeSlider.getStyleClass().add("volume-slider");
         volumeSlider.setMinWidth(120);
         volumeSlider.setPrefWidth(140);
         volumeSlider.setMaxWidth(140);
+        volumeSlider.setMinSize(120, Region.USE_PREF_SIZE);
+        volumeSlider.setPrefSize(140, Region.USE_PREF_SIZE);
+        volumeSlider.setMaxSize(140, Region.USE_PREF_SIZE);
         HBox.setHgrow(volumeSlider, Priority.NEVER);
         volumeSlider.valueProperty().addListener((o, ov, nv) -> { if (mediaPlayer != null) mediaPlayer.setVolume(nv.doubleValue()); });
 
@@ -593,12 +607,26 @@ public final class MusicPlayerApp extends Application {
         transportGroup.getStyleClass().add("transport-group");
         transportGroup.setAlignment(Pos.CENTER_LEFT);
 
-        HBox volumeGroup = new HBox(8, volLbl, volumeSlider);
+        StackPane volumeSliderHolder = new StackPane(volumeSlider);
+        volumeSliderHolder.getStyleClass().add("volume-slider-holder");
+        volumeSliderHolder.setMinWidth(150);
+        volumeSliderHolder.setPrefWidth(150);
+        volumeSliderHolder.setMaxWidth(150);
+        volumeSliderHolder.setMinSize(150, 42);
+        volumeSliderHolder.setPrefSize(150, 42);
+        volumeSliderHolder.setMaxSize(150, 42);
+        Rectangle volumeClip = new Rectangle();
+        volumeClip.widthProperty().bind(volumeSliderHolder.widthProperty());
+        volumeClip.heightProperty().bind(volumeSliderHolder.heightProperty());
+        volumeSliderHolder.setClip(volumeClip);
+        HBox.setHgrow(volumeSliderHolder, Priority.NEVER);
+
+        HBox volumeGroup = new HBox(8, volLbl, volumeSliderHolder);
         volumeGroup.getStyleClass().add("volume-group");
         volumeGroup.setAlignment(Pos.CENTER_LEFT);
-        volumeGroup.setMinWidth(190);
-        volumeGroup.setPrefWidth(200);
-        volumeGroup.setMaxWidth(210);
+        volumeGroup.setMinWidth(198);
+        volumeGroup.setPrefWidth(210);
+        volumeGroup.setMaxWidth(220);
         HBox.setHgrow(volumeGroup, Priority.NEVER);
 
         HBox btns = new HBox(14, transportGroup, new Separator(Orientation.VERTICAL), volumeGroup);
@@ -990,7 +1018,7 @@ public final class MusicPlayerApp extends Application {
         if (mainSplitPane == null || mainSplitPane.getDividers().size() < 2) return;
         double left = clamp(preferences.getDouble(PREF_DIVIDER_LEFT, DEFAULT_LEFT_DIVIDER), 0.16, 0.52);
         double right = onlinePanelExpanded
-                ? clamp(preferences.getDouble(PREF_DIVIDER_RIGHT, DEFAULT_RIGHT_DIVIDER), left + 0.18, 0.90)
+                ? expandedDividerPosition(currentWindowWidth(), left)
                 : collapsedDividerPosition(currentWindowWidth(), left);
         setMainSplitPanePositions(left, right);
         applyOnlinePanelState(false);
@@ -1011,7 +1039,7 @@ public final class MusicPlayerApp extends Application {
         if (mainSplitPane == null || mainSplitPane.getDividers().size() < 2) return;
         double left = clamp(mainSplitPane.getDividerPositions()[0], 0.16, 0.52);
         double targetRight = onlinePanelExpanded
-                ? clamp(preferences.getDouble(PREF_DIVIDER_RIGHT, DEFAULT_RIGHT_DIVIDER), left + 0.18, 0.90)
+                ? expandedDividerPosition(currentWindowWidth(), left)
                 : collapsedDividerPosition(currentWindowWidth(), left);
         double currentRight = mainSplitPane.getDividerPositions()[1];
         if (Math.abs(currentRight - targetRight) > 0.002 || Math.abs(mainSplitPane.getDividerPositions()[0] - left) > 0.002) {
@@ -1029,6 +1057,13 @@ public final class MusicPlayerApp extends Application {
             }
             syncingOnlinePanelState = false;
         });
+    }
+
+    private double expandedDividerPosition(double windowWidth, double leftDivider) {
+        double width = Math.max(1120, windowWidth);
+        double preferredRight = preferences.getDouble(PREF_DIVIDER_RIGHT, DEFAULT_RIGHT_DIVIDER);
+        double maxRightForReadableSidebar = 1.0 - (EXPANDED_ONLINE_PANEL_PREF_WIDTH / width);
+        return clamp(Math.min(preferredRight, maxRightForReadableSidebar), leftDivider + 0.18, maxRightForReadableSidebar);
     }
 
     private double collapsedDividerPosition(double windowWidth, double leftDivider) {

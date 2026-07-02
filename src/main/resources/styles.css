@@ -318,16 +318,26 @@
 }
 
 .volume-group {
-    -fx-alignment: center-right;
-    -fx-min-width: 190px;
-    -fx-pref-width: 200px;
-    -fx-max-width: 210px;
+    -fx-alignment: center-left;
+    -fx-min-width: 198px;
+    -fx-pref-width: 210px;
+    -fx-max-width: 220px;
 }
 
 .volume-group .slider {
     -fx-min-width: 120px;
     -fx-pref-width: 140px;
     -fx-max-width: 140px;
+}
+
+.volume-slider-holder {
+    -fx-min-width: 150px;
+    -fx-pref-width: 150px;
+    -fx-max-width: 150px;
+    -fx-min-height: 42px;
+    -fx-pref-height: 42px;
+    -fx-max-height: 42px;
+    -fx-alignment: center-left;
 }
 
 .volume-slider {
