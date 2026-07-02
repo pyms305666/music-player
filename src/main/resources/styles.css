@@ -18,6 +18,18 @@
     -fx-background-color: #15181d;
 }
 
+.content-foreground {
+    -fx-background-color: transparent;
+}
+
+.artwork-background {
+    -fx-opacity: 0.42;
+}
+
+.artwork-dimmer {
+    -fx-background-color: linear-gradient(to bottom right, rgba(21, 24, 29, 0.72), rgba(16, 19, 24, 0.90));
+}
+
 .section-title {
     -fx-text-fill: #f0f3f7;
     -fx-font-size: 16px;
@@ -96,7 +108,7 @@
 }
 
 .lyrics-view {
-    -fx-background-color: #101318;
+    -fx-background-color: rgba(16, 19, 24, 0.82);
     -fx-background-radius: 8px;
     -fx-border-color: #2b323c;
     -fx-border-radius: 8px;

@@ -19,12 +19,15 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaException;
@@ -85,6 +88,7 @@ public final class MusicPlayerApp extends Application {
     private Slider volumeSlider;
     private ComboBox<PlayMode> playModeBox;
     private ProgressIndicator loadingLyrics;
+    private ImageView artworkImageView;
 
     private MediaPlayer mediaPlayer;
     private Track currentTrack;
@@ -222,7 +226,7 @@ public final class MusicPlayerApp extends Application {
         return sidebar;
     }
 
-    private VBox createNowPlaying() {
+    private StackPane createNowPlaying() {
         titleLabel = new Label("未播放歌曲");
         titleLabel.getStyleClass().add("track-title");
         titleLabel.setWrapText(true);
@@ -246,12 +250,26 @@ public final class MusicPlayerApp extends Application {
         lyricsView.setFocusTraversable(false);
 
         VBox nowPlaying = new VBox(10, titleLabel, artistLabel, sourceRow, lyricsView);
-        nowPlaying.getStyleClass().add("content");
+        nowPlaying.getStyleClass().add("content-foreground");
         nowPlaying.setPadding(new Insets(24, 22, 16, 22));
         VBox.setVgrow(lyricsView, Priority.ALWAYS);
 
+        artworkImageView = new ImageView();
+        artworkImageView.getStyleClass().add("artwork-background");
+        artworkImageView.setPreserveRatio(false);
+        artworkImageView.setSmooth(true);
+        artworkImageView.setVisible(false);
+
+        Region dimmer = new Region();
+        dimmer.getStyleClass().add("artwork-dimmer");
+
+        StackPane nowPlayingStack = new StackPane(artworkImageView, dimmer, nowPlaying);
+        nowPlayingStack.getStyleClass().add("content");
+        artworkImageView.fitWidthProperty().bind(nowPlayingStack.widthProperty());
+        artworkImageView.fitHeightProperty().bind(nowPlayingStack.heightProperty());
+
         showLyrics(Lyrics.empty("导入歌曲后开始播放"));
-        return nowPlaying;
+        return nowPlayingStack;
     }
 
     private VBox createControls() {
@@ -414,6 +432,7 @@ public final class MusicPlayerApp extends Application {
         artistLabel.setText(currentTrack.artist());
         progressSlider.setValue(0);
         timeLabel.setText("00:00 / 00:00");
+        showArtwork(null);
         showLyrics(Lyrics.empty("正在准备歌词..."));
 
         try {
@@ -610,8 +629,10 @@ public final class MusicPlayerApp extends Application {
         sourceLabel.setText(manual ? "歌词来源：正在重新搜索..." : "歌词来源：正在搜索...");
 
         java.time.Duration duration = mediaPlayer == null ? null : javaDuration(mediaPlayer.getTotalDuration());
-        CompletableFuture<Lyrics> future = lyricsService.findLyrics(track, duration);
-        future.whenComplete((lyrics, error) -> Platform.runLater(() -> {
+        CompletableFuture<LyricsLookupResult> future = manual
+                ? lyricsService.searchOnlineAsync(track, duration)
+                : lyricsService.findLyrics(track, duration);
+        future.whenComplete((result, error) -> Platform.runLater(() -> {
             if (requestId != lyricsRequestId || track != currentTrack) {
                 return;
             }
@@ -623,8 +644,9 @@ public final class MusicPlayerApp extends Application {
                 showLyrics(Lyrics.empty("歌词加载失败"));
                 return;
             }
-            showLyrics(lyrics);
-            if (isMissingLyrics(lyrics)) {
+            showLyrics(result.lyrics());
+            showArtwork(result.artworkUrl());
+            if (isMissingLyrics(result.lyrics())) {
                 // 没找到就进入后台持续搜索，直到找到歌词、切歌或关闭应用。
                 scheduleLyricRetry(track, duration, requestId);
             }
@@ -648,17 +670,18 @@ public final class MusicPlayerApp extends Application {
             return;
         }
 
-        Lyrics lyrics = lyricsService.searchOnlineAsync(track, duration).join();
+        LyricsLookupResult result = lyricsService.searchOnlineAsync(track, duration).join();
         Platform.runLater(() -> {
             if (requestId != lyricsRequestId || track != currentTrack) {
                 return;
             }
-            if (isMissingLyrics(lyrics)) {
+            if (isMissingLyrics(result.lyrics())) {
                 scheduleLyricRetry(track, duration, requestId);
             } else {
                 loadingLyrics.setVisible(false);
                 loadingLyrics.setManaged(false);
-                showLyrics(lyrics);
+                showLyrics(result.lyrics());
+                showArtwork(result.artworkUrl());
             }
         });
     }
@@ -691,6 +714,20 @@ public final class MusicPlayerApp extends Application {
             lyricsView.getSelectionModel().select(0);
             lyricsView.scrollTo(0);
         }
+    }
+
+    private void showArtwork(String artworkUrl) {
+        if (artworkImageView == null) {
+            return;
+        }
+        if (artworkUrl == null || artworkUrl.isBlank()) {
+            artworkImageView.setImage(null);
+            artworkImageView.setVisible(false);
+            return;
+        }
+        Image image = new Image(artworkUrl, true);
+        artworkImageView.setImage(image);
+        artworkImageView.setVisible(true);
     }
 
     private void updateHighlightedLyric(Duration currentTime) {
