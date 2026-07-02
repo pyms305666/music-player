@@ -1,424 +1,779 @@
+/* BEGINNER_COMMENTED_BY_CODEX: 本文件已加入面向初学者的中文说明。 */
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .app-root {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, #11151b, #0d1117);
+    /* 说明：设置字体优先级。 */
     -fx-font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：CSS 样式规则的一部分。 */
 .top-bar,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .controls {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(13, 17, 23, 0.96);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .top-bar {
+    /* 说明：设置边框颜色。 */
     -fx-border-color: transparent transparent #232b36 transparent;
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 0 0 1 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：CSS 样式规则的一部分。 */
 .sidebar,
+/* 说明：CSS 样式规则的一部分。 */
 .online-panel-content,
+/* 说明：CSS 样式规则的一部分。 */
 .content,
+/* 说明：CSS 样式规则的一部分。 */
 .controls,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .top-bar {
+    /* 说明：设置阴影等视觉效果。 */
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.18), 18, 0.15, 0, 6);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .sidebar {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(27, 33, 41, 0.94);
+    /* 说明：设置边框颜色。 */
     -fx-border-color: #27303b;
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 0 1 0 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+    /* 说明：设置子控件之间的间距。 */
     -fx-spacing: 0;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 8 12 18 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .main-split-pane {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .main-split-pane > .split-pane-divider {
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 0 1 0 1;
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(53, 62, 76, 0.92);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel-content {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(27, 33, 41, 0.96);
+    /* 说明：设置边框颜色。 */
     -fx-border-color: #27303b;
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 1 0 1 1;
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 18 0 0 18;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 18 0 0 18;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .drawer-toggle-button {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, rgba(65, 129, 219, 0.96), rgba(42, 91, 171, 0.96));
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #ffffff;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 16px;
+    /* 说明：设置文字粗细。 */
     -fx-font-weight: 800;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 58px;
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 58px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 58px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 158px;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 20 0 0 20;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(137, 190, 255, 0.55);
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 1 0 1 1;
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 20 0 0 20;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 10 6;
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center;
+    /* 说明：设置多行文字之间的行距。 */
     -fx-line-spacing: 6px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .drawer-toggle-button:hover {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, rgba(84, 146, 234, 0.98), rgba(54, 107, 194, 0.98));
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .content {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(19, 23, 29, 0.76);
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 20px;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(71, 82, 96, 0.4);
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 20px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .content-foreground {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .artwork-background {
+    /* 说明：设置透明度。 */
     -fx-opacity: 0.34;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .artwork-dimmer {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom right, rgba(14, 18, 24, 0.70), rgba(9, 12, 16, 0.92));
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 20px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .section-title {
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #f5f8fc;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 18px;
+    /* 说明：设置文字粗细。 */
     -fx-font-weight: 800;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .track-title {
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #ffffff;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 34px;
+    /* 说明：设置文字粗细。 */
     -fx-font-weight: 900;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .track-artist {
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #c3cfdd;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 17px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：CSS 样式规则的一部分。 */
 .muted-label,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .time-label {
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #90a0b2;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .status-chip {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(31, 39, 49, 0.92);
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 999px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 8 14;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(76, 91, 109, 0.72);
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 999px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：CSS 样式规则的一部分。 */
 .button,
+/* 说明：CSS 样式规则的一部分。 */
 .combo-box,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .search-field {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: #232a34;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #edf3fb;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 12px;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: #384454;
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 12px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 10 14;
+    /* 说明：设置 CSS 属性 -fx-cursor，用于调整界面外观或布局。 */
     -fx-cursor: hand;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：设置 CSS 属性 .button，用于调整界面外观或布局。 */
 .button:hover,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .combo-box:hover {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: #2c3440;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：设置 CSS 属性 .button，用于调整界面外观或布局。 */
 .button:pressed,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .combo-box:showing {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: #303948;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .search-field {
+    /* 说明：设置 CSS 属性 -fx-prompt-text-fill，用于调整界面外观或布局。 */
     -fx-prompt-text-fill: #7f8fa2;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 11 14;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .primary-button {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, #4a9cff, #2f80ed);
+    /* 说明：设置边框颜色。 */
     -fx-border-color: #2f80ed;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: white;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .primary-button:hover {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, #61abff, #3d8df4);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：CSS 样式规则的一部分。 */
 .sort-row,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .search-row {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .list-view {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+    /* 说明：设置 CSS 属性 -fx-control-inner-background，用于调整界面外观或布局。 */
     -fx-control-inner-background: transparent;
+    /* 说明：设置 CSS 属性 -fx-background-insets，用于调整界面外观或布局。 */
     -fx-background-insets: 0;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 4 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：CSS 样式规则的一部分。 */
 .online-results-view,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-view {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(12, 16, 22, 0.88);
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 16px;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(54, 64, 78, 0.88);
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 16px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 8;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .list-cell {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #dce6f1;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 12 13;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 12px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .list-cell:filled:hover {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(53, 65, 80, 0.58);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .list-cell:filled:selected {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to right, rgba(73, 109, 153, 0.95), rgba(52, 78, 108, 0.95));
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #ffffff;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-view {
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 16;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-view .list-cell {
+    /* 说明：设置文字大小。 */
     -fx-font-size: 17px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 9 14;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-view .list-cell:filled:selected {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #7cc7ff;
+    /* 说明：设置文字粗细。 */
     -fx-font-weight: 800;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-results-view .list-cell {
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 12 14;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 13px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-results-view .list-cell.result-downloadable {
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(63, 208, 131, 0.90);
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 0 0 0 4;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #e3f8ea;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-results-view .list-cell.result-tryable {
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(241, 196, 15, 0.90);
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 0 0 0 4;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #fff4cf;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-results-view .list-cell.result-unavailable {
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(126, 138, 153, 0.55);
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 0 0 0 4;
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: #a7b0bb;
+    /* 说明：设置透明度。 */
     -fx-opacity: 0.78;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .slider .track {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: #2a3340;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 999px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 6px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .slider .thumb {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, #8fd3ff, #58aefe);
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 999px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 18px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 18px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .progress-indicator {
+    /* 说明：设置 CSS 属性 -fx-progress-color，用于调整界面外观或布局。 */
     -fx-progress-color: #76b7ff;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：设置 CSS 属性 .scroll-bar，用于调整界面外观或布局。 */
 .scroll-bar:vertical,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .scroll-bar:horizontal {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：设置 CSS 属性 .scroll-bar，用于调整界面外观或布局。 */
 .scroll-bar:vertical .thumb,
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .scroll-bar:horizontal .thumb {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(120, 135, 155, 0.62);
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 999px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .main-split-pane > .split-pane-divider:hover {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(100, 131, 174, 0.95);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 0;
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel-content {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 0;
+    /* 说明：设置子控件之间的间距。 */
     -fx-spacing: 10;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .controls {
+    /* 说明：设置边框颜色。 */
     -fx-border-color: #232b36 transparent transparent transparent;
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 1 0 0 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .progress-row {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+    /* 说明：设置控件最小高度。 */
     -fx-min-height: 28px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 28px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .control-row {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+    /* 说明：设置控件最小高度。 */
     -fx-min-height: 56px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 56px;
+    /* 说明：设置控件最大高度。 */
     -fx-max-height: 56px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .transport-group {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+    /* 说明：设置子控件之间的间距。 */
     -fx-spacing: 10px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .control-button {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 86px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 86px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 86px;
+    /* 说明：设置控件最小高度。 */
     -fx-min-height: 42px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 42px;
+    /* 说明：设置控件最大高度。 */
     -fx-max-height: 42px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 0 12;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .play-button {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 88px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 88px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 88px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .volume-group {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 198px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 210px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 220px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .volume-group .slider {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 120px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 140px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 140px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .volume-slider-holder {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 150px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 150px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 150px;
+    /* 说明：设置控件最小高度。 */
     -fx-min-height: 42px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 42px;
+    /* 说明：设置控件最大高度。 */
     -fx-max-height: 42px;
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .volume-slider {
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 120px;
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 140px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 140px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel.online-panel-expanded .online-panel-content {
+    /* 说明：设置边框粗细。 */
     -fx-border-width: 1 1 1 1;
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 18 0 0 18;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 18 0 0 18;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel.online-panel-collapsed {
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 8 8 18 0;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .online-panel.online-panel-collapsed .drawer-toggle-button {
+    /* 说明：设置阴影等视觉效果。 */
     -fx-effect: dropshadow(gaussian, rgba(76, 154, 255, 0.46), 24, 0.35, 0, 0);
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .drawer-toggle-button {
+    /* 说明：设置控件首选宽度。 */
     -fx-pref-width: 66px;
+    /* 说明：设置控件最小宽度。 */
     -fx-min-width: 66px;
+    /* 说明：设置控件最大宽度。 */
     -fx-max-width: 66px;
+    /* 说明：设置控件首选高度。 */
     -fx-pref-height: 196px;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 15px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 14 6;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 22 0 0 22;
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 22 0 0 22;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .drawer-toggle-button.drawer-collapsed {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, rgba(89, 158, 255, 0.98), rgba(54, 103, 198, 0.98));
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .drawer-toggle-button.drawer-expanded {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, rgba(62, 126, 214, 0.96), rgba(37, 82, 154, 0.96));
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .content-foreground {
+    /* 说明：设置子控件之间的间距。 */
     -fx-spacing: 12;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-toolbar {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+    /* 说明：设置子控件之间的间距。 */
     -fx-spacing: 8;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .toolbar-button {
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 8 12;
+    /* 说明：设置文字大小。 */
     -fx-font-size: 12px;
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 10px;
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 10px;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .toolbar-button-active {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: linear-gradient(to bottom, rgba(86, 166, 255, 0.98), rgba(53, 116, 216, 0.98));
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(154, 212, 255, 0.9);
+    /* 说明：设置文字颜色。 */
     -fx-text-fill: white;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-meta {
+    /* 说明：设置子控件之间的间距。 */
     -fx-spacing: 8;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-source-row {
+    /* 说明：设置子控件在容器里的对齐方式。 */
     -fx-alignment: center-left;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-shell {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: rgba(9, 13, 18, 0.82);
+    /* 说明：设置背景圆角。 */
     -fx-background-radius: 18px;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: rgba(58, 71, 89, 0.85);
+    /* 说明：设置边框圆角。 */
     -fx-border-radius: 18px;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 6;
+/* 说明：结束当前选择器的样式定义。 */
 }
 
+/* 说明：选择一组界面元素，下面的大括号里会定义它们的样式。 */
 .lyrics-shell .lyrics-view {
+    /* 说明：设置背景颜色或渐变。 */
     -fx-background-color: transparent;
+    /* 说明：设置边框颜色。 */
     -fx-border-color: transparent;
+    /* 说明：设置内边距，也就是内容和边框之间的距离。 */
     -fx-padding: 8;
+/* 说明：结束当前选择器的样式定义。 */
 }
