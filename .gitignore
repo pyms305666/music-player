@@ -1,6 +1,7 @@
 .gradle/
 .idea/
 .tools/
+.wix/
 build/
 downloads/
 __pycache__/

@@ -1,29 +1,15 @@
-// BEGINNER_COMMENTED_BY_CODEX: 本文件已加入面向初学者的中文说明。
-// 说明：开始一个 Gradle 配置块，里面的配置属于这个主题。
 pluginManagement {
-    // 说明：声明依赖仓库，Gradle 会从这里查找插件或依赖。
     repositories {
-        // 说明：Gradle 构建脚本的一行配置。
         gradlePluginPortal()
-        // 说明：Gradle 构建脚本的一行配置。
         mavenCentral()
-    // 说明：结束当前 Gradle 配置块。
     }
-// 说明：结束当前 Gradle 配置块。
 }
 
-// 说明：开始一个 Gradle 配置块，里面的配置属于这个主题。
 dependencyResolutionManagement {
-    // 说明：Gradle 构建脚本的一行配置。
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    // 说明：声明依赖仓库，Gradle 会从这里查找插件或依赖。
     repositories {
-        // 说明：Gradle 构建脚本的一行配置。
         mavenCentral()
-    // 说明：结束当前 Gradle 配置块。
     }
-// 说明：结束当前 Gradle 配置块。
 }
 
-// 说明：设置 Gradle 配置项的值。
 rootProject.name = "simple-music-player"
