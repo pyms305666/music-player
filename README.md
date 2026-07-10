@@ -1,4 +1,4 @@
-# 简约音乐播放器 3.2.0
+# 简约音乐播放器 3.2.2
 
 基于 Java 25、JavaFX 25、SQLite 和 Gradle 的 Windows 桌面音乐播放器。
 
@@ -60,7 +60,7 @@ app.musicplayer
 安装包输出到：
 
 ```text
-build\installer\3.2.0-时间戳\简约音乐播放器-3.2.0.exe
+build\installer\3.2.2-时间戳\简约音乐播放器-3.2.2.exe
 ```
 
 打包依赖项目本地 WiX 5：

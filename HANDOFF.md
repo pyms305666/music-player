@@ -1,11 +1,11 @@
-# 项目交接：简约音乐播放器 3.2.0
+# 项目交接：简约音乐播放器 3.2.2
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：`3.2.0`。
+- 版本：`3.2.2`。
 - 数据统一位于程序目录的 `downloads/`。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
