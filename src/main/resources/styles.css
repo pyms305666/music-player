@@ -236,17 +236,27 @@
     -fx-opacity: 0.78;
 }
 
-.slider .track {
-    -fx-background-color: #2a3340;
-    -fx-background-radius: 999px;
+.song-progress-slider .track,
+.volume-slider .track {
+    -fx-background-color: linear-gradient(to right, #ff8a3d, #ef4444);
+    -fx-background-insets: 0;
+    -fx-background-radius: 3px;
     -fx-pref-height: 6px;
 }
 
-.slider .thumb {
-    -fx-background-color: linear-gradient(to bottom, #8fd3ff, #58aefe);
-    -fx-background-radius: 999px;
+.song-progress-slider .thumb,
+.volume-slider .thumb {
+    -fx-background-color: linear-gradient(to bottom, #ffb15c, #ff563f);
+    -fx-background-insets: 0;
+    -fx-background-radius: 9px;
+    -fx-effect: null;
+    -fx-padding: 0;
+    -fx-min-width: 18px;
     -fx-pref-width: 18px;
+    -fx-max-width: 18px;
+    -fx-min-height: 18px;
     -fx-pref-height: 18px;
+    -fx-max-height: 18px;
 }
 
 .progress-indicator {
@@ -328,22 +338,6 @@
     -fx-min-width: 148px;
     -fx-pref-width: 156px;
     -fx-max-width: 164px;
-}
-
-.volume-group .slider {
-    -fx-min-width: 72px;
-    -fx-pref-width: 96px;
-    -fx-max-width: 96px;
-}
-
-.volume-slider-holder {
-    -fx-min-width: 104px;
-    -fx-pref-width: 104px;
-    -fx-max-width: 104px;
-    -fx-min-height: 42px;
-    -fx-pref-height: 42px;
-    -fx-max-height: 42px;
-    -fx-alignment: center-left;
 }
 
 .volume-slider {
