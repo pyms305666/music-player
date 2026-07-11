@@ -43,6 +43,16 @@ app.musicplayer
 
 第一次运行会把 Gradle 下载到项目的 `.tools/` 目录。
 
+### Android 竖屏界面预览
+
+移动端界面复用桌面版的播放、歌单、歌词、数据库和在线搜索逻辑，以 `405×720` 的 9:16 窗口预览。拖动宽度或高度时，窗口会自动维持 9:16 竖屏比例：
+
+```powershell
+.\run.ps1 run '--args=--mobile'
+```
+
+该模式只提供 Android 风格的竖屏布局和移动端样式，尚未接入 Android SDK、Gluon、平台文件选择器或 APK 构建。
+
 ## 验证
 
 ```powershell

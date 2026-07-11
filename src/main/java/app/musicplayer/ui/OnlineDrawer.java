@@ -43,6 +43,9 @@ public final class OnlineDrawer extends HBox {
     private final ProgressIndicator loadingIndicator = new ProgressIndicator();
     private final VBox content;
     private final Button toggleButton = new Button();
+    private final Button mobileDownloadButton = new Button("下载并播放");
+    private final Label hintLabel = new Label("单击预览 · 双击下载到本地播放");
+    private final Label placeholderLabel = new Label("搜索 QQMP3 / 网易云 / QQ / 酷狗，双击下载到本地");
 
     private SplitPane splitPane;
     private boolean expanded;
@@ -78,7 +81,7 @@ public final class OnlineDrawer extends HBox {
 
         resultsView = new ListView<>(results);
         resultsView.getStyleClass().add("online-results-view");
-        resultsView.setPlaceholder(new Label("搜索 QQMP3 / 网易云 / QQ / 酷狗，双击下载到本地"));
+        resultsView.setPlaceholder(placeholderLabel);
         resultsView.setCellFactory(ignored -> new OnlineResultCell());
         resultsView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> {
@@ -95,9 +98,19 @@ public final class OnlineDrawer extends HBox {
             }
         });
 
-        Label hint = new Label("单击预览 · 双击下载到本地播放");
-        hint.getStyleClass().add("muted-label");
-        content = new VBox(10, header, searchRow, hint, resultsView);
+        hintLabel.getStyleClass().add("muted-label");
+        mobileDownloadButton.getStyleClass().add("primary-button");
+        mobileDownloadButton.setMaxWidth(Double.MAX_VALUE);
+        mobileDownloadButton.setVisible(false);
+        mobileDownloadButton.setManaged(false);
+        mobileDownloadButton.setOnAction(event -> {
+            OnlineTrackInfo selected = resultsView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                downloadAction.accept(selected);
+            }
+        });
+
+        content = new VBox(10, header, searchRow, hintLabel, resultsView, mobileDownloadButton);
         content.getStyleClass().add("online-panel-content");
         content.setPadding(new Insets(12, 16, 16, 12));
         content.setFillWidth(true);
@@ -156,6 +169,28 @@ public final class OnlineDrawer extends HBox {
 
     public ProgressIndicator loadingIndicator() {
         return loadingIndicator;
+    }
+
+    public void enableMobileMode() {
+        expanded = true;
+        toggleButton.setVisible(false);
+        toggleButton.setManaged(false);
+        content.setVisible(true);
+        content.setManaged(true);
+        content.setOpacity(1.0);
+        content.setTranslateX(0);
+        content.setMinWidth(0);
+        content.setPrefWidth(USE_COMPUTED_SIZE);
+        content.setMaxWidth(Double.MAX_VALUE);
+        mobileDownloadButton.setVisible(true);
+        mobileDownloadButton.setManaged(true);
+        hintLabel.setText("选择结果后点击“下载并播放”");
+        placeholderLabel.setText("搜索后选择要下载的歌曲");
+        setMinWidth(0);
+        setPrefWidth(USE_COMPUTED_SIZE);
+        setMaxWidth(Double.MAX_VALUE);
+        getStyleClass().removeAll("online-panel-expanded", "online-panel-collapsed");
+        getStyleClass().add("mobile-online-panel");
     }
 
     private void toggle() {

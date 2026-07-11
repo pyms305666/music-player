@@ -35,7 +35,8 @@ public final class PlaybackControls extends VBox {
             Runnable playPauseAction,
             Runnable nextAction,
             Runnable seekAction,
-            DoubleConsumer volumeAction
+            DoubleConsumer volumeAction,
+            boolean mobileMode
     ) {
         super(8);
 
@@ -103,6 +104,32 @@ public final class PlaybackControls extends VBox {
         setMinHeight(118);
         setPrefHeight(124);
         setMaxHeight(132);
+
+        if (mobileMode) {
+            getStyleClass().add("mobile-controls");
+            progressSlider.setMinWidth(0);
+            progressSlider.setPrefWidth(260);
+            progressSlider.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(progressSlider, Priority.ALWAYS);
+            timeLabel.setMinWidth(92);
+            timeLabel.setPrefWidth(92);
+            timeLabel.setMaxWidth(92);
+            progressSpacer.setVisible(false);
+            progressSpacer.setManaged(false);
+            volumeSlider.setMinWidth(58);
+            volumeSlider.setPrefWidth(68);
+            volumeSlider.setMaxWidth(68);
+            volumeGroup.setMinWidth(104);
+            volumeGroup.setPrefWidth(112);
+            volumeGroup.setMaxWidth(120);
+            Region controlSpacer = new Region();
+            HBox.setHgrow(controlSpacer, Priority.ALWAYS);
+            controlRow.getChildren().setAll(transportGroup, controlSpacer, volumeGroup);
+            setPadding(new Insets(8, 12, 8, 12));
+            setMinHeight(100);
+            setPrefHeight(106);
+            setMaxHeight(112);
+        }
 
         playPauseButton.disableProperty().bind(Bindings.isEmpty(tracks));
         previousButton.disableProperty().bind(Bindings.isEmpty(tracks));

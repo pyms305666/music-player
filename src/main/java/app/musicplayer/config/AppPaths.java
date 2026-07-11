@@ -68,6 +68,13 @@ public record AppPaths(
     }
 
     private static Path resolveBaseDir(Class<?> applicationClass) {
+        if ("android".equalsIgnoreCase(System.getProperty("javafx.platform"))) {
+            String userHome = System.getProperty("user.home");
+            if (userHome != null && !userHome.isBlank()) {
+                return Path.of(userHome).toAbsolutePath().normalize();
+            }
+        }
+
         String packagedAppPath = System.getProperty("jpackage.app-path");
         if (packagedAppPath != null && !packagedAppPath.isBlank()) {
             Path executable = Path.of(packagedAppPath).toAbsolutePath().normalize();

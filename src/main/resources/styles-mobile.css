@@ -1,0 +1,277 @@
+.mobile-root {
+    -fx-background-color: #0d1117;
+}
+
+.mobile-top-bar {
+    -fx-padding: 10 12 8 12;
+    -fx-spacing: 6;
+    -fx-effect: none;
+}
+
+.mobile-brand-row,
+.mobile-action-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 8;
+}
+
+.mobile-app-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 19px;
+    -fx-font-weight: 800;
+}
+
+.mobile-action-row .button,
+.mobile-action-row .combo-box,
+.mobile-action-row .menu-button {
+    -fx-padding: 7 9;
+    -fx-font-size: 12px;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.mobile-play-mode {
+    -fx-min-width: 112px;
+    -fx-pref-width: 112px;
+    -fx-max-width: 112px;
+}
+
+.mobile-action-row .menu-button {
+    -fx-background-color: #232a34;
+    -fx-border-color: #384454;
+    -fx-text-fill: #edf3fb;
+}
+
+.mobile-action-row .menu-button > .label {
+    -fx-text-fill: #edf3fb;
+}
+
+.mobile-action-row .menu-button:hover {
+    -fx-background-color: #2c3440;
+}
+
+.mobile-status {
+    -fx-text-fill: #90a0b2;
+    -fx-font-size: 11px;
+    -fx-padding: 0 2;
+}
+
+.mobile-view-switcher {
+    -fx-background-color: #11161d;
+    -fx-padding: 0;
+}
+
+.mobile-root .content {
+    -fx-background-color: rgba(17, 22, 29, 0.92);
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.mobile-root .artwork-dimmer {
+    -fx-background-radius: 0;
+}
+
+.mobile-root .content-foreground {
+    -fx-padding: 12 12 8 12;
+    -fx-spacing: 8;
+}
+
+.mobile-root .track-title {
+    -fx-font-size: 25px;
+}
+
+.mobile-root .track-artist {
+    -fx-font-size: 14px;
+}
+
+.mobile-root .lyrics-toolbar {
+    -fx-spacing: 5;
+}
+
+.mobile-root .toolbar-button {
+    -fx-padding: 6 7;
+    -fx-font-size: 10px;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.mobile-root .lyrics-meta {
+    -fx-spacing: 5;
+}
+
+.mobile-root .lyrics-source-row {
+    -fx-spacing: 5;
+}
+
+.mobile-root .lyrics-shell {
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-padding: 3;
+}
+
+.mobile-root .lyrics-view {
+    -fx-padding: 4;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.mobile-root .lyrics-view .list-cell {
+    -fx-padding: 7 8;
+}
+
+.mobile-root .sidebar {
+    -fx-background-color: #171d25;
+    -fx-border-color: transparent;
+    -fx-padding: 12;
+    -fx-spacing: 8;
+    -fx-effect: none;
+}
+
+.mobile-root .section-title {
+    -fx-font-size: 17px;
+}
+
+.mobile-root .search-field,
+.mobile-root .sort-row .combo-box {
+    -fx-padding: 9 10;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.mobile-online-panel {
+    -fx-background-color: #171d25;
+    -fx-padding: 0;
+    -fx-spacing: 0;
+    -fx-alignment: center;
+}
+
+.mobile-online-panel .online-panel-content {
+    -fx-background-color: #171d25;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+    -fx-padding: 12;
+    -fx-spacing: 8;
+    -fx-effect: none;
+}
+
+.mobile-online-panel .online-results-view {
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-padding: 4;
+}
+
+.mobile-online-panel .online-results-view .list-cell {
+    -fx-padding: 9 10;
+    -fx-font-size: 12px;
+    -fx-background-radius: 7px;
+}
+
+.mobile-controls {
+    -fx-padding: 8 12;
+    -fx-spacing: 4;
+    -fx-effect: none;
+}
+
+.mobile-controls .progress-row {
+    -fx-spacing: 8;
+}
+
+.mobile-controls .song-progress-slider {
+    -fx-min-width: 0;
+    -fx-pref-width: 260px;
+    -fx-max-width: 10000px;
+}
+
+.mobile-controls .time-label {
+    -fx-font-size: 11px;
+}
+
+.mobile-controls .control-row {
+    -fx-spacing: 8;
+}
+
+.mobile-controls .transport-group {
+    -fx-spacing: 6;
+}
+
+.mobile-controls .control-button {
+    -fx-min-width: 61px;
+    -fx-pref-width: 61px;
+    -fx-max-width: 61px;
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+    -fx-max-height: 38px;
+    -fx-padding: 0 6;
+    -fx-font-size: 12px;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.mobile-controls .play-button {
+    -fx-min-width: 66px;
+    -fx-pref-width: 66px;
+    -fx-max-width: 66px;
+}
+
+.mobile-controls .volume-group {
+    -fx-min-width: 104px;
+    -fx-pref-width: 112px;
+    -fx-max-width: 120px;
+    -fx-spacing: 6;
+}
+
+.mobile-controls .volume-slider {
+    -fx-min-width: 58px;
+    -fx-pref-width: 68px;
+    -fx-max-width: 68px;
+}
+
+.mobile-bottom {
+    -fx-background-color: #0d1117;
+}
+
+.mobile-navigation {
+    -fx-background-color: #151b23;
+    -fx-border-color: #29323e transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 6 10 8 10;
+    -fx-spacing: 6;
+    -fx-min-height: 54px;
+    -fx-pref-height: 54px;
+    -fx-max-height: 54px;
+}
+
+.mobile-nav-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: #8f9baa;
+    -fx-padding: 8 10;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.mobile-nav-button:selected {
+    -fx-background-color: #273343;
+    -fx-border-color: #3f526a;
+    -fx-text-fill: #ffffff;
+}
+
+.context-menu {
+    -fx-background-color: #202833;
+    -fx-border-color: #3b4757;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+
+.menu-item .label {
+    -fx-text-fill: #edf3fb;
+}
+
+.menu-item:focused {
+    -fx-background-color: #2f3b4b;
+}

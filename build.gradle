@@ -1,14 +1,23 @@
 plugins {
     id "application"
     id "org.openjfx.javafxplugin" version "0.1.0"
+    id "com.gluonhq.gluonfx-gradle-plugin" version "1.0.29" apply false
 }
 
 group = "app.musicplayer"
 version = "3.2.2"
 
+def nativeTarget = providers.gradleProperty("target").orElse("host").get()
+def androidBuild = nativeTarget == "android"
+
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+    if (androidBuild) {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    } else {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
     }
 }
 
@@ -22,8 +31,32 @@ application {
 }
 
 javafx {
-    version = "25.0.1"
+    version = androidBuild ? "21" : "25.0.1"
     modules = ["javafx.controls", "javafx.media"]
+}
+
+if (androidBuild) {
+    apply plugin: "com.gluonhq.gluonfx-gradle-plugin"
+
+    gluonfx {
+        target = nativeTarget
+        resourcesList = [
+                '.*\\.css$',
+                '.*\\.png$',
+                '.*\\.jpg$',
+                '.*\\.jpeg$',
+                '.*\\.properties$'
+        ]
+        reflectionList = [
+                "app.musicplayer.MusicPlayerLauncher",
+                "app.musicplayer.MusicPlayerApp"
+        ]
+        release {
+            appLabel = "简约音乐播放器"
+            versionCode = "30202"
+            versionName = project.version.toString()
+        }
+    }
 }
 
 dependencies {
@@ -37,6 +70,9 @@ dependencies {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
+    if (androidBuild) {
+        options.release = 17
+    }
 }
 
 tasks.withType(Test).configureEach {

@@ -1,8 +1,9 @@
 package app.musicplayer;
 
 import app.musicplayer.artwork.ArtworkService;
-import app.musicplayer.data.MusicDatabase;
 import app.musicplayer.config.AppPaths;
+import app.musicplayer.config.LayoutMode;
+import app.musicplayer.data.MusicDatabase;
 import app.musicplayer.lyrics.LrcParser;
 import app.musicplayer.lyrics.LyricsService;
 import app.musicplayer.model.LyricLine;
@@ -19,6 +20,8 @@ import app.musicplayer.playback.AudioFileInspector;
 import app.musicplayer.playback.AudioFormat;
 import app.musicplayer.playback.PlaybackFileResolver;
 import app.musicplayer.ui.OnlineDrawer;
+import app.musicplayer.ui.MobileViewSwitcher;
+import app.musicplayer.ui.MobileWindowSizer;
 import app.musicplayer.ui.PlaybackControls;
 import app.musicplayer.ui.PlaylistPane;
 import javafx.application.Application;
@@ -35,6 +38,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.SplitPane;
@@ -105,6 +110,7 @@ public final class MusicPlayerApp extends Application {
     private OnlineMusicSearchService onlineMusicSearchService;
     private PlaylistPane playlistPane;
     private OnlineDrawer onlineDrawer;
+    private MobileViewSwitcher mobileViews;
     private PlaybackControls playbackControls;
     private ListView<Track> playlistView;
     private ListView<String> lyricsView;
@@ -145,32 +151,51 @@ public final class MusicPlayerApp extends Application {
     private boolean lyricsAutoScrollLocked;
     private boolean pureLyricsMode;
     private double lyricsFontSize = DEFAULT_LYRICS_FONT_SIZE;
+    private LayoutMode layoutMode = LayoutMode.DESKTOP;
 
     public static void main(String[] args) { launch(args); }
 
     @Override
     public void start(Stage stage) {
+        layoutMode = LayoutMode.resolve(getParameters().getRaw(), Boolean.getBoolean("musicplayer.mobile"));
         initializeServices();
         BorderPane root = new BorderPane();
         root.getStyleClass().add("app-root");
-        root.setTop(createTopBar(stage));
-        root.setCenter(createResizableContent());
-        root.setBottom(createControls());
+        if (layoutMode.isMobile()) {
+            root.getStyleClass().add("mobile-root");
+            root.setTop(createMobileTopBar(stage));
+            root.setCenter(createMobileContent());
+            VBox mobileBottom = new VBox(createControls(), mobileViews.navigationBar());
+            mobileBottom.getStyleClass().add("mobile-bottom");
+            root.setBottom(mobileBottom);
+        } else {
+            root.setTop(createTopBar(stage));
+            root.setCenter(createResizableContent());
+            root.setBottom(createControls());
+        }
 
-        Scene scene = new Scene(root, 1320, 720);
+        Scene scene = new Scene(root, layoutMode.isMobile() ? 405 : 1320, 720);
         scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
+        if (layoutMode.isMobile()) {
+            scene.getStylesheets().add(getClass().getResource("/styles-mobile.css").toExternalForm());
+        }
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.SPACE && !isTextInputFocused(scene)) { togglePlayPause(); event.consume(); }
         });
         scene.widthProperty().addListener((o, ov, nv) -> applyResponsiveLayout(nv.doubleValue()));
 
-        stage.setTitle("简约音乐播放器");
-        stage.setMinWidth(1120);
-        stage.setMinHeight(560);
+        stage.setTitle(layoutMode.isMobile() ? "简约音乐播放器 - 移动预览" : "简约音乐播放器");
+        stage.setMinWidth(layoutMode.isMobile() ? 360 : 1120);
+        stage.setMinHeight(layoutMode.isMobile() ? 640 : 560);
         stage.setScene(scene);
         stage.show();
+        if (layoutMode.isMobile()) {
+            MobileWindowSizer.bind(stage, scene);
+        }
         Platform.runLater(() -> {
-            onlineDrawer.restore(scene.getWidth());
+            if (!layoutMode.isMobile()) {
+                onlineDrawer.restore(scene.getWidth());
+            }
             applyResponsiveLayout(scene.getWidth());
         });
         restoreSavedTracks();
@@ -197,6 +222,19 @@ public final class MusicPlayerApp extends Application {
         SplitPane.setResizableWithParent(onlineDrawer, true);
         onlineDrawer.attach(splitPane);
         return splitPane;
+    }
+
+    private MobileViewSwitcher createMobileContent() {
+        createPlaylistPane();
+        StackPane nowPlaying = createNowPlaying();
+        createOnlineDrawer();
+
+        playlistPane.setMinWidth(0);
+        playlistPane.setPrefWidth(405);
+        playlistPane.setMaxWidth(Double.MAX_VALUE);
+        onlineDrawer.enableMobileMode();
+        mobileViews = new MobileViewSwitcher(playlistPane, nowPlaying, onlineDrawer);
+        return mobileViews;
     }
 
     @Override
@@ -231,9 +269,7 @@ public final class MusicPlayerApp extends Application {
         Button removeTrackButton = new Button("移除选中");
         removeTrackButton.setOnAction(event -> removeSelectedTrack());
 
-        playModeBox = new ComboBox<>();
-        playModeBox.getItems().setAll(PlayMode.ORDER, PlayMode.SHUFFLE, PlayMode.REPEAT_ONE);
-        playModeBox.getSelectionModel().select(PlayMode.ORDER);
+        playModeBox = createPlayModeBox();
 
         Button reloadLyricsButton = new Button("搜索歌词");
         reloadLyricsButton.setOnAction(event -> { if (currentTrack != null) { loadLyrics(currentTrack, true); } });
@@ -249,6 +285,74 @@ public final class MusicPlayerApp extends Application {
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setPadding(new Insets(18, 22, 12, 22));
         return topBar;
+    }
+
+    private VBox createMobileTopBar(Stage stage) {
+        Label appTitle = new Label("简约音乐");
+        appTitle.getStyleClass().add("mobile-app-title");
+
+        Button importFilesButton = new Button("导入音频");
+        importFilesButton.getStyleClass().add("primary-button");
+        importFilesButton.setOnAction(event -> importFiles(stage));
+
+        MenuItem importFolderItem = new MenuItem("导入文件夹");
+        importFolderItem.setOnAction(event -> importFolder(stage));
+        MenuItem removeTrackItem = new MenuItem("移除选中歌曲");
+        removeTrackItem.setOnAction(event -> removeSelectedTrack());
+        MenuItem reloadLyricsItem = new MenuItem("重新搜索歌词");
+        reloadLyricsItem.setOnAction(event -> {
+            if (currentTrack != null) {
+                loadLyrics(currentTrack, true);
+            }
+        });
+        MenuButton manageButton = new MenuButton(
+                "管理",
+                null,
+                importFolderItem,
+                removeTrackItem,
+                reloadLyricsItem);
+
+        playModeBox = createPlayModeBox();
+        playModeBox.getStyleClass().add("mobile-play-mode");
+        playModeBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(PlayMode item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : switch (item) {
+                    case ORDER -> "顺序";
+                    case SHUFFLE -> "随机";
+                    case REPEAT_ONE -> "单曲";
+                });
+            }
+        });
+
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+        HBox brandRow = new HBox(appTitle, titleSpacer);
+        brandRow.getStyleClass().add("mobile-brand-row");
+        brandRow.setAlignment(Pos.CENTER_LEFT);
+
+        importFilesButton.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(importFilesButton, Priority.ALWAYS);
+        HBox actions = new HBox(8, playModeBox, importFilesButton, manageButton);
+        actions.getStyleClass().add("mobile-action-row");
+        actions.setAlignment(Pos.CENTER_LEFT);
+
+        statusLabel = new Label("请选择音频文件");
+        statusLabel.getStyleClass().addAll("muted-label", "mobile-status");
+        statusLabel.setWrapText(true);
+        statusLabel.setMaxWidth(Double.MAX_VALUE);
+
+        VBox topBar = new VBox(6, brandRow, actions, statusLabel);
+        topBar.getStyleClass().addAll("top-bar", "mobile-top-bar");
+        return topBar;
+    }
+
+    private ComboBox<PlayMode> createPlayModeBox() {
+        ComboBox<PlayMode> comboBox = new ComboBox<>();
+        comboBox.getItems().setAll(PlayMode.ORDER, PlayMode.SHUFFLE, PlayMode.REPEAT_ONE);
+        comboBox.getSelectionModel().select(PlayMode.ORDER);
+        return comboBox;
     }
 
     private void createPlaylistPane() {
@@ -420,7 +524,8 @@ public final class MusicPlayerApp extends Application {
                     if (mediaPlayer != null) {
                         mediaPlayer.setVolume(volume);
                     }
-                });
+                },
+                layoutMode.isMobile());
         playPauseButton = playbackControls.playPauseButton();
         progressSlider = playbackControls.progressSlider();
         volumeSlider = playbackControls.volumeSlider();
@@ -478,6 +583,9 @@ public final class MusicPlayerApp extends Application {
     private void playTrack(Track track) {
         int idx = tracks.indexOf(track); if (idx < 0) return;
         disposePlayer(); previewingOnlineResult = false; currentTrack = track;
+        if (mobileViews != null) {
+            mobileViews.select(MobileViewSwitcher.Section.NOW_PLAYING);
+        }
         if (filteredTracks.contains(track)) { playlistView.getSelectionModel().select(track); playlistView.scrollTo(track); }
         titleLabel.setText(currentTrack.title()); artistLabel.setText(currentTrack.artist());
         progressSlider.setValue(0); timeLabel.setText("00:00 / 00:00");
@@ -704,9 +812,11 @@ public final class MusicPlayerApp extends Application {
 
     private void applyResponsiveLayout(double windowWidth) {
         if (statusLabel != null) {
-            statusLabel.setMaxWidth(clamp(windowWidth * 0.24, 220, 420));
+            statusLabel.setMaxWidth(layoutMode.isMobile()
+                    ? Math.max(200, windowWidth - 28)
+                    : clamp(windowWidth * 0.24, 220, 420));
         }
-        if (onlineDrawer != null) {
+        if (onlineDrawer != null && !layoutMode.isMobile()) {
             onlineDrawer.applyResponsiveLayout(windowWidth);
         }
     }

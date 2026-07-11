@@ -23,6 +23,8 @@
 - `ui.PlaylistPane`：左侧播放列表。
 - `ui.OnlineDrawer`：右侧在线搜索抽屉和分隔位置持久化。
 - `ui.PlaybackControls`：底部播放、进度和音量控件。
+- `ui.MobileViewSwitcher`：9:16 移动端的歌单、歌词和在线搜索底部导航。
+- `config.LayoutMode`：通过 `--mobile` 或 `musicplayer.mobile` 系统属性选择移动布局。
 
 ## 验证命令
 
