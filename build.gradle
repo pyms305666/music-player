@@ -41,11 +41,11 @@ if (androidBuild) {
     gluonfx {
         target = nativeTarget
         resourcesList = [
-                '.*\\.css$',
-                '.*\\.png$',
-                '.*\\.jpg$',
-                '.*\\.jpeg$',
-                '.*\\.properties$'
+                '.*[.]css$',
+                '.*[.]png$',
+                '.*[.]jpg$',
+                '.*[.]jpeg$',
+                '.*[.]properties$'
         ]
         reflectionList = [
                 "app.musicplayer.MusicPlayerLauncher",
