@@ -18,6 +18,9 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Enable Gradle wrapper
+        run: chmod +x gradlew
+
       - name: Install Linux build tools
         run: |
           sudo apt-get update
