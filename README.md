@@ -43,6 +43,31 @@ app.musicplayer
 
 第一次运行会把 Gradle 下载到项目的 `.tools/` 目录。
 
+### Android 竖屏界面预览
+
+移动端界面复用桌面版的播放、歌单、歌词、数据库和在线搜索逻辑，以 `405×720` 的 9:16 窗口预览。拖动宽度或高度时，窗口会自动维持 9:16 竖屏比例：
+
+```powershell
+.\run.ps1 run '--args=--mobile'
+```
+
+该模式用于在 Windows 上快速预览移动端布局。真正的 Android 应用位于 `android-app/`，使用原生 Java、Media3、Android SQLite 和系统文件选择器，并复用桌面版的数据模型、歌词解析、排序与在线来源代码。
+
+### 生成 Android APK
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
+```
+
+脚本会把 Android SDK、Gradle 8.11.1 和 JDK 17 缓存在项目 `.tools/`，不会修改系统环境。Debug APK 输出到：
+
+```text
+android-app\app\build\outputs\apk\debug\app-debug.apk
+android-app\dist\simple-music-player-3.2.2-debug.apk
+```
+
+Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播放、多文件导入、删除、SQLite 缓存及名称/歌手/文件名/创建日期排序。
+
 ## 验证
 
 ```powershell
@@ -62,6 +87,8 @@ app.musicplayer
 ```text
 build\installer\3.2.2-时间戳\简约音乐播放器-3.2.2.exe
 ```
+
+统一发布文件整理到 `release/3.2.2/`，其中包含 Windows 安装包、Windows 便携版 ZIP、Android APK 和 SHA-256 校验文件。该目录不提交到 Git 历史，二进制文件通过 GitHub Release 发布。
 
 打包依赖项目本地 WiX 5：
 
