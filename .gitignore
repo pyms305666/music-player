@@ -3,6 +3,7 @@
 .tools/
 .wix/
 build/
+release/
 downloads/
 __pycache__/
 music-player.db
