@@ -51,7 +51,22 @@ app.musicplayer
 .\run.ps1 run '--args=--mobile'
 ```
 
-该模式只提供 Android 风格的竖屏布局和移动端样式，尚未接入 Android SDK、Gluon、平台文件选择器或 APK 构建。
+该模式用于在 Windows 上快速预览移动端布局。真正的 Android 应用位于 `android-app/`，使用原生 Java、Media3、Android SQLite 和系统文件选择器，并复用桌面版的数据模型、歌词解析、排序与在线来源代码。
+
+### 生成 Android APK
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
+```
+
+脚本会把 Android SDK、Gradle 8.11.1 和 JDK 17 缓存在项目 `.tools/`，不会修改系统环境。Debug APK 输出到：
+
+```text
+android-app\app\build\outputs\apk\debug\app-debug.apk
+android-app\dist\simple-music-player-3.2.2-debug.apk
+```
+
+Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播放、多文件导入、删除、SQLite 缓存及名称/歌手/文件名/创建日期排序。
 
 ## 验证
 

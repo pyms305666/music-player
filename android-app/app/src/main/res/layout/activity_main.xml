@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="简约音乐播放器"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="准备就绪"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/importButton"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:background="@drawable/accent_button"
+            android:text="@string/import_audio"
+            android:textColor="@color/text_primary" />
+
+        <Button
+            android:id="@+id/removeButton"
+            android:layout_width="wrap_content"
+            android:layout_height="42dp"
+            android:layout_marginStart="6dp"
+            android:text="@string/remove_track" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/pageContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/playlistPage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/panel_background"
+            android:orientation="vertical"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/localSearch"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:hint="搜索本地歌曲"
+                android:singleLine="true"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Spinner
+                    android:id="@+id/sortType"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1" />
+
+                <Spinner
+                    android:id="@+id/sortDirection"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/playlistView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/lyricsPage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/panel_background"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <ImageView
+                android:id="@+id/artworkView"
+                android:layout_width="132dp"
+                android:layout_height="132dp"
+                android:contentDescription="歌曲封面"
+                android:scaleType="centerCrop" />
+
+            <TextView
+                android:id="@+id/titleText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center"
+                android:maxLines="2"
+                android:text="未播放歌曲"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/artistText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="请选择歌曲"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+
+            <ScrollView
+                android:id="@+id/lyricsScroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="8dp"
+                android:layout_weight="1"
+                android:fillViewport="true">
+
+                <TextView
+                    android:id="@+id/lyricsText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:lineSpacingExtra="10dp"
+                    android:padding="8dp"
+                    android:text="导入歌曲后开始播放"
+                    android:textColor="@color/text_primary"
+                    android:textSize="17sp" />
+            </ScrollView>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/onlinePage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/panel_background"
+            android:orientation="vertical"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/onlineSearch"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_weight="1"
+                    android:hint="@string/search_online"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_secondary" />
+
+                <Button
+                    android:id="@+id/onlineSearchButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="6dp"
+                    android:text="搜索" />
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/onlineResults"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/downloadButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:background="@drawable/accent_button"
+                android:text="@string/download_play"
+                android:textColor="@color/text_primary" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@color/surface"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <SeekBar
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:max="1000"
+            android:progressTint="@color/accent"
+            android:thumbTint="@color/accent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/timeText"
+                android:layout_width="72dp"
+                android:layout_height="wrap_content"
+                android:text="00:00 / 00:00"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
+
+            <Button android:id="@+id/previousButton" android:layout_width="44dp" android:layout_height="42dp" android:text="|◀" />
+            <Button android:id="@+id/playButton" android:layout_width="52dp" android:layout_height="42dp" android:text="▶" />
+            <Button android:id="@+id/nextButton" android:layout_width="44dp" android:layout_height="42dp" android:text="▶|" />
+            <Button android:id="@+id/modeButton" android:layout_width="64dp" android:layout_height="42dp" android:text="顺序" />
+
+            <SeekBar
+                android:id="@+id/volumeBar"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="70"
+                android:progressTint="@color/accent"
+                android:thumbTint="@color/accent" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="6dp"
+        android:orientation="horizontal">
+
+        <Button android:id="@+id/playlistTab" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="@string/playlist" />
+        <Button android:id="@+id/lyricsTab" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="@string/lyrics" />
+        <Button android:id="@+id/onlineTab" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="@string/online" />
+    </LinearLayout>
+</LinearLayout>

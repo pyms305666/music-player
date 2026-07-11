@@ -57,7 +57,7 @@ final class OnlineTextSupport {
         }
         Pattern pattern = Pattern.compile("\\\\u([0-9a-fA-F]{4})");
         Matcher matcher = pattern.matcher(value);
-        StringBuilder result = new StringBuilder();
+        StringBuffer result = new StringBuffer();
         while (matcher.find()) {
             matcher.appendReplacement(result, String.valueOf((char) Integer.parseInt(matcher.group(1), 16)));
         }

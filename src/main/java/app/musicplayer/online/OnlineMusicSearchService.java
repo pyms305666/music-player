@@ -178,8 +178,7 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     // ---- tiny utilities ----
 
     private static String enc(String s) {
-        return java.net.URLEncoder.encode(
-            s == null ? "" : s, StandardCharsets.UTF_8);
+        return JsonSupport.encode(s == null ? "" : s);
     }
 
     private static String rd(String title, String artist) {

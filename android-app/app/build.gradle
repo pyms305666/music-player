@@ -1,0 +1,59 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "app.musicplayer.android"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "app.musicplayer.android"
+        minSdk 28
+        targetSdk 35
+        versionCode 30202
+        versionName "3.2.2"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+def sharedOutput = layout.buildDirectory.dir("generated/shared-java")
+
+tasks.register("syncSharedJava", Sync) {
+    from(rootProject.file("../src/main/java")) {
+        include "app/musicplayer/model/*.java"
+        include "app/musicplayer/online/*.java"
+        include "app/musicplayer/playlist/PlaylistSort.java"
+        include "app/musicplayer/playlist/SortDirection.java"
+        include "app/musicplayer/util/JsonSupport.java"
+        include "app/musicplayer/lyrics/LrcParser.java"
+    }
+    into(sharedOutput)
+}
+
+android.sourceSets.main.java.srcDir(sharedOutput)
+tasks.named("preBuild").configure { dependsOn("syncSharedJava") }
+
+dependencies {
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
+
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.activity:activity:1.10.1"
+    implementation "androidx.recyclerview:recyclerview:1.4.0"
+    implementation "androidx.media3:media3-exoplayer:1.6.1"
+    implementation "androidx.media3:media3-common:1.6.1"
+    implementation "com.google.android.material:material:1.12.0"
+    implementation "com.github.bumptech.glide:glide:4.16.0"
+    implementation "org.jsoup:jsoup:1.18.3"
+}

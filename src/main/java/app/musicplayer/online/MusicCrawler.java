@@ -2,13 +2,14 @@ package app.musicplayer.online;
 
 import app.musicplayer.model.OnlineTrackInfo;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -242,7 +243,7 @@ public final class MusicCrawler {
             }
             command.add(url);
             Process process = new ProcessBuilder(command)
-                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .redirectErrorStream(true)
                     .start();
             boolean finished = process.waitFor(65, TimeUnit.SECONDS);
             if (!finished) {
@@ -258,24 +259,23 @@ public final class MusicCrawler {
 
     private void downloadViaJava(String url, Path target, String source)
             throws IOException, InterruptedException {
-        HttpResponse<InputStream> response = session.download(url, refererFor(source));
-        if (response.statusCode() < 200 || response.statusCode() >= 400) {
-            throw new IOException("HTTP " + response.statusCode());
-        }
-
-        try (InputStream input = response.body();
+        try (CrawlerSession.DownloadResponse response = session.download(url, refererFor(source));
+             InputStream input = response.body();
              OutputStream output = Files.newOutputStream(
                      target, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-            String contentType = response.headers().firstValue("Content-Type").orElse("").toLowerCase(Locale.ROOT);
+            if (response.statusCode() < 200 || response.statusCode() >= 400) {
+                throw new IOException("HTTP " + response.statusCode());
+            }
+            String contentType = response.firstHeader("Content-Type").toLowerCase(Locale.ROOT);
             if (contentType.contains("text/html")) {
-                byte[] firstBytes = input.readNBytes(512);
+                byte[] firstBytes = readPrefix(input, 512);
                 String text = new String(firstBytes, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
                 if (text.contains("<!doctype") || text.contains("<html")) {
                     throw new IOException("server returned HTML");
                 }
                 output.write(firstBytes);
             }
-            input.transferTo(output);
+            copy(input, output);
         }
     }
 
@@ -453,12 +453,33 @@ public final class MusicCrawler {
             try {
                 Process process = new ProcessBuilder(location, "--version").redirectErrorStream(true).start();
                 if (process.waitFor(4, TimeUnit.SECONDS) && process.exitValue() == 0) {
-                    curlPath = Path.of(location);
+                    curlPath = Paths.get(location);
                     return true;
                 }
             } catch (Exception ignored) {
             }
         }
         return false;
+    }
+
+    private static byte[] readPrefix(InputStream input, int maximumLength) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream(maximumLength);
+        byte[] buffer = new byte[Math.min(512, maximumLength)];
+        while (output.size() < maximumLength) {
+            int length = input.read(buffer, 0, Math.min(buffer.length, maximumLength - output.size()));
+            if (length < 0) {
+                break;
+            }
+            output.write(buffer, 0, length);
+        }
+        return output.toByteArray();
+    }
+
+    private static void copy(InputStream input, OutputStream output) throws IOException {
+        byte[] buffer = new byte[16_384];
+        int length;
+        while ((length = input.read(buffer)) >= 0) {
+            output.write(buffer, 0, length);
+        }
     }
 }

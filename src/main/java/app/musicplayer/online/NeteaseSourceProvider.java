@@ -123,8 +123,8 @@ final class NeteaseSourceProvider implements OnlineSourceProvider {
     }
 
     private String postEncrypted(String url, String[] encrypted) throws Exception {
-        String form = "params=" + URLEncoder.encode(encrypted[0], StandardCharsets.UTF_8)
-                + "&encSecKey=" + URLEncoder.encode(encrypted[1], StandardCharsets.UTF_8);
+        String form = "params=" + JsonSupport.encode(encrypted[0])
+                + "&encSecKey=" + JsonSupport.encode(encrypted[1]);
         String response = session.postForm(url, REFERER, form, Map.of());
         return response == null || response.isBlank() ? null : response;
     }

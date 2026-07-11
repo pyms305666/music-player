@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">简约音乐播放器</string>
+    <string name="import_audio">导入</string>
+    <string name="remove_track">删除</string>
+    <string name="playlist">歌单</string>
+    <string name="lyrics">歌词</string>
+    <string name="online">在线</string>
+    <string name="search_online">搜索歌曲、歌手</string>
+    <string name="download_play">下载并播放</string>
+</resources>

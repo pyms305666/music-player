@@ -25,6 +25,7 @@
 - `ui.PlaybackControls`：底部播放、进度和音量控件。
 - `ui.MobileViewSwitcher`：9:16 移动端的歌单、歌词和在线搜索底部导航。
 - `config.LayoutMode`：通过 `--mobile` 或 `musicplayer.mobile` 系统属性选择移动布局。
+- `android-app`：原生 Java Android 工程，使用 Media3、Android SQLite、SAF 文件导入，并在构建时同步共享模型、歌词和在线来源代码。
 
 ## 验证命令
 
@@ -41,6 +42,12 @@
 ```
 
 脚本每次使用版本号和时间戳创建新的输出目录，不会删除旧安装包。
+
+Android Debug APK：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
+```
 
 ## 协作约束
 

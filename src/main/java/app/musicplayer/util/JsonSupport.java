@@ -1,6 +1,7 @@
 package app.musicplayer.util;
 
 import java.net.URLEncoder;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -14,7 +15,11 @@ public final class JsonSupport {
     }
 
     public static String encode(String value) {
-        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+        try {
+            return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException impossible) {
+            throw new IllegalStateException(impossible);
+        }
     }
 
     public static String queryText(app.musicplayer.model.Track track) {
