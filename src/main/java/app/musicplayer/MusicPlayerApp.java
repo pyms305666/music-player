@@ -159,6 +159,8 @@ public final class MusicPlayerApp extends Application {
     public void start(Stage stage) {
         layoutMode = LayoutMode.resolve(getParameters().getRaw(), Boolean.getBoolean("musicplayer.mobile"));
         initializeServices();
+        stage.getIcons().add(new Image(Objects.requireNonNull(
+                getClass().getResourceAsStream("/app-icon.png"), "Missing application icon")));
         BorderPane root = new BorderPane();
         root.getStyleClass().add("app-root");
         if (layoutMode.isMobile()) {

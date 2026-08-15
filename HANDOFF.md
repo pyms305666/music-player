@@ -1,11 +1,11 @@
-# 项目交接：简约音乐播放器 3.2.2
+# 项目交接：简约音乐播放器 4.1.1
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：`3.2.2`。
+- 版本：`4.1.1`。
 - 数据统一位于程序目录的 `downloads/`。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
@@ -26,6 +26,7 @@
 - `ui.MobileViewSwitcher`：9:16 移动端的歌单、歌词和在线搜索底部导航。
 - `config.LayoutMode`：通过 `--mobile` 或 `musicplayer.mobile` 系统属性选择移动布局。
 - `android-app`：原生 Java Android 工程，使用 Media3、Android SQLite、SAF 文件导入，并在构建时同步共享模型、歌词和在线来源代码。
+- Android 在线下载优先写入手机根目录 `music/`；未授予所有文件访问权限时使用 MediaStore 写入 `Music/music/`，数据库 schema 2 同时兼容文件路径和 `content://` 地址。
 
 ## 验证命令
 

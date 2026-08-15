@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "app.musicplayer"
-version = "3.2.2"
+version = "4.1.1"
 
 def nativeTarget = providers.gradleProperty("target").orElse("host").get()
 def androidBuild = nativeTarget == "android"
@@ -53,7 +53,7 @@ if (androidBuild) {
         ]
         release {
             appLabel = "简约音乐播放器"
-            versionCode = "30202"
+            versionCode = "40101"
             versionName = project.version.toString()
         }
     }

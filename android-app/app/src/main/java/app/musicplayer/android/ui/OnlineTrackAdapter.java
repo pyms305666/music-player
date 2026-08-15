@@ -1,6 +1,5 @@
 package app.musicplayer.android.ui;
 
-import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -47,7 +46,8 @@ public final class OnlineTrackAdapter extends RecyclerView.Adapter<OnlineTrackAd
         OnlineTrackInfo item = items.get(position);
         holder.title.setText(item.title());
         holder.subtitle.setText(item.subtitle());
-        holder.itemView.setBackgroundColor(position == selectedPosition ? Color.rgb(55, 61, 68) : Color.TRANSPARENT);
+        holder.itemView.setBackgroundResource(position == selectedPosition
+                ? R.drawable.track_item_selected_background : R.drawable.track_item_background);
         holder.itemView.setOnClickListener(view -> {
             int old = selectedPosition;
             selectedPosition = holder.getBindingAdapterPosition();

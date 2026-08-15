@@ -1,6 +1,5 @@
 package app.musicplayer.android.ui;
 
-import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -46,8 +45,10 @@ public final class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.Holder
     public void onBindViewHolder(@NonNull Holder holder, int position) {
         TrackEntry entry = items.get(position);
         holder.title.setText(entry.track().title());
-        holder.subtitle.setText(entry.track().artist() + " · " + entry.track().path().getFileName());
-        holder.itemView.setBackgroundColor(position == selectedPosition ? Color.rgb(55, 61, 68) : Color.TRANSPARENT);
+        holder.subtitle.setText(holder.itemView.getContext().getString(
+                R.string.track_subtitle, entry.track().artist(), entry.fileName()));
+        holder.itemView.setBackgroundResource(position == selectedPosition
+                ? R.drawable.track_item_selected_background : R.drawable.track_item_background);
         holder.itemView.setOnClickListener(view -> {
             int old = selectedPosition;
             selectedPosition = holder.getBindingAdapterPosition();

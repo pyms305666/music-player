@@ -1,5 +1,5 @@
 param(
-    [string] $Version = "3.2.2"
+    [string] $Version = "4.1.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,6 +34,10 @@ New-Item -ItemType Directory -Force -Path $destination | Out-Null
 $inputDirectory = Join-Path $projectRoot "build\install\simple-music-player\lib"
 $mainJar = "simple-music-player-$Version.jar"
 $appImage = Join-Path $destination $appName
+$iconPath = Join-Path $projectRoot "packaging\icons\simple-music-player.ico"
+if (-not (Test-Path -LiteralPath $iconPath)) {
+    throw "Windows application icon was not found: $iconPath"
+}
 
 & $jpackage `
     --type app-image `
@@ -44,6 +48,7 @@ $appImage = Join-Path $destination $appName
     --input $inputDirectory `
     --main-jar $mainJar `
     --main-class "app.musicplayer.MusicPlayerLauncher" `
+    --icon $iconPath `
     --java-options "--enable-native-access=ALL-UNNAMED" `
     --java-options "--enable-native-access=javafx.graphics" `
     --java-options "--enable-native-access=javafx.media" `

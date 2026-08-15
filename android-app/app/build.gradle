@@ -10,8 +10,8 @@ android {
         applicationId "app.musicplayer.android"
         minSdk 28
         targetSdk 35
-        versionCode 30202
-        versionName "3.2.2"
+        versionCode 40101
+        versionName "4.1.1"
     }
 
     buildTypes {

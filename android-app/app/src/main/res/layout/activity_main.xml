@@ -1,267 +1,459 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootView"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/background"
-    android:orientation="vertical"
-    android:padding="12dp">
+    android:layout_height="match_parent">
 
     <LinearLayout
+        android:id="@+id/appContent"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:id="@+id/appHeader"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="简约音乐播放器"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/app_name"
                 android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:textSize="20sp" />
 
             <TextView
                 android:id="@+id/statusText"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="准备就绪"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/status_ready"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <Button
-            android:id="@+id/importButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:background="@drawable/accent_button"
-            android:text="@string/import_audio"
-            android:textColor="@color/text_primary" />
-
-        <Button
-            android:id="@+id/removeButton"
-            android:layout_width="wrap_content"
-            android:layout_height="42dp"
-            android:layout_marginStart="6dp"
-            android:text="@string/remove_track" />
-    </LinearLayout>
-
-    <FrameLayout
-        android:id="@+id/pageContainer"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="10dp"
-        android:layout_weight="1">
-
-        <LinearLayout
-            android:id="@+id/playlistPage"
+        <FrameLayout
+            android:id="@+id/pageContainer"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/panel_background"
-            android:orientation="vertical"
-            android:padding="10dp"
-            android:visibility="gone">
-
-            <EditText
-                android:id="@+id/localSearch"
-                android:layout_width="match_parent"
-                android:layout_height="44dp"
-                android:hint="搜索本地歌曲"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary" />
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <LinearLayout
+                android:id="@+id/playlistPage"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone">
 
-                <Spinner
-                    android:id="@+id/sortType"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1" />
-
-                <Spinner
-                    android:id="@+id/sortDirection"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1" />
-            </LinearLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/playlistView"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/lyricsPage"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/panel_background"
-            android:gravity="center_horizontal"
-            android:orientation="vertical"
-            android:padding="12dp">
-
-            <ImageView
-                android:id="@+id/artworkView"
-                android:layout_width="132dp"
-                android:layout_height="132dp"
-                android:contentDescription="歌曲封面"
-                android:scaleType="centerCrop" />
-
-            <TextView
-                android:id="@+id/titleText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center"
-                android:maxLines="2"
-                android:text="未播放歌曲"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/artistText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="请选择歌曲"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp" />
-
-            <ScrollView
-                android:id="@+id/lyricsScroll"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="8dp"
-                android:layout_weight="1"
-                android:fillViewport="true">
-
-                <TextView
-                    android:id="@+id/lyricsText"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:hint="@string/search_local"
+                    app:boxBackgroundColor="@color/surface"
+                    app:boxCornerRadiusBottomEnd="8dp"
+                    app:boxCornerRadiusBottomStart="8dp"
+                    app:boxCornerRadiusTopEnd="8dp"
+                    app:boxCornerRadiusTopStart="8dp"
+                    app:boxStrokeColor="@color/accent">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/localSearch"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:imeOptions="actionDone"
+                        android:singleLine="true"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/field_background"
+                    android:orientation="horizontal">
+
+                    <Spinner
+                        android:id="@+id/sortType"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:popupBackground="@color/surface_elevated" />
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center_vertical"
+                        android:background="@color/divider" />
+
+                    <Spinner
+                        android:id="@+id/sortDirection"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:popupBackground="@color/surface_elevated" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/playlistView"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/importButton"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:text="@string/import_audio"
+                        android:textColor="@color/text_on_accent"
+                        app:backgroundTint="@color/accent"
+                        app:cornerRadius="8dp"
+                        app:icon="@drawable/ic_import"
+                        app:iconGravity="textStart"
+                        app:iconTint="@color/text_on_accent" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/removeButton"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:enabled="false"
+                        android:text="@string/remove_track"
+                        android:textColor="@color/text_primary"
+                        app:cornerRadius="8dp"
+                        app:icon="@drawable/ic_delete"
+                        app:iconGravity="textStart"
+                        app:iconTint="@color/text_primary"
+                        app:strokeColor="@color/divider_strong" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/lyricsPage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp">
+
+                <ImageView
+                    android:id="@+id/artworkView"
+                    android:layout_width="196dp"
+                    android:layout_height="196dp"
+                    android:background="@drawable/artwork_background"
+                    android:contentDescription="@string/artwork_description"
+                    android:padding="48dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_music_note"
+                    app:tint="@color/text_muted" />
+
+                <TextView
+                    android:id="@+id/titleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
                     android:gravity="center"
-                    android:lineSpacingExtra="10dp"
-                    android:padding="8dp"
-                    android:text="导入歌曲后开始播放"
+                    android:maxLines="2"
+                    android:text="@string/no_track"
                     android:textColor="@color/text_primary"
-                    android:textSize="17sp" />
-            </ScrollView>
-        </LinearLayout>
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/artistText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="@string/select_track"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+                <ScrollView
+                    android:id="@+id/lyricsScroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="12dp"
+                    android:layout_weight="1"
+                    android:fillViewport="true"
+                    android:overScrollMode="never">
+
+                    <TextView
+                        android:id="@+id/lyricsText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:lineSpacingExtra="10dp"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="16dp"
+                        android:text="@string/import_to_play"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp" />
+                </ScrollView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/onlinePage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/search_online"
+                        app:boxBackgroundColor="@color/surface"
+                        app:boxCornerRadiusBottomEnd="8dp"
+                        app:boxCornerRadiusBottomStart="8dp"
+                        app:boxCornerRadiusTopEnd="8dp"
+                        app:boxCornerRadiusTopStart="8dp"
+                        app:boxStrokeColor="@color/accent">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/onlineSearch"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:imeOptions="actionSearch"
+                            android:singleLine="true"
+                            android:textColor="@color/text_primary"
+                            android:textColorHint="@color/text_secondary" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <ImageButton
+                        android:id="@+id/onlineSearchButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/icon_button_background"
+                        android:contentDescription="@string/search_action"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_search"
+                        app:tint="@color/text_primary" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/onlineResults"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/downloadButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="@string/download_play"
+                    android:textColor="@color/text_on_accent"
+                    app:backgroundTint="@color/accent"
+                    app:cornerRadius="8dp"
+                    app:icon="@drawable/ic_download"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/text_on_accent" />
+            </LinearLayout>
+        </FrameLayout>
 
         <LinearLayout
-            android:id="@+id/onlinePage"
+            android:id="@+id/playerPanel"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/panel_background"
+            android:layout_height="wrap_content"
+            android:background="@drawable/player_panel_background"
             android:orientation="vertical"
-            android:padding="10dp"
-            android:visibility="gone">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="8dp">
+
+            <SeekBar
+                android:id="@+id/progressBar"
+                android:layout_width="match_parent"
+                android:layout_height="28dp"
+                android:max="1000"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                android:progressTint="@color/accent"
+                android:splitTrack="false"
+                android:thumbTint="@color/accent" />
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="18dp"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/onlineSearch"
+                <TextView
+                    android:id="@+id/currentTimeText"
                     android:layout_width="0dp"
-                    android:layout_height="46dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="@string/search_online"
-                    android:singleLine="true"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary" />
+                    android:text="@string/time_zero"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
 
-                <Button
-                    android:id="@+id/onlineSearchButton"
+                <TextView
+                    android:id="@+id/durationText"
                     android:layout_width="wrap_content"
-                    android:layout_height="46dp"
-                    android:layout_marginStart="6dp"
-                    android:text="搜索" />
+                    android:layout_height="wrap_content"
+                    android:text="@string/time_zero"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
             </LinearLayout>
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/onlineResults"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_height="56dp"
+                android:gravity="center"
+                android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/downloadButton"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@drawable/accent_button"
-                android:text="@string/download_play"
-                android:textColor="@color/text_primary" />
+                <ImageButton
+                    android:id="@+id/modeButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/play_mode_order"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_repeat"
+                    app:tint="@color/text_secondary" />
+
+                <ImageButton
+                    android:id="@+id/previousButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/previous_track"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_skip_previous"
+                    app:tint="@color/text_primary" />
+
+                <ImageButton
+                    android:id="@+id/playButton"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginHorizontal="6dp"
+                    android:background="@drawable/play_button_background"
+                    android:contentDescription="@string/play"
+                    android:padding="14dp"
+                    android:src="@drawable/ic_play"
+                    app:tint="@color/text_on_accent" />
+
+                <ImageButton
+                    android:id="@+id/nextButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/next_track"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_skip_next"
+                    app:tint="@color/text_primary" />
+
+                <ImageButton
+                    android:id="@+id/volumeButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/volume"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_volume"
+                    app:tint="@color/text_secondary" />
+            </LinearLayout>
         </LinearLayout>
-    </FrameLayout>
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNavigation"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:background="@color/surface"
+            app:itemIconTint="@color/navigation_item_color"
+            app:itemRippleColor="@color/navigation_ripple"
+            app:itemTextColor="@color/navigation_item_color"
+            app:labelVisibilityMode="labeled"
+            app:menu="@menu/bottom_navigation" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/volumeScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scrim"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@color/surface"
+        android:id="@+id/volumeDrawer"
+        android:layout_width="80dp"
+        android:layout_height="240dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="112dp"
+        android:background="@drawable/volume_drawer_background"
+        android:elevation="16dp"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:visibility="gone">
 
-        <SeekBar
-            android:id="@+id/progressBar"
+        <TextView
+            android:id="@+id/volumePercentText"
             android:layout_width="match_parent"
-            android:layout_height="32dp"
-            android:max="1000"
-            android:progressTint="@color/accent"
-            android:thumbTint="@color/accent" />
+            android:layout_height="28dp"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="@string/volume_default"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+        <app.musicplayer.android.ui.VerticalVolumeView
+            android:id="@+id/verticalVolume"
+            android:layout_width="48dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:contentDescription="@string/volume" />
 
-            <TextView
-                android:id="@+id/timeText"
-                android:layout_width="72dp"
-                android:layout_height="wrap_content"
-                android:text="00:00 / 00:00"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp" />
-
-            <Button android:id="@+id/previousButton" android:layout_width="44dp" android:layout_height="42dp" android:text="|◀" />
-            <Button android:id="@+id/playButton" android:layout_width="52dp" android:layout_height="42dp" android:text="▶" />
-            <Button android:id="@+id/nextButton" android:layout_width="44dp" android:layout_height="42dp" android:text="▶|" />
-            <Button android:id="@+id/modeButton" android:layout_width="64dp" android:layout_height="42dp" android:text="顺序" />
-
-            <SeekBar
-                android:id="@+id/volumeBar"
-                android:layout_width="0dp"
-                android:layout_height="32dp"
-                android:layout_weight="1"
-                android:max="100"
-                android:progress="70"
-                android:progressTint="@color/accent"
-                android:thumbTint="@color/accent" />
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/muteButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/mute"
+            android:padding="12dp"
+            android:src="@drawable/ic_volume"
+            app:tint="@color/text_secondary" />
     </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginTop="6dp"
-        android:orientation="horizontal">
-
-        <Button android:id="@+id/playlistTab" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="@string/playlist" />
-        <Button android:id="@+id/lyricsTab" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="@string/lyrics" />
-        <Button android:id="@+id/onlineTab" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="@string/online" />
-    </LinearLayout>
-</LinearLayout>
+</FrameLayout>

@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="64dp"
-    android:background="?attr/selectableItemBackground"
+    android:background="@drawable/track_item_background"
     android:gravity="center_vertical"
     android:orientation="vertical"
     android:paddingHorizontal="10dp">
@@ -11,10 +11,10 @@
         android:id="@+id/itemTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
         android:maxLines="1"
         android:textColor="@color/text_primary"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+        android:textSize="15sp" />
 
     <TextView
         android:id="@+id/itemSubtitle"
