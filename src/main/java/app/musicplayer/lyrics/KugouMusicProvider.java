@@ -4,23 +4,18 @@ import app.musicplayer.model.OnlineLyricsResult;
 import app.musicplayer.model.Track;
 import app.musicplayer.util.JsonSupport;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 
-final class KugouMusicProvider implements OnlineLyricsProvider {
+public final class KugouMusicProvider implements OnlineLyricsProvider {
     @Override
-    public Optional<OnlineLyricsResult> search(Track track, Duration duration, HttpClient httpClient) {
+    public Optional<OnlineLyricsResult> search(Track track, Duration duration, LyricsHttp http) {
         try {
             String searchUrl = "https://songsearch.kugou.com/song_search_v2"
                     + "?page=1&pagesize=5&userid=-1&clientver=&platform=WebFilter&tag=em"
                     + "&filter=2&iscorrection=1&privilege_filter=0&keyword="
                     + JsonSupport.encode(JsonSupport.queryText(track));
-            String searchJson = get(httpClient, searchUrl, "https://www.kugou.com/");
+            String searchJson = http.fetch(searchUrl, "https://www.kugou.com/");
             String list = JsonSupport.arrayValue(searchJson, "lists");
 
             for (String song : JsonSupport.splitTopLevelObjects(list)) {
@@ -30,10 +25,10 @@ final class KugouMusicProvider implements OnlineLyricsProvider {
                 }
 
                 String albumId = value(song, "AlbumID", "album_id", "AlbumId");
-                String playJson = get(httpClient, playDataUrl(hash, albumId), "https://www.kugou.com/");
+                String playJson = http.fetch(playDataUrl(hash, albumId), "https://www.kugou.com/");
                 String lyric = JsonSupport.stringValue(playJson, "lyrics");
                 if (lyric == null || lyric.isBlank()) {
-                    lyric = downloadLrc(httpClient, track, duration, hash);
+                    lyric = downloadLrc(http, track, duration, hash);
                 }
                 if (lyric == null || lyric.isBlank()) {
                     continue;
@@ -65,12 +60,12 @@ final class KugouMusicProvider implements OnlineLyricsProvider {
         return url.toString();
     }
 
-    private static String downloadLrc(HttpClient httpClient, Track track, Duration duration, String hash) throws Exception {
+    private static String downloadLrc(LyricsHttp http, Track track, Duration duration, String hash) throws Exception {
         long millis = duration == null || duration.isNegative() || duration.isZero() ? 0 : duration.toMillis();
         String searchUrl = "https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword="
                 + JsonSupport.encode(JsonSupport.queryText(track)) + "&duration=" + millis + "&hash="
                 + JsonSupport.encode(hash);
-        String searchJson = get(httpClient, searchUrl, "https://www.kugou.com/");
+        String searchJson = http.fetch(searchUrl, "https://www.kugou.com/");
         String first = JsonSupport.firstObject(JsonSupport.arrayValue(searchJson, "candidates"));
         String id = value(first, "id");
         String accessKey = value(first, "accesskey");
@@ -80,23 +75,8 @@ final class KugouMusicProvider implements OnlineLyricsProvider {
 
         String downloadUrl = "https://lyrics.kugou.com/download?ver=1&client=pc&fmt=lrc&charset=utf8&id="
                 + JsonSupport.encode(id) + "&accesskey=" + JsonSupport.encode(accessKey);
-        String downloadJson = get(httpClient, downloadUrl, "https://www.kugou.com/");
+        String downloadJson = http.fetch(downloadUrl, "https://www.kugou.com/");
         return JsonSupport.decodeBase64Text(JsonSupport.stringValue(downloadJson, "content"));
-    }
-
-    private static String get(HttpClient httpClient, String url, String referer) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofSeconds(12))
-                .header("User-Agent", "Mozilla/5.0 SimpleMusicPlayer/1.0")
-                .header("Referer", referer)
-                .GET()
-                .build();
-        HttpResponse<String> response = httpClient.send(request,
-                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("HTTP " + response.statusCode());
-        }
-        return response.body();
     }
 
     private static String value(String json, String... names) {

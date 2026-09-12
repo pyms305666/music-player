@@ -1,6 +1,7 @@
 package app.musicplayer.android;
 
 import android.Manifest;
+import android.animation.ObjectAnimator;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -23,6 +24,7 @@ import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
+import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -80,6 +82,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -97,6 +104,7 @@ public final class MainActivity extends AppCompatActivity {
 
     private AndroidMusicDatabase database;
     private OnlineMusicSearchService onlineService;
+    private AndroidLyricsService lyricsService;
     private ExoPlayer player;
     private File privateMusicDir;
     private File onlineTempDir;
@@ -134,6 +142,9 @@ public final class MainActivity extends AppCompatActivity {
     private ImageButton modeButton;
     private ImageButton volumeButton;
     private ImageButton muteButton;
+    private ImageButton refreshButton;
+    private ObjectAnimator refreshSpin;
+    private int lyricsRequestId;
     private Button removeButton;
     private BottomNavigationView bottomNavigation;
     private View volumeDrawer;
@@ -154,6 +165,7 @@ public final class MainActivity extends AppCompatActivity {
         ensureDirectory(onlineTempDir);
         database = new AndroidMusicDatabase(this);
         onlineService = new OnlineMusicSearchService();
+        lyricsService = new AndroidLyricsService();
         player = new ExoPlayer.Builder(this).build();
 
         bindViews();
@@ -193,6 +205,7 @@ public final class MainActivity extends AppCompatActivity {
         modeButton = findViewById(R.id.modeButton);
         volumeButton = findViewById(R.id.volumeButton);
         muteButton = findViewById(R.id.muteButton);
+        refreshButton = findViewById(R.id.refreshLyricsButton);
         removeButton = findViewById(R.id.removeButton);
         bottomNavigation = findViewById(R.id.bottomNavigation);
         volumeDrawer = findViewById(R.id.volumeDrawer);
@@ -268,6 +281,11 @@ public final class MainActivity extends AppCompatActivity {
         volumeButton.setOnClickListener(view -> toggleVolumeDrawer());
         muteButton.setOnClickListener(view -> toggleMute());
         volumeScrim.setOnClickListener(view -> hideVolumeDrawer(true));
+        refreshButton.setOnClickListener(view -> forceRefreshLyrics());
+        refreshSpin = ObjectAnimator.ofFloat(refreshButton, View.ROTATION, 0f, 360f);
+        refreshSpin.setDuration(900);
+        refreshSpin.setRepeatCount(ObjectAnimator.INFINITE);
+        refreshSpin.setInterpolator(new LinearInterpolator());
         onlineSearch.setOnEditorActionListener((view, actionId, event) -> {
             if (actionId != EditorInfo.IME_ACTION_SEARCH) return false;
             searchOnline();
@@ -517,6 +535,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void loadLyrics(TrackEntry entry) {
+        int reqId = ++lyricsRequestId;
         AndroidMusicDatabase.CachedLyrics cached = database.loadLyrics(entry);
         if (cached != null) {
             currentLyrics = LrcParser.parse(cached.source(), cached.rawText());
@@ -524,15 +543,34 @@ public final class MainActivity extends AppCompatActivity {
             if (!TextUtils.isEmpty(cached.artworkUrl())) loadArtwork(cached.artworkUrl());
             return;
         }
+        File localLrc = localLrcFile(entry);
+        if (localLrc != null) {
+            try {
+                Lyrics lyrics = LrcParser.parse("本地歌词：" + localLrc.getName(), readLyricsText(localLrc));
+                if (!lyrics.lines().isEmpty()) {
+                    currentLyrics = lyrics;
+                    database.saveLyrics(entry, lyrics, null);
+                    renderLyrics(-1);
+                    return;
+                }
+            } catch (IOException ignored) {
+            }
+        }
         currentLyrics = Lyrics.empty("正在搜索歌词...");
         renderLyrics(-1);
-        onlineService.searchAsync(entry.track().artist() + " " + entry.track().title())
-                .thenCompose(results -> results.isEmpty()
-                        ? CompletableFuture.completedFuture(null)
-                        : onlineService.loadPreviewAsync(results.get(0)))
+        lookupLyricsOnline(entry, reqId, false);
+    }
+
+    /** 走共享歌词渠道（网易云 → QQ → 酷狗 → LRCLIB）在线查词，与下载来源完全解耦。 */
+    private void lookupLyricsOnline(TrackEntry entry, int reqId, boolean forceRefresh) {
+        setRefreshLoading(true);
+        long duration = player.getDuration();
+        lyricsService.searchOnlineAsync(entry.track(), duration)
                 .whenComplete((lookup, error) -> runOnUiThread(() -> {
-                    if (lookup == null || error != null) {
-                        currentLyrics = Lyrics.empty("暂无歌词");
+                    if (reqId != lyricsRequestId) return;
+                    setRefreshLoading(false);
+                    if (error != null || lookup == null) {
+                        currentLyrics = Lyrics.empty(forceRefresh ? "刷新失败，没有找到歌词" : "暂无歌词，可点右上角刷新重试");
                         renderLyrics(-1);
                         return;
                     }
@@ -540,7 +578,55 @@ public final class MainActivity extends AppCompatActivity {
                     database.saveLyrics(entry, lookup.lyrics(), lookup.artworkUrl());
                     renderLyrics(-1);
                     if (!TextUtils.isEmpty(lookup.artworkUrl())) loadArtwork(lookup.artworkUrl());
+                    if (forceRefresh) showStatus("歌词已更新：" + lookup.lyrics().source());
                 }));
+    }
+
+    /** 强制刷新：跳过数据库缓存重新在线查词，成功后覆盖缓存。 */
+    private void forceRefreshLyrics() {
+        TrackEntry entry = currentTrack;
+        if (entry == null) {
+            showStatus("请先播放歌曲再刷新歌词");
+            return;
+        }
+        int reqId = ++lyricsRequestId;
+        currentLyrics = Lyrics.empty("正在刷新歌词...");
+        renderLyrics(-1);
+        lookupLyricsOnline(entry, reqId, true);
+    }
+
+    private void setRefreshLoading(boolean loading) {
+        refreshButton.setEnabled(!loading);
+        refreshButton.setAlpha(loading ? 0.6f : 1f);
+        if (loading) {
+            refreshSpin.start();
+        } else {
+            refreshSpin.cancel();
+            refreshButton.setRotation(0f);
+        }
+    }
+
+    /** FILE 类型的歌曲支持同目录同名 .lrc 旁车文件；MediaStore 歌曲跳过。 */
+    private File localLrcFile(TrackEntry entry) {
+        if (entry.storageType() != TrackEntry.StorageType.FILE) return null;
+        File audio = new File(entry.location());
+        String name = audio.getName();
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0 || audio.getParentFile() == null) return null;
+        File lrc = new File(audio.getParentFile(), name.substring(0, dot) + ".lrc");
+        return lrc.isFile() ? lrc : null;
+    }
+
+    private static String readLyricsText(File file) throws IOException {
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes)).toString();
+        } catch (CharacterCodingException ignored) {
+            return new String(bytes, Charset.forName("GB18030"));
+        }
     }
 
     private void loadEmbeddedArtwork(TrackEntry entry) {
@@ -1015,6 +1101,7 @@ public final class MainActivity extends AppCompatActivity {
         progressHandler.removeCallbacksAndMessages(null);
         if (player != null) player.release();
         if (onlineService != null) onlineService.close();
+        if (lyricsService != null) lyricsService.close();
         if (database != null) database.close();
         super.onDestroy();
     }

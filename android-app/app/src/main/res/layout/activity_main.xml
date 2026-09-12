@@ -148,13 +148,17 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/lyricsPage"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:paddingHorizontal="16dp">
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp">
 
                 <ImageView
                     android:id="@+id/artworkView"
@@ -213,7 +217,19 @@
                         android:textColor="@color/text_primary"
                         android:textSize="16sp" />
                 </ScrollView>
-            </LinearLayout>
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/refreshLyricsButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="4dp"
+                    android:background="@drawable/icon_button_background"
+                    android:contentDescription="@string/refresh_lyrics"
+                    android:src="@drawable/ic_refresh"
+                    app:tint="@color/text_secondary" />
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/onlinePage"

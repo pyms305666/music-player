@@ -4,20 +4,15 @@ import app.musicplayer.model.OnlineLyricsResult;
 import app.musicplayer.model.Track;
 import app.musicplayer.util.JsonSupport;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.Optional;
 
-final class LrclibLyricsProvider implements OnlineLyricsProvider {
+public final class LrclibLyricsProvider implements OnlineLyricsProvider {
     private static final String SEARCH_URL = "https://lrclib.net/api/search";
 
     @Override
-    public Optional<OnlineLyricsResult> search(Track track, Duration duration, HttpClient httpClient) {
+    public Optional<OnlineLyricsResult> search(Track track, Duration duration, LyricsHttp http) {
         try {
             StringBuilder query = new StringBuilder();
             appendQuery(query, "track_name", track.title());
@@ -28,19 +23,8 @@ final class LrclibLyricsProvider implements OnlineLyricsProvider {
                 appendQuery(query, "duration", String.valueOf(duration.toSeconds()));
             }
 
-            HttpRequest request = HttpRequest.newBuilder(URI.create(SEARCH_URL + "?" + query))
-                    .timeout(Duration.ofSeconds(12))
-                    .header("User-Agent", "SimpleMusicPlayer/1.0 (JavaFX)")
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return Optional.empty();
-            }
-
-            return JsonSupport.splitTopLevelObjects(response.body()).stream()
+            String body = http.fetch(SEARCH_URL + "?" + query, SEARCH_URL);
+            return JsonSupport.splitTopLevelObjects(body).stream()
                     .map(this::toCandidate)
                     .flatMap(Optional::stream)
                     .max(Comparator.comparing(OnlineLyricsResult::score));

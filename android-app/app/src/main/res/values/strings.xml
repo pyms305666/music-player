@@ -37,4 +37,5 @@
     <string name="storage_permission_message">开启所有文件访问权限后，下载的歌曲会保存到手机内部存储根目录的 music 文件夹。未开启时将保存到系统 Music/music 目录。</string>
     <string name="storage_permission_action">去授权</string>
     <string name="storage_permission_fallback">使用系统音乐目录</string>
+    <string name="refresh_lyrics">刷新歌词</string>
 </resources>

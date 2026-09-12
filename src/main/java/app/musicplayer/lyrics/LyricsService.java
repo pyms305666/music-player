@@ -8,7 +8,10 @@ import app.musicplayer.model.Track;
 import app.musicplayer.util.Hashing;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -41,6 +44,24 @@ public final class LyricsService implements AutoCloseable {
             new KugouMusicProvider(),
             new LrclibLyricsProvider()
     );
+    /** 桌面端用 java.net.http 实现 LyricsHttp；Android 端注入 CrawlerSession 实现。 */
+    private final LyricsHttp lyricsHttp = new LyricsHttp() {
+        @Override
+        public String fetch(String url, String referer) throws Exception {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofSeconds(12))
+                    .header("User-Agent", "Mozilla/5.0 SimpleMusicPlayer/1.0")
+                    .header("Referer", referer)
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("HTTP " + response.statusCode());
+            }
+            return response.body();
+        }
+    };
 
     public LyricsService(MusicDatabase database, Path lyricsCacheDir) {
         this.database = database;
@@ -113,7 +134,7 @@ public final class LyricsService implements AutoCloseable {
 
     private Optional<LyricsLookupResult> searchOnline(Track track, Duration duration) {
         for (OnlineLyricsProvider provider : onlineProviders) {
-            Optional<OnlineLyricsResult> result = provider.search(track, duration, httpClient);
+            Optional<OnlineLyricsResult> result = provider.search(track, duration, lyricsHttp);
             if (result.isPresent() && result.get().hasLyrics()) {
                 OnlineLyricsResult found = result.get();
                 Lyrics lyrics = LrcParser.parse("联网歌词：" + found.source(), found.rawLyrics());

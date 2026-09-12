@@ -18,7 +18,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 /** 所有在线来源共享的 HTTP、Cookie 和请求头；仅使用桌面与 Android 都支持的标准 API。 */
-final class CrawlerSession {
+public final class CrawlerSession {
     private static final String[] USER_AGENTS = {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
@@ -30,7 +30,7 @@ final class CrawlerSession {
     private final CookieManager cookieManager = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
     private boolean primed;
 
-    synchronized void ensurePrimed() {
+    public synchronized void ensurePrimed() {
         if (primed) {
             return;
         }
@@ -49,7 +49,7 @@ final class CrawlerSession {
         tryFetchHome("https://www.kugou.com/");
     }
 
-    String fetch(String url, String referer) throws IOException, InterruptedException {
+    public String fetch(String url, String referer) throws IOException, InterruptedException {
         return fetch(url, referer, Map.of());
     }
 

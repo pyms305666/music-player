@@ -1,4 +1,4 @@
-# 简约音乐播放器 4.1.2
+# 简约音乐播放器 4.1.3
 
 基于 Java 25、JavaFX 25、SQLite 和 Gradle 的 Windows 桌面音乐播放器。
 
@@ -65,10 +65,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.
 
 ```text
 android-app\app\build\outputs\apk\debug\app-debug.apk
-android-app\dist\simple-music-player-4.1.2-debug.apk
+android-app\dist\simple-music-player-4.1.3-debug.apk
 ```
 
-Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播放、多文件导入、删除、SQLite 缓存及名称/歌手/文件名/创建日期排序。在线搜索与桌面端共享同一套来源爬虫与自动换源逻辑。在线歌曲优先保存到手机内部存储根目录的 `music/`；未授予所有文件访问权限时回退到公开的 `Music/music/`。删除安卓歌单中的下载或导入副本时，会同步删除该副本及缓存记录。
+Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播放、多文件导入、删除、SQLite 缓存及名称/歌手/文件名/创建日期排序。在线搜索与桌面端共享同一套来源爬虫与自动换源逻辑；歌词与桌面端共享同一套专用渠道（网易云 → QQ → 酷狗 → LRCLIB），并提供歌词页右上角刷新按钮强制重新查词。在线歌曲优先保存到手机内部存储根目录的 `music/`；未授予所有文件访问权限时回退到公开的 `Music/music/`。删除安卓歌单中的下载或导入副本时，会同步删除该副本及缓存记录。
 
 ## 验证
 
@@ -87,10 +87,10 @@ Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播�
 安装包输出到：
 
 ```text
-build\installer\4.1.2-时间戳\简约音乐播放器-4.1.2.exe
+build\installer\4.1.3-时间戳\简约音乐播放器-4.1.3.exe
 ```
 
-统一发布文件整理到 `release/4.1.2/`，其中包含 Windows 安装包、Windows 便携版 ZIP、Android APK 和 SHA-256 校验文件。该目录不提交到 Git 历史，二进制文件通过 GitHub Release 发布。
+统一发布文件整理到 `release/4.1.3/`，其中包含 Windows 安装包、Windows 便携版 ZIP、Android APK 和 SHA-256 校验文件。该目录不提交到 Git 历史，二进制文件通过 GitHub Release 发布。
 
 打包依赖项目本地 WiX 5：
 
