@@ -20,22 +20,45 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 协调多个在线来源，并负责统一的下载、校验和跨来源回退。
  * 各网站的搜索与地址解析位于独立的 OnlineSourceProvider 实现中。
+ *
+ * 稳定性策略：并行搜索 + 单来源超时；来源级熔断（连续失败暂停一段时间）；
+ * 解析结果按 source|id 缓存；下载时对受限歌曲自动换源到其他来源。
  */
 public final class MusicCrawler {
+    private static final int SEARCH_TIMEOUT_SECONDS = 10;
+    private static final long RESOLVE_CACHE_TTL_MS = 4 * 60 * 1000;
+    private static final long FAILED_RESOLVE_TTL_MS = 45 * 1000;
+    /** 连续失败达到 3 次后按此序列熔断，成功后复位。 */
+    private static final long[] SUSPEND_DELAYS_MS = {60_000, 5 * 60_000, 15 * 60_000};
+
     private final CrawlerSession session = new CrawlerSession();
-    private final Qqmp3SourceProvider qqmp3Provider = new Qqmp3SourceProvider(session);
     private final List<OnlineSourceProvider> providers = List.of(
-            qqmp3Provider,
-            new NeteaseSourceProvider(session),
+            new KugouSourceProvider(session),
+            new KuwoSourceProvider(session),
+            new MiguSourceProvider(session),
             new QqSourceProvider(session),
-            new KugouSourceProvider(session)
+            new NeteaseSourceProvider(session)
     );
     private final Map<String, OnlineSourceProvider> providersByName = indexProviders(providers);
+    private final ExecutorService searchExecutor = Executors.newFixedThreadPool(4, runnable -> {
+        Thread thread = new Thread(runnable, "crawler-search");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private final Map<String, CachedResolution> resolutionCache = new ConcurrentHashMap<>();
+    private final Map<String, ProviderHealth> healthBySource = new ConcurrentHashMap<>();
     private static Path curlPath;
     private static boolean curlChecked;
 
@@ -46,11 +69,35 @@ public final class MusicCrawler {
         }
 
         session.ensurePrimed();
+        List<CompletableFuture<List<OnlineTrackInfo>>> futures = new ArrayList<>();
+        for (OnlineSourceProvider provider : providers) {
+            if (isSuspended(provider.sourceName())) {
+                System.out.println("[crawler][" + provider.sourceName() + "] suspended, skipped");
+                continue;
+            }
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                try {
+                    List<OnlineTrackInfo> results = provider.search(normalizedQuery);
+                    recordSuccess(provider.sourceName());
+                    return results;
+                } catch (RuntimeException exception) {
+                    recordFailure(provider.sourceName());
+                    System.out.println("[crawler][" + provider.sourceName() + "] search err: "
+                            + exception.getMessage());
+                    return List.of();
+                }
+            }, searchExecutor));
+        }
+
         List<OnlineTrackInfo> allResults = new ArrayList<>();
-        for (int index = 0; index < providers.size(); index++) {
-            allResults.addAll(providers.get(index).search(normalizedQuery));
-            if (index < providers.size() - 1) {
-                session.snooze(index == 0 ? 300 : 500);
+        for (CompletableFuture<List<OnlineTrackInfo>> future : futures) {
+            try {
+                allResults.addAll(future.get(SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (TimeoutException | ExecutionException | CancellationException exception) {
+                System.out.println("[crawler] search abandoned: " + exception.getMessage());
             }
         }
 
@@ -67,7 +114,7 @@ public final class MusicCrawler {
 
     public String resolveDownloadUrl(OnlineTrackInfo track) {
         OnlineSourceProvider provider = providerFor(track);
-        return provider == null ? null : provider.resolve(track);
+        return provider == null ? null : resolveCached(provider, track);
     }
 
     public Path download(OnlineTrackInfo track, Path targetDir)
@@ -75,14 +122,17 @@ public final class MusicCrawler {
         if (track == null || track.source() == null) {
             throw new IOException("invalid track info");
         }
-        if (!track.canAttemptDownload()) {
-            throw new IOException(track.source() + ": " + track.availabilityText());
-        }
 
         session.ensurePrimed();
         Files.createDirectories(targetDir);
         IOException lastError = null;
-        List<OnlineTrackInfo> candidates = new ArrayList<>(List.of(track));
+        List<OnlineTrackInfo> candidates = new ArrayList<>();
+        if (track.canAttemptDownload()) {
+            candidates.add(track);
+        } else {
+            System.out.println("[crawler] " + track.source() + " is " + track.availabilityText()
+                    + ", auto-switching sources");
+        }
         Set<String> failedDownloadKeys = new HashSet<>();
 
         for (int round = 0; round < 2; round++) {
@@ -113,11 +163,6 @@ public final class MusicCrawler {
     String fetch(String url, String referer) throws Exception {
         session.ensurePrimed();
         return session.fetch(url, referer);
-    }
-
-    String fetchQqmp3SongData(String id) throws Exception {
-        session.ensurePrimed();
-        return qqmp3Provider.fetchSongData(id);
     }
 
     private Path tryDownloadCandidate(OnlineTrackInfo track, Path targetDir)
@@ -195,9 +240,63 @@ public final class MusicCrawler {
 
     private OnlineTrackInfo annotateAvailability(OnlineTrackInfo track) {
         OnlineSourceProvider provider = providerFor(track);
-        return provider == null
-                ? track.withAvailability(false, "未知来源")
-                : provider.annotateAvailability(track);
+        if (provider == null) {
+            return track.withAvailability(false, "未知来源");
+        }
+        String url = resolveCached(provider, track);
+        if (url == null || url.isBlank()) {
+            return track.withAvailability(false, provider.unavailableText());
+        }
+        return provider.isTentativeUrl(url)
+                ? track.withAvailability(false, "可尝试下载")
+                : track.withAvailability(true, "可下载");
+    }
+
+    /** 解析结果按 source|id 缓存：直链带签名有时效，避免搜索阶段重复请求触发风控。 */
+    private String resolveCached(OnlineSourceProvider provider, OnlineTrackInfo track) {
+        String key = downloadKey(track);
+        long now = System.currentTimeMillis();
+        CachedResolution cached = resolutionCache.get(key);
+        if (cached != null && cached.expiresAt() > now) {
+            return cached.url();
+        }
+        String url;
+        try {
+            url = provider.resolve(track);
+            recordSuccess(provider.sourceName());
+        } catch (Exception exception) {
+            recordFailure(provider.sourceName());
+            System.out.println("[crawler][" + provider.sourceName() + "] resolve err: "
+                    + exception.getMessage());
+            url = null;
+        }
+        long ttl = url == null || url.isBlank() ? FAILED_RESOLVE_TTL_MS : RESOLVE_CACHE_TTL_MS;
+        resolutionCache.put(key, new CachedResolution(url, now + ttl));
+        return url;
+    }
+
+    private boolean isSuspended(String source) {
+        ProviderHealth health = healthBySource.get(source);
+        return health != null && health.suspendedUntil > System.currentTimeMillis();
+    }
+
+    private void recordSuccess(String source) {
+        ProviderHealth health = healthBySource.get(source);
+        if (health != null) {
+            health.consecutiveFailures = 0;
+        }
+    }
+
+    private void recordFailure(String source) {
+        ProviderHealth health = healthBySource.computeIfAbsent(source, key -> new ProviderHealth());
+        int failures = health.consecutiveFailures + 1;
+        health.consecutiveFailures = failures;
+        if (failures >= 3) {
+            int level = Math.min(failures - 3, SUSPEND_DELAYS_MS.length - 1);
+            health.suspendedUntil = System.currentTimeMillis() + SUSPEND_DELAYS_MS[level];
+            System.out.println("[crawler][" + source + "] suspended for "
+                    + (SUSPEND_DELAYS_MS[level] / 1000) + "s after " + failures + " failures");
+        }
     }
 
     private OnlineSourceProvider providerFor(OnlineTrackInfo track) {
@@ -294,7 +393,7 @@ public final class MusicCrawler {
         return "可尝试下载".equals(track.availabilityText()) ? 1 : 2;
     }
 
-    private static String downloadKey(OnlineTrackInfo track) {
+    static String downloadKey(OnlineTrackInfo track) {
         return (track.source() == null ? "" : track.source())
                 + "|" + (track.primaryId() == null ? "" : track.primaryId());
     }
@@ -423,9 +522,9 @@ public final class MusicCrawler {
         }
     }
 
-    private static String guessExtension(OnlineTrackInfo track, String url) {
+    static String guessExtension(OnlineTrackInfo track, String url) {
         String lower = url == null ? "" : url.toLowerCase(Locale.ROOT);
-        if (lower.contains(".flac")) return ".flac";
+        if (lower.contains(".flac") || lower.contains("flac")) return ".flac";
         if (lower.contains(".m4a") || lower.contains(".mp4")) return ".m4a";
         if (lower.contains(".aac")) return ".aac";
         if (lower.contains(".wav")) return ".wav";
@@ -481,5 +580,13 @@ public final class MusicCrawler {
         while ((length = input.read(buffer)) >= 0) {
             output.write(buffer, 0, length);
         }
+    }
+
+    private record CachedResolution(String url, long expiresAt) {
+    }
+
+    private static final class ProviderHealth {
+        private volatile int consecutiveFailures;
+        private volatile long suspendedUntil;
     }
 }

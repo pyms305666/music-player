@@ -60,30 +60,11 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     private Optional<LyricsLookupResult> loadPreview(OnlineTrackInfo info) {
         if (info == null || info.source() == null) return Optional.empty();
         return switch (info.source()) {
-            case "QQMP3"      -> loadQqmp3Preview(info);
             case "网易云音乐" -> loadNeteasePreview(info);
             case "QQ音乐"     -> loadQqPreview(info);
             case "酷狗音乐"   -> loadKugouPreview(info);
             default          -> Optional.empty();
         };
-    }
-
-    // ---- QQMP3 lyrics ----
-
-    private Optional<LyricsLookupResult> loadQqmp3Preview(OnlineTrackInfo info) {
-        try {
-            String json = crawler.fetchQqmp3SongData(info.primaryId());
-            String data = JsonSupport.objectValue(json, "data");
-            String lyric = JsonSupport.stringValue(data == null ? json : data, "lrc");
-            if (lyric == null || lyric.isBlank()) return Optional.empty();
-            String artwork = info.artworkUrl();
-            if (artwork == null || artwork.isBlank()) {
-                artwork = JsonSupport.stringValue(data == null ? json : data, "pic");
-            }
-            return Optional.of(new LyricsLookupResult(
-                    LrcParser.parse("在线预览：QQMP3：" + rd(info.title(), info.artist()), lyric),
-                    artwork));
-        } catch (Exception ignored) { return Optional.empty(); }
     }
 
     // ---- NetEase lyrics ----

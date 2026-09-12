@@ -629,14 +629,14 @@ public final class MusicPlayerApp extends Application {
 
     private void downloadAndPlayOnlineTrack(OnlineTrackInfo info) {
         if (info == null) return;
-        if (!info.canAttemptDownload()) {
-            statusLabel.setText("当前结果不可下载：" + info.availabilityText());
-            showLyrics(Lyrics.empty("当前在线结果不可下载"));
-            return;
-        }
         disposePlayer(); cancelLyricRetry();
 
-        statusLabel.setText("正在爬取下载：" + info.title());
+        if (info.canAttemptDownload()) {
+            statusLabel.setText("正在爬取下载：" + info.title());
+        } else {
+            // 受限歌曲不再直接拒绝，交给 MusicCrawler 自动换源到其他可用来源。
+            statusLabel.setText("正在换源下载：" + info.title() + "（" + info.availabilityText() + "）");
+        }
         showArtwork(info.artworkUrl());
         showLyrics(Lyrics.empty("正在从网页爬取下载 " + info.title() + "，请稍候..."));
         sourceLabel.setText("歌词来源：下载中...");

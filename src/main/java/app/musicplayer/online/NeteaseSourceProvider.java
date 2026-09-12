@@ -112,14 +112,8 @@ final class NeteaseSourceProvider implements OnlineSourceProvider {
     }
 
     @Override
-    public OnlineTrackInfo annotateAvailability(OnlineTrackInfo track) {
-        String url = resolve(track);
-        if (url == null || url.isBlank()) {
-            return track.withAvailability(false, "不可下载");
-        }
-        return url.contains("/song/media/outer/url")
-                ? track.withAvailability(false, "可尝试下载")
-                : track.withAvailability(true, "可下载");
+    public boolean isTentativeUrl(String url) {
+        return url != null && url.contains("/song/media/outer/url");
     }
 
     private String postEncrypted(String url, String[] encrypted) throws Exception {

@@ -45,7 +45,7 @@ public final class OnlineDrawer extends HBox {
     private final Button toggleButton = new Button();
     private final Button mobileDownloadButton = new Button("下载并播放");
     private final Label hintLabel = new Label("单击预览 · 双击下载到本地播放");
-    private final Label placeholderLabel = new Label("搜索 QQMP3 / 网易云 / QQ / 酷狗，双击下载到本地");
+    private final Label placeholderLabel = new Label("搜索 酷狗 / 酷我 / 咪咕 / QQ / 网易云，双击下载到本地");
 
     private SplitPane splitPane;
     private boolean expanded;

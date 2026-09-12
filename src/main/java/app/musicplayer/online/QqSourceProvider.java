@@ -89,12 +89,4 @@ final class QqSourceProvider implements OnlineSourceProvider {
             return null;
         }
     }
-
-    @Override
-    public OnlineTrackInfo annotateAvailability(OnlineTrackInfo track) {
-        String url = resolve(track);
-        return url == null || url.isBlank()
-                ? track.withAvailability(false, "VIP/不可下载")
-                : track.withAvailability(true, "可下载");
-    }
 }

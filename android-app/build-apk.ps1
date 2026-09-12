@@ -122,7 +122,7 @@ if (-not (Test-Path $apk)) {
     throw "APK was not generated: $apk"
 }
 $distDir = Join-Path $androidRoot "dist"
-$distApk = Join-Path $distDir "simple-music-player-4.1.1-debug.apk"
+$distApk = Join-Path $distDir "simple-music-player-4.1.2-debug.apk"
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 Copy-Item -LiteralPath $apk -Destination $distApk -Force
 Write-Host "APK: $distApk"

@@ -1,5 +1,5 @@
 param(
-    [string] $Version = "4.1.1"
+    [string] $Version = "4.1.2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,14 +11,15 @@ if ($LASTEXITCODE -ne 0) {
     throw "Project verification failed. Packaging stopped."
 }
 
-$jpackage = (Get-Command jpackage.exe -ErrorAction SilentlyContinue).Source
+# jpackage exe packaging needs the matching WiX generation; this project builds with JDK 25 + WiX 5.
+$projectJpackage = "C:\jdk-25.0.2\bin\jpackage.exe"
+if (Test-Path $projectJpackage) {
+    $jpackage = $projectJpackage
+} else {
+    $jpackage = (Get-Command jpackage.exe -ErrorAction SilentlyContinue).Source
+}
 if (-not $jpackage) {
-    $fallback = "C:\jdk-25.0.2\bin\jpackage.exe"
-    if (Test-Path $fallback) {
-        $jpackage = $fallback
-    } else {
-        throw "jpackage.exe was not found. Install a JDK that includes jpackage."
-    }
+    throw "jpackage.exe was not found. Install a JDK that includes jpackage."
 }
 
 $wixDirectory = Join-Path $projectRoot ".tools\wix"
