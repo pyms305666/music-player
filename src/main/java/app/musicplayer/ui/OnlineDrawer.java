@@ -1,10 +1,6 @@
 package app.musicplayer.ui;
 
 import app.musicplayer.model.OnlineTrackInfo;
-import javafx.animation.FadeTransition;
-import javafx.animation.ParallelTransition;
-import javafx.animation.ScaleTransition;
-import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -16,11 +12,10 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.util.Duration;
 
 import java.util.function.Consumer;
 import java.util.prefs.Preferences;
@@ -30,19 +25,19 @@ public final class OnlineDrawer extends HBox {
     private static final String PREF_EXPANDED = "ui.online.panel.expanded";
     private static final String PREF_DIVIDER_LEFT = "ui.split.divider.left";
     private static final String PREF_DIVIDER_RIGHT = "ui.split.divider.right";
-    private static final double DEFAULT_LEFT_DIVIDER = 0.24;
-    private static final double DEFAULT_RIGHT_DIVIDER = 0.78;
-    private static final double COLLAPSED_WIDTH = 66;
+    private static final double DEFAULT_LEFT_DIVIDER = 0.23;
+    private static final double DEFAULT_RIGHT_DIVIDER = 0.72;
+    private static final double COLLAPSED_WIDTH = 0;
     private static final double EXPANDED_MIN_WIDTH = 320;
     private static final double EXPANDED_PREF_WIDTH = 360;
-    private static final double EXPANDED_MAX_WIDTH = 520;
+    private static final double EXPANDED_MAX_WIDTH = 440;
 
     private final Preferences preferences;
     private final TextField searchField = new TextField();
     private final ListView<OnlineTrackInfo> resultsView;
     private final ProgressIndicator loadingIndicator = new ProgressIndicator();
     private final VBox content;
-    private final Button toggleButton = new Button();
+    private final Button closeButton = new Button("关闭");
     private final Button mobileDownloadButton = new Button("下载并播放");
     private final Label hintLabel = new Label("单击预览 · 双击下载到本地播放");
     private final Label placeholderLabel = new Label("搜索 酷狗 / 酷我 / 咪咕 / QQ / 网易云，双击下载到本地");
@@ -50,6 +45,7 @@ public final class OnlineDrawer extends HBox {
     private SplitPane splitPane;
     private boolean expanded;
     private boolean syncingDivider;
+    private Consumer<Boolean> expandedChanged;
 
     public OnlineDrawer(
             ObservableList<OnlineTrackInfo> results,
@@ -63,6 +59,13 @@ public final class OnlineDrawer extends HBox {
 
         Label header = new Label("在线下载");
         header.getStyleClass().add("section-title");
+        closeButton.getStyleClass().add("online-close-button");
+        closeButton.setOnAction(event -> toggle());
+        HBox headerRow = new HBox(header);
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        headerRow.getChildren().addAll(headerSpacer, closeButton);
+        headerRow.setAlignment(Pos.CENTER_LEFT);
 
         searchField.setPromptText("搜索歌曲名 / 歌手名");
         searchField.getStyleClass().add("search-field");
@@ -82,7 +85,7 @@ public final class OnlineDrawer extends HBox {
         resultsView = new ListView<>(results);
         resultsView.getStyleClass().add("online-results-view");
         resultsView.setPlaceholder(placeholderLabel);
-        resultsView.setCellFactory(ignored -> new OnlineResultCell());
+        resultsView.setCellFactory(ignored -> new OnlineResultCell(false));
         resultsView.getSelectionModel().selectedItemProperty().addListener(
                 (observable, oldValue, newValue) -> {
                     if (newValue != null) {
@@ -98,11 +101,11 @@ public final class OnlineDrawer extends HBox {
             }
         });
 
+        hintLabel.setText("选择结果可预览，点击按钮下载并播放");
         hintLabel.getStyleClass().add("muted-label");
         mobileDownloadButton.getStyleClass().add("primary-button");
         mobileDownloadButton.setMaxWidth(Double.MAX_VALUE);
-        mobileDownloadButton.setVisible(false);
-        mobileDownloadButton.setManaged(false);
+        mobileDownloadButton.disableProperty().bind(resultsView.getSelectionModel().selectedItemProperty().isNull());
         mobileDownloadButton.setOnAction(event -> {
             OnlineTrackInfo selected = resultsView.getSelectionModel().getSelectedItem();
             if (selected != null) {
@@ -110,19 +113,14 @@ public final class OnlineDrawer extends HBox {
             }
         });
 
-        content = new VBox(10, header, searchRow, hintLabel, resultsView, mobileDownloadButton);
+        content = new VBox(10, headerRow, searchRow, hintLabel, resultsView, mobileDownloadButton);
         content.getStyleClass().add("online-panel-content");
         content.setPadding(new Insets(12, 16, 16, 12));
         content.setFillWidth(true);
         HBox.setHgrow(content, Priority.ALWAYS);
         VBox.setVgrow(resultsView, Priority.ALWAYS);
 
-        toggleButton.getStyleClass().add("drawer-toggle-button");
-        toggleButton.setWrapText(true);
-        toggleButton.setFocusTraversable(false);
-        toggleButton.setOnAction(event -> toggle());
-
-        getChildren().setAll(toggleButton, content);
+        getChildren().setAll(content);
         getStyleClass().add("online-panel");
         setAlignment(Pos.CENTER_LEFT);
         setMinWidth(COLLAPSED_WIDTH);
@@ -145,7 +143,7 @@ public final class OnlineDrawer extends HBox {
         if (!hasDividers()) {
             return;
         }
-        double left = clamp(preferences.getDouble(PREF_DIVIDER_LEFT, DEFAULT_LEFT_DIVIDER), 0.16, 0.52);
+        double left = clamp(preferences.getDouble(PREF_DIVIDER_LEFT, DEFAULT_LEFT_DIVIDER), 0.19, 0.36);
         double right = expanded
                 ? expandedDividerPosition(windowWidth, left)
                 : collapsedDividerPosition(windowWidth, left);
@@ -171,10 +169,28 @@ public final class OnlineDrawer extends HBox {
         return loadingIndicator;
     }
 
+    public boolean isExpanded() {
+        return expanded;
+    }
+
+    public void toggleFromHeader() {
+        toggle();
+    }
+
+    public void setOnExpandedChanged(Consumer<Boolean> callback) {
+        expandedChanged = callback;
+    }
+
     public void enableMobileMode() {
         expanded = true;
-        toggleButton.setVisible(false);
-        toggleButton.setManaged(false);
+        Label mobileHeader = new Label("在线下载");
+        mobileHeader.getStyleClass().add("section-title");
+        content.getChildren().set(0, mobileHeader);
+        resultsView.setCellFactory(ignored -> new OnlineResultCell(true));
+        mobileDownloadButton.disableProperty().unbind();
+        mobileDownloadButton.setDisable(false);
+        closeButton.setVisible(false);
+        closeButton.setManaged(false);
         content.setVisible(true);
         content.setManaged(true);
         content.setOpacity(1.0);
@@ -200,7 +216,8 @@ public final class OnlineDrawer extends HBox {
             preferences.putDouble(PREF_DIVIDER_RIGHT, positions[1]);
         }
         expanded = !expanded;
-        animateState();
+        applyState(true);
+        if (expandedChanged != null) expandedChanged.accept(expanded);
     }
 
     private void applyState(boolean persist) {
@@ -209,62 +226,17 @@ public final class OnlineDrawer extends HBox {
         }
         content.setVisible(expanded);
         content.setManaged(expanded);
-        content.setPrefWidth(expanded ? EXPANDED_PREF_WIDTH - COLLAPSED_WIDTH : 0);
+        content.setPrefWidth(expanded ? EXPANDED_PREF_WIDTH : 0);
         content.setMinWidth(expanded ? 240 : 0);
         content.setMaxWidth(expanded ? Double.MAX_VALUE : 0);
         content.setOpacity(expanded ? 1.0 : 0.0);
 
         setMinWidth(expanded ? EXPANDED_MIN_WIDTH : COLLAPSED_WIDTH);
         setPrefWidth(expanded ? EXPANDED_PREF_WIDTH : COLLAPSED_WIDTH);
-        setMaxWidth(expanded ? Double.MAX_VALUE : COLLAPSED_WIDTH);
+        setMaxWidth(expanded ? EXPANDED_MAX_WIDTH : COLLAPSED_WIDTH);
         getStyleClass().removeAll("online-panel-expanded", "online-panel-collapsed");
         getStyleClass().add(expanded ? "online-panel-expanded" : "online-panel-collapsed");
-        updateToggleButton();
         syncDivider(currentWindowWidth());
-    }
-
-    private void animateState() {
-        preferences.putBoolean(PREF_EXPANDED, expanded);
-        ScaleTransition pulse = new ScaleTransition(Duration.millis(180), toggleButton);
-        pulse.setFromX(1.0);
-        pulse.setFromY(1.0);
-        pulse.setToX(1.08);
-        pulse.setToY(1.08);
-        pulse.setAutoReverse(true);
-        pulse.setCycleCount(2);
-
-        if (expanded) {
-            content.setManaged(true);
-            content.setVisible(true);
-            content.setOpacity(0.0);
-            content.setTranslateX(24);
-            applyState(false);
-            FadeTransition fade = new FadeTransition(Duration.millis(180), content);
-            fade.setFromValue(0.0);
-            fade.setToValue(1.0);
-            TranslateTransition slide = new TranslateTransition(Duration.millis(220), content);
-            slide.setFromX(24);
-            slide.setToX(0);
-            new ParallelTransition(fade, slide, pulse).play();
-        } else {
-            updateToggleButton();
-            FadeTransition fade = new FadeTransition(Duration.millis(150), content);
-            fade.setFromValue(content.getOpacity());
-            fade.setToValue(0.0);
-            TranslateTransition slide = new TranslateTransition(Duration.millis(180), content);
-            slide.setFromX(0);
-            slide.setToX(24);
-            ParallelTransition animation = new ParallelTransition(fade, slide, pulse);
-            animation.setOnFinished(event -> applyState(false));
-            animation.play();
-        }
-    }
-
-    private void updateToggleButton() {
-        toggleButton.setText(expanded ? "‹\n收起\n搜索" : "☰\n在线\n搜索\n›");
-        toggleButton.setTooltip(new Tooltip(expanded ? "收起在线搜索抽屉" : "展开在线搜索抽屉"));
-        toggleButton.getStyleClass().removeAll("drawer-expanded", "drawer-collapsed");
-        toggleButton.getStyleClass().add(expanded ? "drawer-expanded" : "drawer-collapsed");
     }
 
     private void persistDividers() {
@@ -272,7 +244,7 @@ public final class OnlineDrawer extends HBox {
             return;
         }
         double[] positions = splitPane.getDividerPositions();
-        double left = clamp(positions[0], 0.16, 0.52);
+        double left = clamp(positions[0], 0.19, 0.36);
         preferences.putDouble(PREF_DIVIDER_LEFT, left);
         if (expanded) {
             preferences.putDouble(PREF_DIVIDER_RIGHT, clamp(positions[1], left + 0.18, 0.90));
@@ -283,7 +255,7 @@ public final class OnlineDrawer extends HBox {
         if (!hasDividers()) {
             return;
         }
-        double left = clamp(splitPane.getDividerPositions()[0], 0.16, 0.52);
+        double left = clamp(splitPane.getDividerPositions()[0], 0.19, 0.36);
         double right = expanded
                 ? expandedDividerPosition(windowWidth, left)
                 : collapsedDividerPosition(windowWidth, left);
@@ -312,7 +284,7 @@ public final class OnlineDrawer extends HBox {
 
     private double collapsedDividerPosition(double windowWidth, double left) {
         double width = Math.max(1120, windowWidth);
-        return clamp(1.0 - COLLAPSED_WIDTH / width, left + 0.18, 0.97);
+        return 1.0;
     }
 
     private double currentWindowWidth() {
@@ -328,16 +300,43 @@ public final class OnlineDrawer extends HBox {
     }
 
     private static final class OnlineResultCell extends ListCell<OnlineTrackInfo> {
+        private final boolean mobileMode;
+        private final Label title = new Label();
+        private final Label details = new Label();
+        private final Label availability = new Label();
+        private final VBox text = new VBox(4, title, details);
+        private final HBox row = new HBox(8, text, availability);
+
+        private OnlineResultCell(boolean mobileMode) {
+            this.mobileMode = mobileMode;
+            title.getStyleClass().add("online-track-title");
+            details.getStyleClass().add("online-track-details");
+            availability.getStyleClass().add("online-availability");
+            HBox.setHgrow(text, Priority.ALWAYS);
+            row.setAlignment(Pos.CENTER_LEFT);
+        }
+
         @Override
         protected void updateItem(OnlineTrackInfo item, boolean empty) {
             super.updateItem(item, empty);
             getStyleClass().removeAll("result-downloadable", "result-tryable", "result-unavailable");
             if (empty || item == null) {
                 setText(null);
+                setGraphic(null);
                 return;
             }
-            setText(item.title() + "\n" + item.subtitle());
-            setWrapText(true);
+            if (mobileMode) {
+                setText(item.title() + "\n" + item.subtitle());
+                setWrapText(true);
+                setGraphic(null);
+            } else {
+                title.setText(item.title());
+                details.setText((item.artist() == null || item.artist().isBlank() ? "未知歌手" : item.artist())
+                        + " · " + item.source());
+                availability.setText(item.availabilityText());
+                setText(null);
+                setGraphic(row);
+            }
             if (item.downloadable()) {
                 getStyleClass().add("result-downloadable");
             } else if ("可尝试下载".equals(item.availabilityText())) {

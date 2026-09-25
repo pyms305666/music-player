@@ -53,8 +53,9 @@ Android Debug APK：
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
 ```
 
-## 协作约束
+## 维护说明
 
-- 修改或删除文件前先征得用户允许。
+- 本地验证以 `verify.ps1` 为准；Android 调试 APK 使用 `android-app/build-apk.ps1` 生成。Android SDK、Gradle 和 JDK 由该脚本下载到项目 `.tools/`。
 - 不删除 `downloads/` 及其中用户数据。
 - 在线来源可能随网站接口调整而失效，构建测试不得依赖实时网站可用性。新 Provider 的搜索/解析逻辑抽成包内可见静态方法，用真实响应裁剪的 fixture 做离线测试；改动在线逻辑后可用临时探针类对真实接口做一次性烟测，验证完删除。
+- `package.ps1` 目前构建 Windows app-image 和 EXE 安装程序；发布目录 `release/` 的文件整理应以实际发布流程为准，不代表该脚本会自动生成 ZIP、APK 或校验文件。

@@ -1,0 +1,1 @@
+960ba5d38d9f63070e4ebac016aef2faee25b291984e013cf218c628ce55bd3b  simple-music-player-windows-installer-4.1.3-desktop-ui.exe

@@ -1,6 +1,7 @@
 package app.musicplayer.ui;
 
 import app.musicplayer.model.Track;
+import app.musicplayer.model.PlayMode;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -9,6 +10,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
@@ -27,6 +29,8 @@ public final class PlaybackControls extends VBox {
     private final Slider progressSlider = new Slider(0, 1, 0);
     private final Slider volumeSlider = new Slider(0, 1, 0.75);
     private final Label timeLabel = new Label("00:00 / 00:00");
+    private final Label trackTitleLabel = new Label("未播放歌曲");
+    private final Label trackArtistLabel = new Label("选择歌曲开始播放");
     private boolean seeking;
 
     public PlaybackControls(
@@ -36,7 +40,8 @@ public final class PlaybackControls extends VBox {
             Runnable nextAction,
             Runnable seekAction,
             DoubleConsumer volumeAction,
-            boolean mobileMode
+            boolean mobileMode,
+            ComboBox<PlayMode> playModeBox
     ) {
         super(8);
 
@@ -48,7 +53,7 @@ public final class PlaybackControls extends VBox {
         progressSlider.getStyleClass().add("song-progress-slider");
         progressSlider.setMinWidth(240);
         progressSlider.setPrefWidth(620);
-        progressSlider.setMaxWidth(760);
+        progressSlider.setMaxWidth(mobileMode ? 760 : Double.MAX_VALUE);
         progressSlider.setMinHeight(28);
         progressSlider.setPrefHeight(28);
         progressSlider.setMaxHeight(28);
@@ -67,7 +72,7 @@ public final class PlaybackControls extends VBox {
         HBox progressRow = new HBox(12, progressSlider, timeLabel, progressSpacer);
         progressRow.getStyleClass().add("progress-row");
         progressRow.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(progressSlider, Priority.SOMETIMES);
+        HBox.setHgrow(progressSlider, Priority.ALWAYS);
 
         HBox transportGroup = new HBox(10, previousButton, playPauseButton, nextButton);
         transportGroup.getStyleClass().add("transport-group");
@@ -129,6 +134,30 @@ public final class PlaybackControls extends VBox {
             setMinHeight(100);
             setPrefHeight(106);
             setMaxHeight(112);
+        } else {
+            progressSpacer.setVisible(false);
+            progressSpacer.setManaged(false);
+            trackTitleLabel.getStyleClass().add("player-track-title");
+            trackArtistLabel.getStyleClass().add("player-track-artist");
+            VBox trackInfo = new VBox(3, trackTitleLabel, trackArtistLabel);
+            trackInfo.getStyleClass().add("player-track-info");
+            trackInfo.setMinWidth(180);
+            trackInfo.setPrefWidth(240);
+            trackInfo.setMaxWidth(280);
+            Region leadingSpacer = new Region();
+            Region trailingSpacer = new Region();
+            HBox.setHgrow(leadingSpacer, Priority.ALWAYS);
+            HBox.setHgrow(trailingSpacer, Priority.ALWAYS);
+            playModeBox.getStyleClass().add("desktop-play-mode");
+            controlRow.getChildren().setAll(
+                    trackInfo, leadingSpacer, transportGroup, trailingSpacer, playModeBox, volumeGroup);
+            controlRow.setMinHeight(48);
+            controlRow.setPrefHeight(48);
+            controlRow.setMaxHeight(48);
+            setPadding(new Insets(8, 24, 10, 24));
+            setMinHeight(96);
+            setPrefHeight(96);
+            setMaxHeight(96);
         }
 
         playPauseButton.disableProperty().bind(Bindings.isEmpty(tracks));
@@ -150,6 +179,15 @@ public final class PlaybackControls extends VBox {
 
     public Label timeLabel() {
         return timeLabel;
+    }
+
+    public void setTrackInfo(String title, String artist) {
+        trackTitleLabel.setText(title == null || title.isBlank() ? "未播放歌曲" : title);
+        trackArtistLabel.setText(artist == null || artist.isBlank() ? "选择歌曲开始播放" : artist);
+    }
+
+    public void setPlaying(boolean playing) {
+        playPauseButton.setText(playing ? "暂停" : "播放");
     }
 
     public boolean isSeeking() {

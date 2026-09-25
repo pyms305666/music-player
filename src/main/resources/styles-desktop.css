@@ -1,0 +1,403 @@
+/* Desktop-only visual system. Loaded after styles.css so the mobile preview keeps its layout. */
+.desktop-root {
+    -app-background: #101318;
+    -app-surface: #191e26;
+    -app-raised: #222a35;
+    -app-border: #303947;
+    -app-text: #f4f7fb;
+    -app-secondary: #b1bdcb;
+    -app-accent: #70aaff;
+    -fx-background-color: -app-background;
+    -fx-font-family: "Segoe UI Variable", "Microsoft YaHei UI", sans-serif;
+}
+
+.desktop-root .top-bar,
+.desktop-root .controls,
+.desktop-root .sidebar,
+.desktop-root .content,
+.desktop-root .online-panel-content {
+    -fx-effect: null;
+}
+
+.desktop-root .top-bar {
+    -fx-background-color: #171c23;
+    -fx-border-color: transparent transparent -app-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.desktop-app-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+}
+
+.desktop-section-label {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 13px;
+    -fx-padding: 0 0 0 16;
+    -fx-border-color: transparent transparent transparent -app-border;
+    -fx-border-width: 0 0 0 1;
+}
+
+.desktop-root .desktop-status {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 12px;
+    -fx-alignment: center-right;
+}
+
+.desktop-root .desktop-status.status-error {
+    -fx-text-fill: #ffb4a9;
+}
+
+.desktop-root .button,
+.desktop-root .combo-box,
+.desktop-root .menu-button,
+.desktop-root .search-field {
+    -fx-background-color: -app-raised;
+    -fx-text-fill: -app-text;
+    -fx-border-color: -app-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 7 12;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+}
+
+.desktop-root .menu-button > .label,
+.desktop-root .combo-box > .list-cell {
+    -fx-text-fill: -app-text;
+}
+
+.desktop-root .button:hover,
+.desktop-root .combo-box:hover,
+.desktop-root .menu-button:hover {
+    -fx-background-color: #2b3543;
+}
+
+.desktop-root .button:focused,
+.desktop-root .combo-box:focused,
+.desktop-root .menu-button:focused,
+.desktop-root .text-field:focused,
+.desktop-root .list-view .list-cell:focused {
+    -fx-border-color: -app-accent;
+    -fx-border-width: 2;
+}
+
+.desktop-root .primary-button {
+    -fx-background-color: #4f8fe8;
+    -fx-border-color: #4f8fe8;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+}
+
+.desktop-root .primary-button:hover {
+    -fx-background-color: #69a5f5;
+    -fx-border-color: #69a5f5;
+}
+
+.desktop-root .primary-button > .label {
+    -fx-text-fill: white;
+}
+
+.desktop-root .main-split-pane,
+.desktop-root .main-split-pane > .split-pane-divider {
+    -fx-background-color: -app-background;
+}
+
+.desktop-root .main-split-pane > .split-pane-divider {
+    -fx-padding: 0 2;
+}
+
+.desktop-root .sidebar {
+    -fx-background-color: -app-surface;
+    -fx-border-color: transparent -app-border transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+
+.desktop-root .section-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+}
+
+.desktop-root .playlist-count {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 12px;
+}
+
+.desktop-root .search-field {
+    -fx-background-color: #242c37;
+    -fx-prompt-text-fill: #92a0b0;
+    -fx-padding: 9 11;
+}
+
+.desktop-root .list-view {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+    -fx-padding: 0;
+}
+
+.desktop-root .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -app-text;
+    -fx-border-color: transparent;
+    -fx-border-width: 2;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 8 10;
+}
+
+.desktop-root .list-view .list-cell:filled:hover {
+    -fx-background-color: #27313e;
+}
+
+.desktop-root .playlist-view .list-cell:filled:selected,
+.desktop-root .online-results-view .list-cell:filled:selected {
+    -fx-background-color: #29405c;
+}
+
+.desktop-root .combo-box > .list-cell:filled:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.desktop-root .sort-direction-button {
+    -fx-min-width: 42px;
+    -fx-pref-width: 42px;
+    -fx-max-width: 42px;
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+}
+
+.desktop-root .playlist-playing-marker {
+    -fx-text-fill: -app-accent;
+    -fx-font-size: 11px;
+    -fx-min-width: 16px;
+}
+
+.desktop-root .playlist-track-title,
+.desktop-root .online-track-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.desktop-root .playlist-track-artist,
+.desktop-root .online-track-details {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 11px;
+}
+
+.desktop-root .content {
+    -fx-background-color: -app-surface;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-radius: 0;
+}
+
+.desktop-root .content-foreground {
+    -fx-background-color: transparent;
+}
+
+.desktop-root .desktop-hero {
+    -fx-min-height: 144px;
+    -fx-pref-height: 144px;
+}
+
+.desktop-root .artwork-tile {
+    -fx-background-color: #27313e;
+    -fx-background-radius: 12px;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 12px;
+}
+
+.desktop-root .artwork-placeholder {
+    -fx-text-fill: #7790ac;
+    -fx-font-size: 52px;
+}
+
+.desktop-root .artwork-background {
+    -fx-opacity: 1;
+}
+
+.desktop-root .track-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 24px;
+    -fx-font-weight: 700;
+}
+
+.desktop-root .playback-context-label {
+    -fx-text-fill: -app-accent;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.desktop-root .track-artist {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 15px;
+}
+
+.desktop-root .muted-label,
+.desktop-root .time-label {
+    -fx-text-fill: -app-secondary;
+}
+
+.desktop-root .lyrics-shell,
+.desktop-root .lyrics-view {
+    -fx-background-color: #151a21;
+    -fx-border-color: transparent;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+}
+
+.desktop-root .lyrics-view .list-cell {
+    -fx-text-fill: #aeb9c6;
+    -fx-padding: 9 12;
+}
+
+.desktop-root .lyrics-view .list-cell:filled:selected {
+    -fx-background-color: transparent;
+    -fx-text-fill: -app-accent;
+    -fx-font-weight: 700;
+}
+
+.desktop-root .lyrics-toolbar {
+    -fx-alignment: center-right;
+}
+
+.desktop-root .toolbar-button {
+    -fx-font-size: 12px;
+    -fx-padding: 6 10;
+}
+
+.desktop-root .toolbar-button-active {
+    -fx-background-color: #29405c;
+    -fx-border-color: #5889c5;
+    -fx-text-fill: white;
+}
+
+.desktop-root .online-panel {
+    -fx-padding: 0;
+}
+
+.desktop-root .online-panel-content {
+    -fx-background-color: -app-surface;
+    -fx-border-color: -app-border transparent transparent -app-border;
+    -fx-border-width: 0 0 0 1;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+}
+
+.desktop-root .online-close-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -app-secondary;
+}
+
+.desktop-root .online-results-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.desktop-root .online-results-view .placeholder .label {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 12px;
+    -fx-wrap-text: true;
+}
+
+.desktop-root .online-results-view .list-cell {
+    -fx-padding: 9 10;
+}
+
+.desktop-root .online-availability {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 10px;
+    -fx-padding: 4 6;
+    -fx-background-color: #2b3543;
+    -fx-background-radius: 5px;
+}
+
+.desktop-root .result-downloadable .online-availability {
+    -fx-text-fill: #9ee0b8;
+}
+
+.desktop-root .result-tryable .online-availability {
+    -fx-text-fill: #f0cf91;
+}
+
+.desktop-root .result-unavailable .online-availability {
+    -fx-text-fill: #aeb9c6;
+}
+
+.desktop-root .online-results-view .list-cell.result-downloadable,
+.desktop-root .online-results-view .list-cell.result-tryable,
+.desktop-root .online-results-view .list-cell.result-unavailable {
+    -fx-border-color: transparent;
+    -fx-opacity: 1;
+}
+
+.desktop-root .controls {
+    -fx-background-color: #171c23;
+    -fx-border-color: -app-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.desktop-root .progress-row {
+    -fx-min-height: 22px;
+    -fx-pref-height: 22px;
+}
+
+.desktop-root .song-progress-slider {
+    -fx-min-width: 0;
+    -fx-pref-width: 760px;
+}
+
+.desktop-root .song-progress-slider .track,
+.desktop-root .volume-slider .track {
+    -fx-background-color: #394657;
+    -fx-pref-height: 5px;
+}
+
+.desktop-root .song-progress-slider .thumb,
+.desktop-root .volume-slider .thumb {
+    -fx-background-color: -app-accent;
+    -fx-min-width: 13px;
+    -fx-pref-width: 13px;
+    -fx-max-width: 13px;
+    -fx-min-height: 13px;
+    -fx-pref-height: 13px;
+    -fx-max-height: 13px;
+}
+
+.desktop-root .player-track-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.desktop-root .player-track-artist {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 11px;
+}
+
+.desktop-root .control-button {
+    -fx-min-width: 72px;
+    -fx-pref-width: 72px;
+    -fx-max-width: 72px;
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+    -fx-max-height: 38px;
+}
+
+.desktop-root .play-button {
+    -fx-min-width: 80px;
+    -fx-pref-width: 80px;
+    -fx-max-width: 80px;
+}
+
+.desktop-root .desktop-play-mode {
+    -fx-min-width: 112px;
+    -fx-pref-width: 112px;
+    -fx-max-width: 112px;
+}

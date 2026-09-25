@@ -1,74 +1,92 @@
 # 简约音乐播放器 4.1.3
 
-基于 Java 25、JavaFX 25、SQLite 和 Gradle 的 Windows 桌面音乐播放器。
+简约音乐播放器是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
-## 功能
+## 功能概览
 
-- 导入文件夹，递归扫描支持的音频文件。
-- 通过文件选择器导入一首或多首音频。
-- 播放、暂停、上一首、下一首、随机播放、单曲循环。
-- 按名称、歌手、文件名、创建日期进行正序或倒序排列。
-- 桌面端从歌单和数据库缓存中移除歌曲时保留原始本地音频文件。
-- 显示本地 LRC、数据库缓存歌词和多个在线来源歌词。
-- 在线搜索聚合酷狗、酷我、咪咕、QQ、网易云五个来源：并行搜索、来源熔断、解析缓存，受限歌曲下载时自动换源。
-- 酷我经车载播放器接口解析，VIP 歌曲同样可获取完整音频（320k MP3 / FLAC）。
-- 在线搜索、歌词/封面预览、下载到本地后播放。
-- 下载歌曲、SQLite 数据库、歌词、封面和播放兼容缓存统一放在 `downloads/`。
-- 三栏宽度和在线搜索抽屉状态会自动保存。
-- 支持歌词锁定、字体缩放和纯歌词模式。
-- 安装包自带 Java 运行时，用户无需单独安装 JDK。
+- 导入单首或多首音频，也可递归扫描文件夹；支持按名称、歌手、文件名和创建日期排序。
+- 播放、暂停、上一首、下一首、随机播放和单曲循环。
+- 在线搜索酷狗、酷我、咪咕、QQ 音乐和网易云音乐；歌词提供网易云、QQ、酷狗和 LRCLIB 来源。
+- 预览在线歌曲的歌词和封面，下载后加入本地曲库播放。遇到受限或失效的下载地址时会尝试其他来源。
+- 显示本地 LRC 和缓存歌词；支持桌面端歌词锁定、字体缩放及纯歌词模式。
+- SQLite 保存曲库信息及歌词缓存；封面、歌词和播放兼容文件使用本地缓存。
 
-## 目录结构
+在线来源依赖第三方网站接口，可能随网站改版而不可用；在线功能需要网络连接。请仅在遵守当地法律法规和相关服务条款的前提下使用在线搜索与下载功能。
+
+## 项目结构
 
 ```text
-app.musicplayer
-├─ config      运行目录和 downloads 路径
-├─ model       歌曲、歌词、在线结果等数据模型
-├─ data        SQLite 数据访问
-├─ lyrics      LRC 解析、歌词缓存和歌词来源
-├─ online      在线站点 provider、搜索、下载和网络会话
-├─ playback    音频格式识别和兼容播放文件处理
-├─ playlist    导入、去重、搜索和排序
-├─ artwork     封面下载与缓存
-├─ ui          播放列表、在线抽屉和播放控制组件
-└─ util        JSON 和哈希等通用工具
+├─ src/main/java/app/musicplayer/       桌面端代码及 Android 共用逻辑
+│  ├─ config/                           路径、布局和 SQLite 原生库配置
+│  ├─ model/                            歌曲、歌词和在线结果模型
+│  ├─ data/                             桌面端 SQLite 数据访问
+│  ├─ lyrics/                           LRC 解析、歌词服务及在线歌词来源
+│  ├─ online/                           在线来源、搜索和下载编排
+│  ├─ playback/                         音频格式识别和播放文件处理
+│  ├─ playlist/                         曲库导入、去重、搜索和排序
+│  ├─ artwork/                          封面下载和缓存
+│  └─ ui/                               JavaFX 播放器界面
+├─ src/test/java/                       桌面端自动化测试
+├─ src/main/resources/                  桌面端图标和样式
+├─ android-app/                         原生 Android 工程
+├─ packaging/                           Windows 安装包资源
+├─ run.ps1                              Windows 桌面端 Gradle 命令入口
+├─ verify.ps1                           桌面端测试和发行目录验证
+└─ package.ps1                          Windows 安装包构建脚本
 ```
 
-`MusicPlayerApp` 是应用控制器，负责协调模块和处理 JavaFX 生命周期；
-`MusicPlayerLauncher` 是打包入口，用于避免 jpackage 启动 JavaFX 主类时报运行时缺失。
+`MusicPlayerLauncher` 是桌面应用入口，`MusicPlayerApp` 负责 JavaFX 生命周期和界面协调。Android 工程在构建时从 `src/main/java` 同步指定的共享源码；Android 数据库和界面实现独立于桌面端。
 
-## 开发运行
+## 环境要求
+
+- Windows 10/11，用于运行下列 PowerShell 脚本。
+- 桌面开发需要 JDK 25；`run.ps1` 会在项目 `.tools/` 中下载 Gradle 9.6.1。需能访问 Gradle 分发站点及 Maven 仓库。
+- Android APK 脚本会在 `.tools/` 中准备 Android SDK、Gradle 8.11.1 和 JDK 17。首次构建需联网下载工具和依赖，并接受 Android SDK 许可。
+- Windows 安装包需要 JDK（含 `jpackage`）和 WiX 5.0.2。`package.ps1` 查找 `C:\jdk-25.0.2\bin\jpackage.exe`，找不到时使用 PATH 中的 `jpackage.exe`。
+
+工具下载和构建产物保存在项目内的 `.tools/`、`build/`、`android-app/app/build/` 等目录；这些目录不属于源代码。
+
+## Windows 桌面版
+
+在项目根目录打开 PowerShell：
 
 ```powershell
 .\run.ps1 run
 ```
 
-第一次运行会把 Gradle 下载到项目的 `.tools/` 目录。
+如果 PowerShell 不允许执行本地脚本，可在当前进程中临时放宽策略后运行：
 
-### Android 竖屏界面预览
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 run
+```
 
-移动端界面复用桌面版的播放、歌单、歌词、数据库和在线搜索逻辑，以 `405×720` 的 9:16 窗口预览。拖动宽度或高度时，窗口会自动维持 9:16 竖屏比例：
+### 移动竖屏预览
+
+桌面版包含 9:16 移动布局预览，可在 Windows 窗口中检查 Android 风格的歌单、歌词和在线搜索页面：
 
 ```powershell
 .\run.ps1 run '--args=--mobile'
 ```
 
-该模式用于在 Windows 上快速预览移动端布局。真正的 Android 应用位于 `android-app/`，使用原生 Java、Media3、Android SQLite 和系统文件选择器，并复用桌面版的数据模型、歌词解析、排序与在线来源代码。
+这是 JavaFX 预览模式，不是 Android 模拟器或 Android 应用。真实 Android 应用见下文。
 
-### 生成 Android APK
+## Android 版
+
+在项目根目录运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1
+```
+
+添加 `-Clean` 可先清理 Android 构建目录，再构建 Debug APK：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
 ```
 
-脚本会把 Android SDK、Gradle 8.11.1 和 JDK 17 缓存在项目 `.tools/`，不会修改系统环境。Debug APK 输出到：
+APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`，脚本也会复制一份到 `android-app\dist\simple-music-player-4.1.3-debug.apk`。Debug APK 使用 Android 默认调试密钥签名，适合测试安装；发布到商店前需配置正式签名和发布构建流程。
 
-```text
-android-app\app\build\outputs\apk\debug\app-debug.apk
-android-app\dist\simple-music-player-4.1.3-debug.apk
-```
-
-Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播放、多文件导入、删除、SQLite 缓存及名称/歌手/文件名/创建日期排序。在线搜索与桌面端共享同一套来源爬虫与自动换源逻辑；歌词与桌面端共享同一套专用渠道（网易云 → QQ → 酷狗 → LRCLIB），并提供歌词页右上角刷新按钮强制重新查词。在线歌曲优先保存到手机内部存储根目录的 `music/`；未授予所有文件访问权限时回退到公开的 `Music/music/`。删除安卓歌单中的下载或导入副本时，会同步删除该副本及缓存记录。
+Android 应用要求 Android 9（API 28）或更高版本。首次导入或管理音频时，系统可能请求音频读取或文件管理权限；也可通过系统文件选择器导入文件。在线搜索与下载需要网络。下载音乐优先保存到内部存储 `music/`，必要时回退到共享存储 `Music/music/`。Android 数据和媒体文件位于设备上，与 Windows 版数据目录不自动同步。
 
 ## 验证
 
@@ -76,42 +94,54 @@ Android 版支持竖屏歌单、歌词、在线搜索下载、Media3 本地播�
 .\verify.ps1
 ```
 
-验证脚本会执行测试并生成 `installDist`。由于 Gradle/JDK 在 Windows 中文项目路径下可能生成错误的测试 classpath，脚本会临时映射一个 ASCII 盘符，结束后自动取消映射，不移动项目文件。
+脚本运行桌面端 JUnit 测试并生成 `installDist`。项目位于中文路径时，脚本会临时使用 Windows `subst` 映射到 ASCII 盘符，以避免 Gradle/JDK 在测试 classpath 中错误编码路径；映射会在脚本结束时移除。在线来源测试使用离线样例，不要求实时服务可用。
 
-## 生成安装包
+## 构建 Windows 安装包
 
-```powershell
-.\package.ps1
-```
-
-安装包输出到：
-
-```text
-build\installer\4.1.3-时间戳\简约音乐播放器-4.1.3.exe
-```
-
-统一发布文件整理到 `release/4.1.3/`，其中包含 Windows 安装包、Windows 便携版 ZIP、Android APK 和 SHA-256 校验文件。该目录不提交到 Git 历史，二进制文件通过 GitHub Release 发布。
-
-打包依赖项目本地 WiX 5：
+先准备 WiX 5.0.2：
 
 ```powershell
 dotnet tool install --tool-path .\.tools\wix wix --version 5.0.2
 wix extension add --global WixToolset.Util.wixext/5.0.2
 ```
 
-## 数据目录
+再运行：
 
-开发环境使用项目目录下的 `downloads/`。jpackage 安装版优先使用 exe 所在目录下的 `downloads/`。
+```powershell
+.\package.ps1
+```
+
+脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.3` 可指定版本号。安装后的应用可在 exe 所在目录写入 `downloads/`，通常不需要用户另行安装 Java。
+
+## 数据和缓存
+
+Windows 开发版和安装版都将 SQLite 数据库、下载音乐及缓存集中保存在应用基目录的 `downloads/`：
 
 ```text
 downloads/
-├─ music-player.db
+├─ music-player.db                 曲库与歌词缓存数据库
 ├─ 下载的音频文件
 └─ cache/
-   ├─ lyrics/
-   ├─ artwork/
-   ├─ playback/
-   └─ sqlite-native/  SQLite JDBC 每次启动使用的隔离原生库目录
+   ├─ lyrics/                       歌词缓存
+   ├─ artwork/                      封面缓存
+   ├─ playback/                     播放兼容缓存
+   └─ sqlite-native/                 SQLite JDBC 原生库临时文件
 ```
 
-重构保留原 SQLite 表结构和已有缓存路径，旧数据可以继续读取。
+桌面版会尝试将旧位置的 `music-player.db` 复制到新目录。数据库沿用 `tracks` 和 `lyrics` 表；重构不要求删除旧数据。曲库中移除歌曲只会修改曲库记录，不会删除原始本地音频。Windows 的 `downloads/` 被 `.gitignore` 排除；请自行备份，其中可能包含个人音乐和数据库。
+
+## 发布文件
+
+发布整理目录约定为 `release/4.1.3/`，用于存放 Windows 安装包、便携版 ZIP、Android APK 和 SHA-256 校验文件。目录通常被 Git 忽略；本次桌面版改版的 Windows 安装包及校验文件单独保存在 `release/4.1.3-desktop-ui/` 并随源码提交。
+
+## 常见问题
+
+- **首次启动或构建时间较长：** 脚本需要下载 Gradle、JDK、Android SDK 或依赖，请确认网络可访问相应下载站点。
+- **桌面端找不到 JavaFX 或无法启动：** 确认使用 JDK 25，并从项目根目录通过 `run.ps1` 启动。
+- **在线歌曲或歌词缺失：** 第三方接口会变化，搜索结果不保证始终可用；可稍后重试或选择其他来源。在线接口故障不会影响本地曲库播放。
+- **Android 导入后无法播放或无法管理文件：** 检查系统授予的音频/文件权限，或通过应用内文件选择器重新导入。
+- **Windows 打包失败并提示缺少 WiX：** 确认本地 `.tools\wix\wix.exe` 为 WiX 5，并已安装对应的 `WixToolset.Util.wixext/5.0.2` 扩展。
+
+## 许可
+
+项目使用 [MIT License](LICENSE)。第三方库及在线音乐服务遵循各自的许可与服务条款。

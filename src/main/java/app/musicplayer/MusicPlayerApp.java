@@ -40,6 +40,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.SplitPane;
@@ -59,6 +60,7 @@ import javafx.scene.media.MediaException;
 import javafx.scene.media.MediaPlayer;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -122,9 +124,9 @@ public final class MusicPlayerApp extends Application {
     private Label titleLabel;
     private Label artistLabel;
     private Label sourceLabel;
+    private Label playbackContextLabel;
     private Label statusLabel;
     private Label timeLabel;
-    private Button playPauseButton;
     private Slider progressSlider;
     private Slider volumeSlider;
     private ComboBox<PlayMode> playModeBox;
@@ -137,6 +139,8 @@ public final class MusicPlayerApp extends Application {
     private StackPane lyricsShell;
     private Button lyricsLockButton;
     private Button pureLyricsButton;
+    private Button onlineToggleButton;
+    private HBox desktopHero;
 
     private MediaPlayer mediaPlayer;
     private Track currentTrack;
@@ -171,15 +175,22 @@ public final class MusicPlayerApp extends Application {
             mobileBottom.getStyleClass().add("mobile-bottom");
             root.setBottom(mobileBottom);
         } else {
+            root.getStyleClass().add("desktop-root");
             root.setTop(createTopBar(stage));
             root.setCenter(createResizableContent());
             root.setBottom(createControls());
         }
 
-        Scene scene = new Scene(root, layoutMode.isMobile() ? 405 : 1320, 720);
+        double initialWidth = layoutMode.isMobile() ? 405
+                : Math.min(1320, Screen.getPrimary().getVisualBounds().getWidth() - 32);
+        double initialHeight = layoutMode.isMobile() ? 720
+                : Math.min(720, Screen.getPrimary().getVisualBounds().getHeight() - 32);
+        Scene scene = new Scene(root, initialWidth, initialHeight);
         scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
         if (layoutMode.isMobile()) {
             scene.getStylesheets().add(getClass().getResource("/styles-mobile.css").toExternalForm());
+        } else {
+            scene.getStylesheets().add(getClass().getResource("/styles-desktop.css").toExternalForm());
         }
         scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.SPACE && !isTextInputFocused(scene)) { togglePlayPause(); event.consume(); }
@@ -187,9 +198,10 @@ public final class MusicPlayerApp extends Application {
         scene.widthProperty().addListener((o, ov, nv) -> applyResponsiveLayout(nv.doubleValue()));
 
         stage.setTitle(layoutMode.isMobile() ? "简约音乐播放器 - 移动预览" : "简约音乐播放器");
-        stage.setMinWidth(layoutMode.isMobile() ? 360 : 1120);
-        stage.setMinHeight(layoutMode.isMobile() ? 640 : 560);
+        stage.setMinWidth(layoutMode.isMobile() ? 360 : Math.min(1120, initialWidth));
+        stage.setMinHeight(layoutMode.isMobile() ? 640 : Math.min(560, initialHeight));
         stage.setScene(scene);
+        if (!layoutMode.isMobile()) stage.centerOnScreen();
         stage.show();
         if (layoutMode.isMobile()) {
             MobileWindowSizer.bind(stage, scene);
@@ -197,6 +209,7 @@ public final class MusicPlayerApp extends Application {
         Platform.runLater(() -> {
             if (!layoutMode.isMobile()) {
                 onlineDrawer.restore(scene.getWidth());
+                updateOnlineToggleButton();
             }
             applyResponsiveLayout(scene.getWidth());
         });
@@ -208,16 +221,16 @@ public final class MusicPlayerApp extends Application {
         StackPane nowPlaying = createNowPlaying();
         createOnlineDrawer();
 
-        playlistPane.setMinWidth(240);
-        playlistPane.setPrefWidth(320);
-        nowPlaying.setMinWidth(420);
-        onlineDrawer.setMinWidth(58);
-        onlineDrawer.setPrefWidth(360);
+        playlistPane.setMinWidth(256);
+        playlistPane.setPrefWidth(292);
+        nowPlaying.setMinWidth(480);
+        onlineDrawer.setMinWidth(0);
+        onlineDrawer.setPrefWidth(0);
 
         SplitPane splitPane = new SplitPane(playlistPane, nowPlaying, onlineDrawer);
         splitPane.setOrientation(Orientation.HORIZONTAL);
         splitPane.getStyleClass().add("main-split-pane");
-        splitPane.setDividerPositions(0.24, 0.78);
+        splitPane.setDividerPositions(0.23, 1.0);
 
         SplitPane.setResizableWithParent(playlistPane, true);
         SplitPane.setResizableWithParent(nowPlaying, true);
@@ -261,32 +274,55 @@ public final class MusicPlayerApp extends Application {
     private static boolean isTextInputFocused(Scene scene) { return scene.getFocusOwner() instanceof TextField; }
 
     private HBox createTopBar(Stage stage) {
-        Button importButton = new Button("导入文件夹");
+        Label appTitle = new Label("简约音乐");
+        appTitle.getStyleClass().add("desktop-app-title");
+        Label sectionLabel = new Label("本地曲库");
+        sectionLabel.getStyleClass().add("desktop-section-label");
+
+        MenuItem importFilesItem = new MenuItem("导入音频文件");
+        importFilesItem.setOnAction(event -> importFiles(stage));
+        MenuItem importFolderItem = new MenuItem("导入文件夹");
+        importFolderItem.setOnAction(event -> importFolder(stage));
+        MenuButton importButton = new MenuButton("导入音乐", null, importFilesItem, importFolderItem);
         importButton.getStyleClass().add("primary-button");
-        importButton.setOnAction(event -> importFolder(stage));
-
-        Button importFilesButton = new Button("导入音频");
-        importFilesButton.setOnAction(event -> importFiles(stage));
-
-        Button removeTrackButton = new Button("移除选中");
-        removeTrackButton.setOnAction(event -> removeSelectedTrack());
 
         playModeBox = createPlayModeBox();
-
-        Button reloadLyricsButton = new Button("搜索歌词");
-        reloadLyricsButton.setOnAction(event -> { if (currentTrack != null) { loadLyrics(currentTrack, true); } });
+        onlineToggleButton = new Button("在线搜索");
+        onlineToggleButton.getStyleClass().add("online-toggle-button");
+        onlineToggleButton.setOnAction(event -> {
+            if (onlineDrawer != null) {
+                onlineDrawer.toggleFromHeader();
+                updateOnlineToggleButton();
+            }
+        });
 
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         statusLabel = new Label("请选择文件夹或音频文件");
-        statusLabel.getStyleClass().addAll("muted-label", "status-chip");
-        statusLabel.setWrapText(true);
-        statusLabel.setMaxWidth(360);
+        statusLabel.getStyleClass().addAll("muted-label", "desktop-status");
+        statusLabel.setMaxWidth(340);
+        Tooltip statusTooltip = new Tooltip();
+        statusTooltip.textProperty().bind(statusLabel.textProperty());
+        statusLabel.setTooltip(statusTooltip);
+        statusLabel.textProperty().addListener((observable, oldValue, value) -> {
+            statusLabel.getStyleClass().remove("status-error");
+            if (value != null && (value.contains("失败") || value.contains("无法"))) {
+                statusLabel.getStyleClass().add("status-error");
+            }
+        });
 
-        HBox topBar = new HBox(12, importButton, importFilesButton, removeTrackButton, playModeBox, reloadLyricsButton, spacer, statusLabel);
+        HBox topBar = new HBox(12, appTitle, sectionLabel, spacer, statusLabel, importButton, onlineToggleButton);
         topBar.getStyleClass().add("top-bar");
         topBar.setAlignment(Pos.CENTER_LEFT);
-        topBar.setPadding(new Insets(18, 22, 12, 22));
+        topBar.setPadding(new Insets(0, 24, 0, 24));
+        topBar.setMinHeight(56);
+        topBar.setPrefHeight(56);
+        topBar.setMaxHeight(56);
         return topBar;
+    }
+
+    private void updateOnlineToggleButton() {
+        if (onlineToggleButton == null || onlineDrawer == null) return;
+        onlineToggleButton.setText(onlineDrawer.isExpanded() ? "收起搜索" : "在线搜索");
     }
 
     private VBox createMobileTopBar(Stage stage) {
@@ -354,6 +390,17 @@ public final class MusicPlayerApp extends Application {
         ComboBox<PlayMode> comboBox = new ComboBox<>();
         comboBox.getItems().setAll(PlayMode.ORDER, PlayMode.SHUFFLE, PlayMode.REPEAT_ONE);
         comboBox.getSelectionModel().select(PlayMode.ORDER);
+        comboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(PlayMode mode, boolean empty) {
+                super.updateItem(mode, empty);
+                setText(empty || mode == null ? null : switch (mode) {
+                    case ORDER -> "顺序";
+                    case SHUFFLE -> "随机";
+                    case REPEAT_ONE -> "单曲";
+                });
+            }
+        });
         return comboBox;
     }
 
@@ -363,7 +410,9 @@ public final class MusicPlayerApp extends Application {
                 preferences,
                 this::applyTrackFilter,
                 this::sortTracks,
-                this::playTrack);
+                this::playTrack,
+                this::removeSelectedTrack,
+                !layoutMode.isMobile());
         searchField = playlistPane.searchField();
         sortTypeBox = playlistPane.sortTypeBox();
         sortOrderBox = playlistPane.sortOrderBox();
@@ -377,6 +426,7 @@ public final class MusicPlayerApp extends Application {
                 this::searchOnlineTracks,
                 this::previewOnlineTrack,
                 this::downloadAndPlayOnlineTrack);
+        onlineDrawer.setOnExpandedChanged(expanded -> updateOnlineToggleButton());
         onlineSearchField = onlineDrawer.searchField();
         onlineResultsView = onlineDrawer.resultsView();
         loadingOnlineSearch = onlineDrawer.loadingIndicator();
@@ -386,6 +436,7 @@ public final class MusicPlayerApp extends Application {
         titleLabel = new Label("未播放歌曲"); titleLabel.getStyleClass().add("track-title"); titleLabel.setWrapText(true);
         artistLabel = new Label("导入文件夹或音频文件后双击歌曲播放"); artistLabel.getStyleClass().add("track-artist"); artistLabel.setWrapText(true);
         sourceLabel = new Label("歌词来源：暂无"); sourceLabel.getStyleClass().add("muted-label");
+        if (!layoutMode.isMobile()) sourceLabel.setWrapText(true);
         loadingLyrics = new ProgressIndicator(); loadingLyrics.setMaxSize(18, 18); loadingLyrics.setVisible(false); loadingLyrics.setManaged(false);
 
         sourceRow = new HBox(8, sourceLabel, loadingLyrics);
@@ -414,28 +465,60 @@ public final class MusicPlayerApp extends Application {
 
         lyricsMetaBox = new VBox(8, titleLabel, artistLabel, sourceRow);
         lyricsMetaBox.getStyleClass().add("lyrics-meta");
+        if (!layoutMode.isMobile()) {
+            playbackContextLabel = new Label("未播放");
+            playbackContextLabel.getStyleClass().add("playback-context-label");
+            lyricsMetaBox.getChildren().addFirst(playbackContextLabel);
+        }
 
         HBox lyricsToolbar = createLyricsToolbar();
-        VBox nowPlaying = new VBox(12, lyricsToolbar, lyricsMetaBox, lyricsShell);
-        nowPlaying.getStyleClass().add("content-foreground");
-        nowPlaying.setPadding(new Insets(24, 22, 16, 22));
-        nowPlaying.setMinWidth(0);
-        nowPlaying.setMinHeight(0);
-
         artworkImageView = new ImageView();
         artworkImageView.getStyleClass().add("artwork-background");
-        artworkImageView.setPreserveRatio(false);
         artworkImageView.setSmooth(true);
         artworkImageView.setVisible(false);
         artworkDimmer = new Region();
         artworkDimmer.getStyleClass().add("artwork-dimmer");
 
-        StackPane stack = new StackPane(artworkImageView, artworkDimmer, nowPlaying);
+        VBox nowPlaying;
+        if (layoutMode.isMobile()) {
+            nowPlaying = new VBox(12, lyricsToolbar, lyricsMetaBox, lyricsShell);
+        } else {
+            Label artworkPlaceholder = new Label("♫");
+            artworkPlaceholder.getStyleClass().add("artwork-placeholder");
+            StackPane artworkTile = new StackPane(artworkPlaceholder, artworkImageView);
+            artworkTile.getStyleClass().add("artwork-tile");
+            artworkTile.setMinSize(144, 144);
+            artworkTile.setPrefSize(144, 144);
+            artworkTile.setMaxSize(144, 144);
+            artworkImageView.setFitWidth(144);
+            artworkImageView.setFitHeight(144);
+            artworkImageView.setPreserveRatio(true);
+            artworkImageView.visibleProperty().addListener((observable, oldValue, visible) ->
+                    artworkPlaceholder.setVisible(!visible));
+            desktopHero = new HBox(20, artworkTile, lyricsMetaBox);
+            desktopHero.getStyleClass().add("desktop-hero");
+            desktopHero.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(lyricsMetaBox, Priority.ALWAYS);
+            nowPlaying = new VBox(16, desktopHero, lyricsShell, lyricsToolbar);
+        }
+        nowPlaying.getStyleClass().add("content-foreground");
+        nowPlaying.setPadding(layoutMode.isMobile()
+                ? new Insets(24, 22, 16, 22)
+                : new Insets(24));
+        nowPlaying.setMinWidth(0);
+        nowPlaying.setMinHeight(0);
+
+        StackPane stack = layoutMode.isMobile()
+                ? new StackPane(artworkImageView, artworkDimmer, nowPlaying)
+                : new StackPane(nowPlaying);
         stack.getStyleClass().add("content");
         stack.setMinWidth(0);
         stack.setMinHeight(0);
-        artworkImageView.fitWidthProperty().bind(stack.widthProperty());
-        artworkImageView.fitHeightProperty().bind(stack.heightProperty());
+        if (layoutMode.isMobile()) {
+            artworkImageView.setPreserveRatio(false);
+            artworkImageView.fitWidthProperty().bind(stack.widthProperty());
+            artworkImageView.fitHeightProperty().bind(stack.heightProperty());
+        }
         showLyrics(Lyrics.empty("导入歌曲后开始播放"));
         applyPureLyricsMode();
         return stack;
@@ -446,11 +529,16 @@ public final class MusicPlayerApp extends Application {
         Button zoomInButton = createLyricsToolButton("放大字体", () -> changeLyricsFontSize(1.5));
         Button zoomOutButton = createLyricsToolButton("缩小字体", () -> changeLyricsFontSize(-1.5));
         pureLyricsButton = createLyricsToolButton("纯歌词模式", this::togglePureLyricsMode);
+        Button reloadLyricsButton = createLyricsToolButton("刷新歌词", () -> {
+            if (currentTrack != null) loadLyrics(currentTrack, true);
+        });
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox toolbar = new HBox(8, lyricsLockButton, zoomInButton, zoomOutButton, pureLyricsButton, spacer);
+        HBox toolbar = layoutMode.isMobile()
+                ? new HBox(8, lyricsLockButton, zoomInButton, zoomOutButton, pureLyricsButton, spacer)
+                : new HBox(8, spacer, reloadLyricsButton, lyricsLockButton, zoomInButton, zoomOutButton, pureLyricsButton);
         toolbar.getStyleClass().add("lyrics-toolbar");
         updateLyricsToolbarState();
         return toolbar;
@@ -459,7 +547,7 @@ public final class MusicPlayerApp extends Application {
     private Button createLyricsToolButton(String text, Runnable action) {
         Button button = new Button(text);
         button.getStyleClass().add("toolbar-button");
-        button.setFocusTraversable(false);
+        button.setFocusTraversable(!layoutMode.isMobile());
         button.setOnAction(e -> action.run());
         return button;
     }
@@ -484,15 +572,19 @@ public final class MusicPlayerApp extends Application {
     }
 
     private void applyPureLyricsMode() {
+        if (desktopHero != null) {
+            desktopHero.setVisible(!pureLyricsMode);
+            desktopHero.setManaged(!pureLyricsMode);
+        }
         if (lyricsMetaBox != null) {
             lyricsMetaBox.setVisible(!pureLyricsMode);
             lyricsMetaBox.setManaged(!pureLyricsMode);
         }
-        if (artworkDimmer != null) {
+        if (artworkDimmer != null && layoutMode.isMobile()) {
             artworkDimmer.setOpacity(pureLyricsMode ? 0.48 : 1.0);
         }
         if (artworkImageView != null) {
-            artworkImageView.setOpacity(pureLyricsMode ? 0.16 : 0.34);
+            artworkImageView.setOpacity(layoutMode.isMobile() ? (pureLyricsMode ? 0.16 : 0.34) : 1.0);
         }
         if (lyricsShell != null) {
             StackPane.setMargin(lyricsShell, pureLyricsMode ? new Insets(2, 0, 0, 0) : Insets.EMPTY);
@@ -527,8 +619,8 @@ public final class MusicPlayerApp extends Application {
                         mediaPlayer.setVolume(volume);
                     }
                 },
-                layoutMode.isMobile());
-        playPauseButton = playbackControls.playPauseButton();
+                layoutMode.isMobile(),
+                playModeBox);
         progressSlider = playbackControls.progressSlider();
         volumeSlider = playbackControls.volumeSlider();
         timeLabel = playbackControls.timeLabel();
@@ -585,11 +677,15 @@ public final class MusicPlayerApp extends Application {
     private void playTrack(Track track) {
         int idx = tracks.indexOf(track); if (idx < 0) return;
         disposePlayer(); previewingOnlineResult = false; currentTrack = track;
+        if (playbackContextLabel != null) playbackContextLabel.setText("正在播放");
+        playbackControls.setPlaying(false);
         if (mobileViews != null) {
             mobileViews.select(MobileViewSwitcher.Section.NOW_PLAYING);
         }
         if (filteredTracks.contains(track)) { playlistView.getSelectionModel().select(track); playlistView.scrollTo(track); }
+        playlistPane.setCurrentTrack(track);
         titleLabel.setText(currentTrack.title()); artistLabel.setText(currentTrack.artist());
+        playbackControls.setTrackInfo(currentTrack.title(), currentTrack.artist());
         progressSlider.setValue(0); timeLabel.setText("00:00 / 00:00");
         showArtwork(null); showLyrics(Lyrics.empty("正在准备歌词..."));
         PlaybackFileResolver.Resolution playbackResolution = playbackFileResolver.resolve(currentTrack.path());
@@ -607,9 +703,9 @@ public final class MusicPlayerApp extends Application {
             mediaPlayer = new MediaPlayer(media); mediaPlayer.setVolume(volumeSlider.getValue());
             mediaPlayer.currentTimeProperty().addListener((o, ot, nt) -> updatePlaybackProgress(nt));
             mediaPlayer.setOnReady(() -> { updateMetadata(media); database.saveTrack(currentTrack, javaDuration(mediaPlayer.getTotalDuration())); updateDurationLabel(); loadLyrics(currentTrack, false); mediaPlayer.play(); });
-            mediaPlayer.setOnPlaying(() -> playPauseButton.setText("暂停"));
-            mediaPlayer.setOnPaused(() -> playPauseButton.setText("播放"));
-            mediaPlayer.setOnStopped(() -> playPauseButton.setText("播放"));
+            mediaPlayer.setOnPlaying(() -> playbackControls.setPlaying(true));
+            mediaPlayer.setOnPaused(() -> playbackControls.setPlaying(false));
+            mediaPlayer.setOnStopped(() -> playbackControls.setPlaying(false));
             mediaPlayer.setOnEndOfMedia(this::handleEndOfMedia);
             mediaPlayer.setOnError(() -> showPlayerError(mediaPlayer.getError()));
             media.setOnError(() -> showPlayerError(media.getError()));
@@ -619,6 +715,7 @@ public final class MusicPlayerApp extends Application {
     private void updateMetadata(Media media) {
         String t = valueAsString(media.getMetadata().get("title")), a = valueAsString(media.getMetadata().get("artist"));
         currentTrack.updateMetadata(t, a); titleLabel.setText(currentTrack.title()); artistLabel.setText(currentTrack.artist());
+        playbackControls.setTrackInfo(currentTrack.title(), currentTrack.artist());
         playlistView.refresh(); database.saveTrack(currentTrack, mediaPlayer == null ? null : javaDuration(mediaPlayer.getTotalDuration()));
     }
 
@@ -630,6 +727,7 @@ public final class MusicPlayerApp extends Application {
     private void downloadAndPlayOnlineTrack(OnlineTrackInfo info) {
         if (info == null) return;
         disposePlayer(); cancelLyricRetry();
+        playbackControls.setPlaying(false);
 
         if (info.canAttemptDownload()) {
             statusLabel.setText("正在爬取下载：" + info.title());
@@ -791,9 +889,13 @@ public final class MusicPlayerApp extends Application {
         currentLyrics = lyrics;
         lyricRows.setAll(lyrics.lines().stream().map(LyricLine::text).toList());
         sourceLabel.setText("歌词来源：" + lyrics.source());
-        if (lyricsView != null && !lyricRows.isEmpty()) {
-            lyricsView.getSelectionModel().select(0);
-            lyricsView.scrollTo(0);
+        if (lyricsView != null) {
+            if (!lyricRows.isEmpty() && (layoutMode.isMobile() || lyrics.timed())) {
+                lyricsView.getSelectionModel().select(0);
+                lyricsView.scrollTo(0);
+            } else {
+                lyricsView.getSelectionModel().clearSelection();
+            }
         }
         if (lyricsView != null) {
             lyricsView.refresh();
@@ -879,7 +981,7 @@ public final class MusicPlayerApp extends Application {
             message = "当前文件编码不受支持，建议换成 mp3 / m4a";
         }
         statusLabel.setText("播放失败：" + message);
-        playPauseButton.setText("播放");
+        playbackControls.setPlaying(false);
         showLyrics(Lyrics.empty("当前文件无法播放或编码不受支持"));
     }
 
@@ -905,6 +1007,7 @@ public final class MusicPlayerApp extends Application {
 
     private void previewOnlineTrack(OnlineTrackInfo info) {
         if (info == null) return; long reqId = ++onlinePreviewRequestId; previewingOnlineResult = true;
+        if (playbackContextLabel != null) playbackContextLabel.setText("在线预览");
         titleLabel.setText(info.title()); artistLabel.setText(info.subtitle());
         showArtwork(info.artworkUrl()); showLyrics(Lyrics.empty("正在加载在线预览歌词..."));
         statusLabel.setText("预览：" + info.title() + "（双击下载到本地播放）");
@@ -925,7 +1028,7 @@ public final class MusicPlayerApp extends Application {
         int ri = tracks.indexOf(sel); boolean removingCurrent = sel == currentTrack;
         tracks.remove(sel); database.removeTrack(sel);
         applyTrackFilter(searchField == null ? "" : searchField.getText());
-        if (removingCurrent) { cancelLyricRetry(); disposePlayer(); currentTrack = null; previewingOnlineResult = false; titleLabel.setText("未播放歌曲"); artistLabel.setText("当前歌曲已从歌单和缓存移除"); timeLabel.setText("00:00 / 00:00"); showArtwork(null); showLyrics(Lyrics.empty("当前歌曲已移除")); if (!tracks.isEmpty()) { int ni = Math.min(ri, tracks.size() - 1); Track nt = tracks.get(ni); if (filteredTracks.contains(nt)) playlistView.getSelectionModel().select(nt); else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0); } }
+        if (removingCurrent) { cancelLyricRetry(); disposePlayer(); currentTrack = null; previewingOnlineResult = false; if (playbackContextLabel != null) playbackContextLabel.setText("未播放"); playlistPane.setCurrentTrack(null); playbackControls.setTrackInfo(null, null); playbackControls.setPlaying(false); titleLabel.setText("未播放歌曲"); artistLabel.setText("当前歌曲已从歌单和缓存移除"); timeLabel.setText("00:00 / 00:00"); showArtwork(null); showLyrics(Lyrics.empty("当前歌曲已移除")); if (!tracks.isEmpty()) { int ni = Math.min(ri, tracks.size() - 1); Track nt = tracks.get(ni); if (filteredTracks.contains(nt)) playlistView.getSelectionModel().select(nt); else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0); } }
         else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(Math.min(ri, filteredTracks.size() - 1));
         statusLabel.setText("已移除：" + sel);
     }
