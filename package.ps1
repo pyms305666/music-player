@@ -1,10 +1,12 @@
 param(
-    [string] $Version = "4.1.4"
+    [string] $Version = "4.1.5"
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$appName = -join @([char]31616, [char]32422, [char]38899, [char]20048, [char]25773, [char]25918, [char]22120)
+$appName = -join @([char]90, [char]65, [char]38899, [char]20048)
+# Keep the renamed app separate from the old MSI, whose uninstaller removes its install directory.
+$upgradeUuid = "4911b140-cdd1-4cf5-b3ab-a1b9f8308d28"
 
 & (Join-Path $projectRoot "verify.ps1")
 if ($LASTEXITCODE -ne 0) {
@@ -67,7 +69,8 @@ if ($LASTEXITCODE -ne 0) {
     --vendor "pyms305666" `
     --win-menu `
     --win-shortcut `
-    --win-per-user-install
+    --win-per-user-install `
+    --win-upgrade-uuid $upgradeUuid
 if ($LASTEXITCODE -ne 0) {
     throw "Installer creation failed with exit code $LASTEXITCODE."
 }

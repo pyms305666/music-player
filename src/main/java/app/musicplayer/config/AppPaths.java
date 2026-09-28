@@ -40,6 +40,7 @@ public record AppPaths(
 
     public void initialize() {
         try {
+            LegacyInstallMigration.migrateIfNeeded(baseDir, dataDir, databasePath);
             Files.createDirectories(dataDir);
             Files.createDirectories(lyricsCacheDir);
             Files.createDirectories(artworkCacheDir);

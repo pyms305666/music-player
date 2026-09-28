@@ -1,17 +1,18 @@
-# 项目交接：简约音乐播放器（Windows 4.1.4 / Android 4.1.3）
+# 项目交接：ZA音乐 4.1.5
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版 `4.1.4`；原生 Android 版 `4.1.3`。
+- 版本：Windows 桌面版与原生 Android 版均为 `4.1.5`。
 - 数据统一位于程序目录的 `downloads/`。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
 ## 主要模块
 
 - `config.AppPaths`：运行目录解析、缓存目录创建、旧数据库复制迁移。
+- `config.LegacyInstallMigration`：Windows 安装版首次启动时，将旧名称安装目录的 `downloads/` 复制到“ZA音乐”目录，并修正数据库中旧下载文件的路径。
 - `config.SqliteNativeTemp`：为每次启动隔离 SQLite JDBC 原生 DLL，避免 Windows 临时目录清理冲突。
 - `playlist.TrackLibraryService`：音频扫描、去重、搜索、排序。
 - `playback.AudioFileInspector`：按文件头识别 MP3/MP4/原始 AAC。

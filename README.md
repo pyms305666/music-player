@@ -1,8 +1,8 @@
-# 简约音乐播放器（Windows 4.1.4 / Android 4.1.3）
+# ZA音乐 4.1.5
 
-简约音乐播放器是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
+ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
-Windows 4.1.4 修复顺序播放最后一首结束后停止的问题，现在会从第一首继续播放；Android 版维持 4.1.3。
+4.1.5 将 Windows 和 Android 的应用名称统一为“ZA音乐”。Windows 4.1.4 的顺序循环修复继续保留。
 
 ## 功能概览
 
@@ -86,7 +86,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
 ```
 
-APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`，脚本也会复制一份到 `android-app\dist\simple-music-player-4.1.3-debug.apk`。Debug APK 使用 Android 默认调试密钥签名，适合测试安装；发布到商店前需配置正式签名和发布构建流程。
+APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`，脚本也会复制一份到 `android-app\dist\ZA音乐-Android-4.1.5-debug.apk`。Debug APK 使用 Android 默认调试密钥签名，适合测试安装；发布到商店前需配置正式签名和发布构建流程。
 
 Android 应用要求 Android 9（API 28）或更高版本。首次导入或管理音频时，系统可能请求音频读取或文件管理权限；也可通过系统文件选择器导入文件。在线搜索与下载需要网络。下载音乐优先保存到内部存储 `music/`，必要时回退到共享存储 `Music/music/`。Android 数据和媒体文件位于设备上，与 Windows 版数据目录不自动同步。
 
@@ -113,7 +113,7 @@ wix extension add --global WixToolset.Util.wixext/5.0.2
 .\package.ps1
 ```
 
-脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.4` 可指定版本号。安装后的应用可在 exe 所在目录写入 `downloads/`，通常不需要用户另行安装 Java。
+脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.5` 可指定版本号。安装后的应用可在 exe 所在目录写入 `downloads/`，通常不需要用户另行安装 Java。
 
 ## 数据和缓存
 
@@ -132,9 +132,11 @@ downloads/
 
 桌面版会尝试将旧位置的 `music-player.db` 复制到新目录。数据库沿用 `tracks` 和 `lyrics` 表；重构不要求删除旧数据。曲库中移除歌曲只会修改曲库记录，不会删除原始本地音频。Windows 的 `downloads/` 被 `.gitignore` 排除；请自行备份，其中可能包含个人音乐和数据库。
 
+Windows 4.1.5 的“ZA音乐”使用新的安装目录。首次启动时，如果新版曲库尚未建立，会从同级旧目录“简约音乐播放器/downloads”复制歌曲、数据库和缓存，并修正数据库中下载歌曲的路径。旧目录不会被此迁移删除；首次启动前请关闭旧版播放器。若旧版使用自定义安装路径，请先备份 `downloads/`，再手动迁移。
+
 ## 发布文件
 
-历史发布文件保存在 `release/4.1.3/`，桌面界面改版安装包保存在 `release/4.1.3-desktop-ui/`。本次桌面顺序循环修复的安装包和校验文件保存在 `release/4.1.4/` 并随源码提交。Android APK 仍为 4.1.3，未重新打包。
+历史发布文件保存在 `release/4.1.3/`、`release/4.1.3-desktop-ui/` 和 `release/4.1.4/`。4.1.5 的 Windows 安装包、Android Debug APK 与 SHA-256 校验文件统一放在 `release/4.1.5/` 并随源码提交。
 
 ## 常见问题
 

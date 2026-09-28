@@ -197,7 +197,7 @@ public final class MusicPlayerApp extends Application {
         });
         scene.widthProperty().addListener((o, ov, nv) -> applyResponsiveLayout(nv.doubleValue()));
 
-        stage.setTitle(layoutMode.isMobile() ? "简约音乐播放器 - 移动预览" : "简约音乐播放器");
+        stage.setTitle(layoutMode.isMobile() ? "ZA音乐 - 移动预览" : "ZA音乐");
         stage.setMinWidth(layoutMode.isMobile() ? 360 : Math.min(1120, initialWidth));
         stage.setMinHeight(layoutMode.isMobile() ? 640 : Math.min(560, initialHeight));
         stage.setScene(scene);
@@ -274,7 +274,7 @@ public final class MusicPlayerApp extends Application {
     private static boolean isTextInputFocused(Scene scene) { return scene.getFocusOwner() instanceof TextField; }
 
     private HBox createTopBar(Stage stage) {
-        Label appTitle = new Label("简约音乐");
+        Label appTitle = new Label("ZA音乐");
         appTitle.getStyleClass().add("desktop-app-title");
         Label sectionLabel = new Label("本地曲库");
         sectionLabel.getStyleClass().add("desktop-section-label");
@@ -326,7 +326,7 @@ public final class MusicPlayerApp extends Application {
     }
 
     private VBox createMobileTopBar(Stage stage) {
-        Label appTitle = new Label("简约音乐");
+        Label appTitle = new Label("ZA音乐");
         appTitle.getStyleClass().add("mobile-app-title");
 
         Button importFilesButton = new Button("导入音频");
