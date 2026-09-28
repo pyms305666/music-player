@@ -788,16 +788,18 @@ public final class MusicPlayerApp extends Application {
         if (m == PlayMode.REPEAT_ONE && !manual) { replayCurrent(); return; }
         playTrack(switch (m) {
             case SHUFFLE -> randomIndex();
-            case ORDER, REPEAT_ONE -> { int cur = currentTrackIndex(); yield cur + 1 >= tracks.size() ? 0 : cur + 1; }
+            case ORDER, REPEAT_ONE -> nextOrderedIndex(currentTrackIndex(), tracks.size());
         });
+    }
+
+    static int nextOrderedIndex(int currentIndex, int trackCount) {
+        if (trackCount <= 0) throw new IllegalArgumentException("trackCount must be positive");
+        return currentIndex + 1 >= trackCount ? 0 : currentIndex + 1;
     }
 
     private int randomIndex() { if (tracks.size() <= 1) return 0; int c = currentTrackIndex(), n; do { n = random.nextInt(tracks.size()); } while (n == c); return n; }
 
     private void handleEndOfMedia() {
-        if (playModeBox.getValue() == PlayMode.ORDER) {
-            int cur = currentTrackIndex(); if (cur >= tracks.size() - 1) { mediaPlayer.stop(); mediaPlayer.seek(Duration.ZERO); progressSlider.setValue(0); updatePlaybackProgress(Duration.ZERO); statusLabel.setText("顺序播放结束"); return; }
-        }
         nextTrack(false);
     }
 

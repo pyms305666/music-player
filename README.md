@@ -1,6 +1,8 @@
-# 简约音乐播放器 4.1.3
+# 简约音乐播放器（Windows 4.1.4 / Android 4.1.3）
 
 简约音乐播放器是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
+
+Windows 4.1.4 修复顺序播放最后一首结束后停止的问题，现在会从第一首继续播放；Android 版维持 4.1.3。
 
 ## 功能概览
 
@@ -111,7 +113,7 @@ wix extension add --global WixToolset.Util.wixext/5.0.2
 .\package.ps1
 ```
 
-脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.3` 可指定版本号。安装后的应用可在 exe 所在目录写入 `downloads/`，通常不需要用户另行安装 Java。
+脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.4` 可指定版本号。安装后的应用可在 exe 所在目录写入 `downloads/`，通常不需要用户另行安装 Java。
 
 ## 数据和缓存
 
@@ -132,7 +134,7 @@ downloads/
 
 ## 发布文件
 
-发布整理目录约定为 `release/4.1.3/`，用于存放 Windows 安装包、便携版 ZIP、Android APK 和 SHA-256 校验文件。目录通常被 Git 忽略；本次桌面版改版的 Windows 安装包及校验文件单独保存在 `release/4.1.3-desktop-ui/` 并随源码提交。
+历史发布文件保存在 `release/4.1.3/`，桌面界面改版安装包保存在 `release/4.1.3-desktop-ui/`。本次桌面顺序循环修复的安装包和校验文件保存在 `release/4.1.4/` 并随源码提交。Android APK 仍为 4.1.3，未重新打包。
 
 ## 常见问题
 
