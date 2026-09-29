@@ -10,8 +10,8 @@ android {
         applicationId "app.musicplayer.android"
         minSdk 28
         targetSdk 35
-        versionCode 40105
-        versionName "4.1.5"
+        versionCode 40106
+        versionName "4.1.6"
     }
 
     buildTypes {
@@ -36,6 +36,7 @@ tasks.register("syncSharedJava", Sync) {
         include "app/musicplayer/online/*.java"
         include "app/musicplayer/playlist/PlaylistSort.java"
         include "app/musicplayer/playlist/SortDirection.java"
+        include "app/musicplayer/playlist/QueueOrder.java"
         include "app/musicplayer/util/JsonSupport.java"
         include "app/musicplayer/util/Hashing.java"
         include "app/musicplayer/lyrics/LrcParser.java"

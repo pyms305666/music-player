@@ -8,7 +8,7 @@ group = "app.musicplayer"
 
 def nativeTarget = providers.gradleProperty("target").orElse("host").get()
 def androidBuild = nativeTarget == "android"
-version = "4.1.5"
+version = "4.1.6"
 
 java {
     if (androidBuild) {
@@ -53,7 +53,7 @@ if (androidBuild) {
         ]
         release {
             appLabel = "ZA音乐"
-            versionCode = "40105"
+            versionCode = "40106"
             versionName = project.version.toString()
         }
     }

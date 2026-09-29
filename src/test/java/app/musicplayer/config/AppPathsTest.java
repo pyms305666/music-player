@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AppPathsTest {
     @TempDir
@@ -19,7 +20,7 @@ class AppPathsTest {
             AppPaths paths = AppPaths.resolve(AppPathsTest.class);
 
             assertEquals(tempDir.toAbsolutePath().normalize(), paths.baseDir());
-            assertEquals(tempDir.resolve("downloads").toAbsolutePath().normalize(), paths.dataDir());
+            assertTrue(!paths.dataDir().equals(tempDir.resolve("downloads").toAbsolutePath().normalize()));
         } finally {
             if (previous == null) {
                 System.clearProperty("jpackage.app-path");
@@ -45,4 +46,20 @@ class AppPathsTest {
             }
         }
     }
+    @Test void dataDirectoryNeverMatchesEitherInstallerDirectory() {
+        String previous = System.getProperty("jpackage.app-path");
+        String local = System.getenv("LOCALAPPDATA");
+        if (local == null) return;
+        try {
+            for (String app : java.util.List.of("ZA音乐", "ZA-Music", "简约音乐播放器")) {
+                Path install = Path.of(local, app).toAbsolutePath().normalize();
+                System.setProperty("jpackage.app-path", install.resolve("ZA音乐.exe").toString());
+                assertTrue(!AppPaths.resolve(AppPathsTest.class).dataDir().startsWith(install));
+            }
+        } finally {
+            if (previous == null) System.clearProperty("jpackage.app-path");
+            else System.setProperty("jpackage.app-path", previous);
+        }
+    }
+
 }

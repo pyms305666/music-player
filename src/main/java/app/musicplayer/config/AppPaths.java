@@ -25,7 +25,13 @@ public record AppPaths(
 ) {
     public static AppPaths resolve(Class<?> applicationClass) {
         Path baseDir = resolveBaseDir(applicationClass);
-        Path dataDir = baseDir.resolve("downloads").toAbsolutePath().normalize();
+        String override = System.getProperty("musicplayer.data-dir");
+        String local = System.getenv("LOCALAPPDATA");
+        boolean packaged = System.getProperty("jpackage.app-path") != null;
+        Path userData = local == null || local.isBlank()
+                ? Path.of(System.getProperty("user.home"), ".za-music") : Path.of(local, "ZA-Music-Data");
+        Path dataDir = (override != null && !override.isBlank() ? Path.of(override)
+                : packaged ? userData : baseDir.resolve("downloads")).toAbsolutePath().normalize();
         Path cacheDir = dataDir.resolve("cache");
         return new AppPaths(
                 baseDir,

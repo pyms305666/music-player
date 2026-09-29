@@ -60,3 +60,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.
 - 不删除 `downloads/` 及其中用户数据。
 - 在线来源可能随网站接口调整而失效，构建测试不得依赖实时网站可用性。新 Provider 的搜索/解析逻辑抽成包内可见静态方法，用真实响应裁剪的 fixture 做离线测试；改动在线逻辑后可用临时探针类对真实接口做一次性烟测，验证完删除。
 - `package.ps1` 目前构建 Windows app-image 和 EXE 安装程序；发布目录 `release/` 的文件整理应以实际发布流程为准，不代表该脚本会自动生成 ZIP、APK 或校验文件。
+
+## 2026-09-30 第一轮（4.1.6）
+
+播放队列、过期请求、下载发布和用户数据迁移已实现。安装包使用新 UpgradeCode 与 `ZA-Music` 目录，后续版本必须沿用此身份；数据库/歌曲在 `%LOCALAPPDATA%/ZA-Music-Data`，升级卸载不可清除此目录。迁移使用 SQLite VACUUM INTO 快照与完整性检查，保留原始目录和备份。Release 二进制仅上传附件。

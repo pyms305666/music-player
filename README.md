@@ -1,4 +1,4 @@
-# ZA音乐 4.1.5
+# ZA音乐 4.1.6
 
 ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
@@ -113,11 +113,11 @@ wix extension add --global WixToolset.Util.wixext/5.0.2
 .\package.ps1
 ```
 
-脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.5` 可指定版本号。安装后的应用可在 exe 所在目录写入 `downloads/`，通常不需要用户另行安装 Java。
+脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.5` 可指定版本号。安装后的应用在用户数据目录保存曲库，通常不需要用户另行安装 Java。
 
 ## 数据和缓存
 
-Windows 开发版和安装版都将 SQLite 数据库、下载音乐及缓存集中保存在应用基目录的 `downloads/`：
+Windows 安装版从 4.1.6 起将数据库、下载音乐及缓存保存在 `%LOCALAPPDATA%\ZA-Music-Data\`，与安装目录分离。开发版继续使用项目 `downloads/`。目录内容如下：
 
 ```text
 downloads/
@@ -149,3 +149,12 @@ Windows 4.1.5 的“ZA音乐”使用新的安装目录。首次启动时，如�
 ## 许可
 
 项目使用 [MIT License](LICENSE)。第三方库及在线音乐服务遵循各自的许可与服务条款。
+
+## 4.1.6 第一轮优化
+
+- Android 排序同步更新完整播放队列；搜索只过滤显示。两端切换歌曲后会忽略旧预览，Android 搜索按最新请求更新。
+- 下载先写独立 `.part` 文件，检查内容后发布；并发同名文件不会互相覆盖。桌面遇到不支持的 FLAC/Ogg/原始 AAC 来源会尝试其他来源。
+- Windows 安装到 `ZA-Music`，与 4.1.5 的安装包身份分离，避免迁移前卸载旧版数据。首次启动会查找同级 `ZA音乐/downloads`、`简约音乐播放器/downloads` 和当前安装目录 `downloads`。
+- 迁移前创建 SQLite 一致性快照，备份保存在用户数据目录 `backups/`；迁移校验完成后才启用新数据库。旧歌曲与数据库保留，已有新曲库不被覆盖；冲突或失败可以重试。
+- 自定义旧位置可在启动时通过 `-Dmusicplayer.migrate-from=<旧 downloads 目录>` 指定；仅对尚未建立的新曲库生效。请先关闭旧版；迁移完成并确认歌曲正常后再处理旧安装。
+- 后续安装包放在 GitHub Releases，不再向 Git 历史追加大体积二进制；历史发布文件保留。

@@ -66,4 +66,42 @@ class LegacyInstallMigrationTest {
 
         assertArrayEquals(new byte[]{2}, Files.readAllBytes(newData.resolve("music-player.db")));
     }
+    @Test
+    void snapshotsCommittedWalAndPreservesOriginalDatabase() throws Exception {
+        Path source = root.resolve("ZA音乐/downloads");
+        Files.createDirectories(source);
+        Path song = Files.write(source.resolve("wal.mp3"), new byte[]{1});
+        Path destination = root.resolve("user-data");
+        try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + source.resolve("music-player.db"))) {
+            try (var statement = connection.createStatement(); var result = statement.executeQuery("pragma journal_mode=wal")) { assertTrue(result.next()); }
+            try (MusicDatabase database = new MusicDatabase(source.resolve("music-player.db"))) {
+                database.saveTracks(List.of(new Track(song)));
+                LegacyInstallMigration.migrateIfNeeded(root.resolve("ZA-Music"), destination, destination.resolve("music-player.db"));
+                try (MusicDatabase migrated = new MusicDatabase(destination.resolve("music-player.db"))) {
+                    assertTrue(migrated.loadTracks().stream().anyMatch(t -> t.path().equals(destination.resolve("wal.mp3"))));
+                }
+                assertTrue(database.loadTracks().stream().anyMatch(t -> t.path().equals(song)));
+            }
+        }
+        try (var backups = Files.list(destination.resolve("backups"))) { assertTrue(backups.findAny().isPresent()); }
+    }
+
+    @Test
+    void conflictingDestinationIsPreservedAndMigrationCanRetry() throws Exception {
+        Path source = root.resolve("ZA音乐/downloads");
+        Path destination = root.resolve("user-data");
+        Files.createDirectories(source);
+        Files.createDirectories(destination);
+        Path song = Files.write(source.resolve("song.mp3"), new byte[]{1});
+        Files.write(destination.resolve("song.mp3"), new byte[]{2});
+        try (MusicDatabase db = new MusicDatabase(source.resolve("music-player.db"))) { db.saveTracks(List.of(new Track(song))); }
+        org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class, () ->
+            LegacyInstallMigration.migrateIfNeeded(root.resolve("ZA-Music"), destination, destination.resolve("music-player.db")));
+        assertArrayEquals(new byte[]{2}, Files.readAllBytes(destination.resolve("song.mp3")));
+        org.junit.jupiter.api.Assertions.assertFalse(Files.exists(destination.resolve("music-player.db")));
+        Files.delete(destination.resolve("song.mp3"));
+        LegacyInstallMigration.migrateIfNeeded(root.resolve("ZA-Music"), destination, destination.resolve("music-player.db"));
+        assertTrue(Files.exists(destination.resolve("music-player.db")));
+    }
+
 }

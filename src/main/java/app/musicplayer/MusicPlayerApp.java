@@ -264,7 +264,26 @@ public final class MusicPlayerApp extends Application {
     }
 
     private void initializeServices() {
-        APP_PATHS.initialize();
+        System.setProperty("musicplayer.desktop", "true");
+        while (true) {
+            try { APP_PATHS.initialize(); break; }
+            catch (RuntimeException failure) {
+                var retry = new javafx.scene.control.ButtonType("重试");
+                var choose = new javafx.scene.control.ButtonType("选择旧版数据目录");
+                var exit = new javafx.scene.control.ButtonType("退出");
+                var alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR,
+                        "曲库初始化或迁移失败，原数据未删除。请关闭旧版后重试。\n" + failure.getMessage(), retry, choose, exit);
+                alert.setHeaderText("无法打开曲库");
+                var selected = alert.showAndWait().orElse(exit);
+                if (selected == exit) throw failure;
+                if (selected == choose) {
+                    DirectoryChooser chooser = new DirectoryChooser();
+                    chooser.setTitle("选择含 music-player.db 的旧版 downloads 文件夹");
+                    var directory = chooser.showDialog(null);
+                    if (directory != null) System.setProperty("musicplayer.migrate-from", directory.getAbsolutePath());
+                }
+            }
+        }
         try { database = new MusicDatabase(DATABASE_PATH); }
         catch (SQLException e) { throw new IllegalStateException("无法初始化本地数据库", e); }
         lyricsService = new LyricsService(database, LYRICS_CACHE_DIR);
@@ -675,6 +694,7 @@ public final class MusicPlayerApp extends Application {
     private void playTrack(int idx) { if (idx >= 0 && idx < tracks.size()) playTrack(tracks.get(idx)); }
 
     private void playTrack(Track track) {
+        onlinePreviewRequestId++;
         int idx = tracks.indexOf(track); if (idx < 0) return;
         disposePlayer(); previewingOnlineResult = false; currentTrack = track;
         if (playbackContextLabel != null) playbackContextLabel.setText("正在播放");
@@ -742,7 +762,7 @@ public final class MusicPlayerApp extends Application {
         long reqId = ++onlinePreviewRequestId;
 
         onlineMusicSearchService.downloadAsync(info, DOWNLOAD_DIR).whenComplete((downloadedPath, err) -> Platform.runLater(() -> {
-            if (reqId != onlinePreviewRequestId) return;
+            boolean autoPlay = reqId == onlinePreviewRequestId;
             if (err != null || downloadedPath == null) {
                 showLyrics(Lyrics.empty("爬取下载失败"));
                 statusLabel.setText("下载失败：" + (err != null ? err.getMessage() : "未知错误"));
@@ -754,7 +774,7 @@ public final class MusicPlayerApp extends Application {
             if (result.addedTracks().isEmpty()) {
                 statusLabel.setText("已在歌单中：" + info.title());
                 Track et = tracks.stream().filter(t -> t.path().toAbsolutePath().normalize().toString().equals(downloadedPath.toAbsolutePath().normalize().toString())).findFirst().orElse(newTrack);
-                playTrack(et); return;
+                if (autoPlay) playTrack(et); return;
             }
 
             tracks.add(newTrack);
@@ -763,7 +783,7 @@ public final class MusicPlayerApp extends Application {
             if (searchField != null && !searchField.getText().isBlank()) searchField.setText("");
             else applyTrackFilter("");
             statusLabel.setText("爬取下载完成：" + info.title());
-            playTrack(newTrack);
+            if (autoPlay) playTrack(newTrack);
         }));
     }
 // ========== 共享播放控制 ==========
@@ -794,7 +814,7 @@ public final class MusicPlayerApp extends Application {
 
     static int nextOrderedIndex(int currentIndex, int trackCount) {
         if (trackCount <= 0) throw new IllegalArgumentException("trackCount must be positive");
-        return currentIndex + 1 >= trackCount ? 0 : currentIndex + 1;
+        return app.musicplayer.playlist.QueueOrder.relative(currentIndex, 1, trackCount);
     }
 
     private int randomIndex() { if (tracks.size() <= 1) return 0; int c = currentTrackIndex(), n; do { n = random.nextInt(tracks.size()); } while (n == c); return n; }
@@ -1009,6 +1029,7 @@ public final class MusicPlayerApp extends Application {
 
     private void previewOnlineTrack(OnlineTrackInfo info) {
         if (info == null) return; long reqId = ++onlinePreviewRequestId; previewingOnlineResult = true;
+        lyricsRequestId++; cancelLyricRetry();
         if (playbackContextLabel != null) playbackContextLabel.setText("在线预览");
         titleLabel.setText(info.title()); artistLabel.setText(info.subtitle());
         showArtwork(info.artworkUrl()); showLyrics(Lyrics.empty("正在加载在线预览歌词..."));

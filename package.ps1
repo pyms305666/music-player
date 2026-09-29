@@ -1,12 +1,12 @@
 param(
-    [string] $Version = "4.1.5"
+    [string] $Version = "4.1.6"
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appName = -join @([char]90, [char]65, [char]38899, [char]20048)
 # Keep the renamed app separate from the old MSI, whose uninstaller removes its install directory.
-$upgradeUuid = "4911b140-cdd1-4cf5-b3ab-a1b9f8308d28"
+$upgradeUuid = "c75b70d9-e17e-4b11-81b3-64f1ba87c760"
 
 & (Join-Path $projectRoot "verify.ps1")
 if ($LASTEXITCODE -ne 0) {
@@ -70,6 +70,7 @@ if ($LASTEXITCODE -ne 0) {
     --win-menu `
     --win-shortcut `
     --win-per-user-install `
+    --install-dir "ZA-Music" `
     --win-upgrade-uuid $upgradeUuid
 if ($LASTEXITCODE -ne 0) {
     throw "Installer creation failed with exit code $LASTEXITCODE."

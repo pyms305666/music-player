@@ -26,46 +26,79 @@ final class LegacyInstallMigration {
     private LegacyInstallMigration() { }
 
     static void migrateIfNeeded(Path baseDir, Path dataDir, Path databasePath) throws IOException {
-        if (baseDir.getFileName() == null || !NEW_APP_NAME.equals(baseDir.getFileName().toString())
-                || !Files.isRegularFile(baseDir.resolve(NEW_APP_NAME + ".exe"))) return;
+        if (Files.exists(databasePath)) return;
+        List<Path> candidates = new ArrayList<>();
+        String configured = System.getProperty("musicplayer.migrate-from");
+        if (configured != null && !configured.isBlank()) candidates.add(Path.of(configured));
+        candidates.add(baseDir.resolve("downloads"));
+        candidates.add(baseDir.resolveSibling(NEW_APP_NAME).resolve("downloads"));
+        candidates.add(baseDir.resolveSibling(OLD_APP_NAME).resolve("downloads"));
+        Path destination = dataDir.toAbsolutePath().normalize();
+        for (Path candidate : candidates) {
+            Path source = candidate.toAbsolutePath().normalize();
+            if (source.equals(destination) || !Files.isRegularFile(source.resolve(DATABASE_FILE))) continue;
+            if (destination.startsWith(source)) throw new IOException("目标目录不能位于旧数据目录内部");
+            Files.createDirectories(destination);
+            try (var channel = java.nio.channels.FileChannel.open(destination.resolve(".migration.lock"),
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.WRITE);
+                 var lock = channel.tryLock()) {
+                if (lock == null) throw new IOException("另一个实例正在迁移曲库，请稍后重试");
+                if (Files.exists(databasePath)) return;
+                migrate(source, destination, databasePath);
+            } catch (java.nio.channels.OverlappingFileLockException busy) {
+                throw new IOException("曲库正在迁移，请稍后重试", busy);
+            }
+            return;
+        }
+    }
 
-        Path oldDataDir = baseDir.resolveSibling(OLD_APP_NAME).resolve("downloads").toAbsolutePath().normalize();
-        Path newDataDir = dataDir.toAbsolutePath().normalize();
-        if (!Files.isDirectory(oldDataDir) || Files.exists(databasePath)
-                || Files.exists(newDataDir.resolve(MARKER_FILE))) return;
-
-        Files.walkFileTree(oldDataDir, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                Path relative = oldDataDir.relativize(dir);
-                if (relative.startsWith(Path.of("cache", "sqlite-native"))) return FileVisitResult.SKIP_SUBTREE;
-                Files.createDirectories(newDataDir.resolve(relative));
+    private static void migrate(Path source, Path destination, Path databasePath) throws IOException {
+        Path snapshot = destination.resolve(".migration-" + DATABASE_FILE);
+        Files.deleteIfExists(snapshot);
+        // SQLite snapshots also include committed WAL pages.
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + source.resolve(DATABASE_FILE));
+             Statement statement = connection.createStatement()) {
+            statement.execute("pragma busy_timeout = 5000");
+            statement.execute("vacuum into '" + snapshot.toString().replace("'", "''") + "'");
+        } catch (SQLException error) {
+            throw new IOException("无法备份旧曲库，请关闭旧版后重试；原数据保留在 " + source, error);
+        }
+        Path backup = destination.resolve("backups");
+        Files.createDirectories(backup);
+        Files.copy(snapshot, backup.resolve("before-migration-" + System.currentTimeMillis() + ".db"));
+        Files.walkFileTree(source, new SimpleFileVisitor<>() {
+            @Override public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                Path relative = source.relativize(dir);
+                if (relative.startsWith("cache") || relative.startsWith("backups")) return FileVisitResult.SKIP_SUBTREE;
+                Files.createDirectories(destination.resolve(relative));
                 return FileVisitResult.CONTINUE;
             }
-
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            @Override public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 String name = file.getFileName().toString();
-                if (Files.isSymbolicLink(file) || name.equals(DATABASE_FILE)
-                        || name.equals(DATABASE_FILE + "-journal")
-                        || name.equals(DATABASE_FILE + "-wal")
-                        || name.equals(DATABASE_FILE + "-shm")) {
+                if (Files.isSymbolicLink(file) || name.startsWith(DATABASE_FILE) || name.startsWith("."))
                     return FileVisitResult.CONTINUE;
+                Path target = destination.resolve(source.relativize(file));
+                if (Files.exists(target)) {
+                    if (Files.mismatch(file, target) != -1) throw new IOException("迁移文件冲突，未覆盖：" + target);
+                } else {
+                    Path part = Files.createTempFile(target.getParent(), ".migration-", ".part");
+                    try {
+                        Files.copy(file, part, StandardCopyOption.REPLACE_EXISTING);
+                        if (Files.mismatch(file, part) != -1) throw new IOException("迁移文件校验失败：" + file);
+                        Files.move(part, target);
+                    } finally { Files.deleteIfExists(part); }
                 }
-                Path target = newDataDir.resolve(oldDataDir.relativize(file));
-                Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
                 return FileVisitResult.CONTINUE;
             }
         });
-
-        Path oldDatabase = oldDataDir.resolve(DATABASE_FILE);
-        if (Files.isRegularFile(oldDatabase)) {
-            Path temporaryDatabase = newDataDir.resolve(".migration-" + DATABASE_FILE);
-            Files.copy(oldDatabase, temporaryDatabase, StandardCopyOption.REPLACE_EXISTING);
-            rewriteDatabasePaths(temporaryDatabase, oldDataDir, newDataDir);
-            Files.move(temporaryDatabase, databasePath, StandardCopyOption.REPLACE_EXISTING);
-        }
-        Files.writeString(newDataDir.resolve(MARKER_FILE), oldDataDir.toString());
+        rewriteDatabasePaths(snapshot, source, destination);
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + snapshot);
+             Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery("pragma integrity_check")) {
+            if (!result.next() || !"ok".equalsIgnoreCase(result.getString(1))) throw new IOException("迁移数据库校验失败");
+        } catch (SQLException error) { throw new IOException("迁移数据库校验失败", error); }
+        Files.move(snapshot, databasePath);
+        Files.writeString(destination.resolve(MARKER_FILE), source.toString());
     }
 
     private static void rewriteDatabasePaths(Path databasePath, Path oldDataDir, Path newDataDir)

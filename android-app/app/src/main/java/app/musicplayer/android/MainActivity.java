@@ -145,6 +145,10 @@ public final class MainActivity extends AppCompatActivity {
     private ImageButton refreshButton;
     private ObjectAnimator refreshSpin;
     private int lyricsRequestId;
+    private boolean downloadInProgress;
+    private int searchRequestId;
+    private int previewRequestId;
+    private int playbackRequestId;
     private Button removeButton;
     private BottomNavigationView bottomNavigation;
     private View volumeDrawer;
@@ -449,6 +453,7 @@ public final class MainActivity extends AppCompatActivity {
             }
             int count = imported;
             runOnUiThread(() -> {
+                if (isDestroyed()) return;
                 reloadTracks();
                 showStatus("已导入 " + count + " 首歌曲");
                 bottomNavigation.setSelectedItemId(R.id.nav_playlist);
@@ -509,18 +514,20 @@ public final class MainActivity extends AppCompatActivity {
             case TITLE -> Comparator.comparing(entry -> safe(entry.track().title()), String.CASE_INSENSITIVE_ORDER);
         };
         if (direction == SortDirection.DESCENDING) comparator = comparator.reversed();
+        tracks.sort(comparator);
         List<TrackEntry> visible = tracks.stream()
                 .filter(entry -> query.isBlank()
                         || safe(entry.track().title()).toLowerCase(Locale.ROOT).contains(query)
                         || safe(entry.track().artist()).toLowerCase(Locale.ROOT).contains(query)
                         || entry.fileName().toLowerCase(Locale.ROOT).contains(query))
-                .sorted(comparator)
                 .toList();
         trackAdapter.submit(visible);
         updateRemoveButton();
     }
 
     private void playTrack(TrackEntry entry) {
+        previewRequestId++;
+        playbackRequestId++;
         currentTrack = entry;
         titleText.setText(entry.track().title());
         artistText.setText(entry.track().artist());
@@ -567,7 +574,7 @@ public final class MainActivity extends AppCompatActivity {
         long duration = player.getDuration();
         lyricsService.searchOnlineAsync(entry.track(), duration)
                 .whenComplete((lookup, error) -> runOnUiThread(() -> {
-                    if (reqId != lyricsRequestId) return;
+                    if (isDestroyed() || reqId != lyricsRequestId) return;
                     setRefreshLoading(false);
                     if (error != null || lookup == null) {
                         currentLyrics = Lyrics.empty(forceRefresh ? "刷新失败，没有找到歌词" : "暂无歌词，可点右上角刷新重试");
@@ -663,11 +670,14 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void searchOnline() {
+        int request = ++searchRequestId;
+        previewRequestId++;
         String query = onlineSearch.getText().toString().trim();
         if (query.isBlank()) return;
         showStatus("正在搜索：" + query);
         onlineAdapter.submit(List.of());
         onlineService.searchAsync(query).whenComplete((results, error) -> runOnUiThread(() -> {
+            if (isDestroyed() || request != searchRequestId) return;
             if (error != null) {
                 showStatus("在线搜索失败：" + rootMessage(error));
                 return;
@@ -678,11 +688,15 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void previewOnlineTrack(OnlineTrackInfo info) {
+        int request = ++previewRequestId;
+        lyricsRequestId++;
+        setRefreshLoading(false);
         titleText.setText(info.title());
         artistText.setText(info.artist());
         if (!TextUtils.isEmpty(info.artworkUrl())) loadArtwork(info.artworkUrl());
         else showArtworkPlaceholder();
         onlineService.loadPreviewAsync(info).whenComplete((lookup, error) -> runOnUiThread(() -> {
+            if (isDestroyed() || request != previewRequestId) return;
             currentLyrics = lookup == null || error != null ? Lyrics.empty("在线结果暂无歌词") : lookup.lyrics();
             renderLyrics(-1);
         }));
@@ -711,6 +725,9 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void beginOnlineDownload(OnlineTrackInfo selected, boolean useRootDirectory) {
+        if (downloadInProgress) { showStatus("请等待当前下载完成"); return; }
+        downloadInProgress = true;
+        int request = ++playbackRequestId;
         showStatus("正在下载：" + selected.title());
         onlineService.downloadAsync(selected, onlineTempDir.toPath())
                 .thenApply(path -> {
@@ -721,14 +738,18 @@ public final class MainActivity extends AppCompatActivity {
                     }
                 })
                 .whenComplete((entry, error) -> runOnUiThread(() -> {
+            downloadInProgress = false;
+            if (isDestroyed()) return;
             if (error != null || entry == null) {
                 showStatus("下载失败：" + rootMessage(error));
                 return;
             }
             database.saveTrack(entry);
             reloadTracks();
-            playTrack(entry);
-            showStatus("下载完成并开始播放");
+            if (request == playbackRequestId) {
+                playTrack(entry);
+                showStatus("下载完成并开始播放");
+            } else showStatus("下载完成，已加入曲库");
         }));
     }
 
@@ -955,7 +976,7 @@ public final class MainActivity extends AppCompatActivity {
             playTrack(tracks.get(next));
             return;
         }
-        int next = Math.floorMod(index + direction, tracks.size());
+        int next = app.musicplayer.playlist.QueueOrder.relative(index, direction, tracks.size());
         playTrack(tracks.get(next));
     }
 

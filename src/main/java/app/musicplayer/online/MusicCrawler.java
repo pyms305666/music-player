@@ -174,23 +174,21 @@ public final class MusicCrawler {
 
         String extension = guessExtension(track, url);
         String artist = track.artist() == null ? "Unknown" : track.artist();
-        Path target = uniqueTarget(targetDir, sanitize(artist + " - " + track.title()), extension);
-        System.out.println("[crawler] download: " + OnlineTextSupport.truncate(url, 120));
-
-        if (curlAvailable()) {
-            boolean downloaded = downloadViaCurl(url, target, track.source());
-            if (downloaded && validateFile(target)) {
-                return target;
+        Path temporary = Files.createTempFile(targetDir, ".za-download-", ".part");
+        try {
+            boolean ready = curlAvailable() && downloadViaCurl(url, temporary, track.source())
+                    && validateFile(temporary);
+            if (!ready) downloadViaJava(url, temporary, track.source());
+            if (!validateFile(temporary)) throw new IOException(track.source() + ": unusable file");
+            extension = DownloadFiles.detectedExtension(temporary, extension);
+            if (Boolean.getBoolean("musicplayer.desktop")
+                    && (extension.equals(".flac") || extension.equals(".ogg") || extension.equals(".aac"))) {
+                throw new IOException("桌面播放器不支持此来源的音频编码，将尝试其他来源");
             }
-            safeDelete(target);
+            return DownloadFiles.publish(temporary, targetDir, sanitize(artist + " - " + track.title()), extension);
+        } finally {
+            Files.deleteIfExists(temporary);
         }
-
-        downloadViaJava(url, target, track.source());
-        if (!validateFile(target)) {
-            safeDelete(target);
-            throw new IOException(track.source() + ": unusable file");
-        }
-        return target;
     }
 
     private List<OnlineTrackInfo> fallbackCandidates(
@@ -323,7 +321,7 @@ public final class MusicCrawler {
     private boolean downloadViaCurl(String url, Path target, String source) {
         try {
             List<String> command = new ArrayList<>(List.of(
-                    curlPath.toString(), "-L", "-f",
+                    curlPath.toString(), "-L", "-f", "--silent", "--show-error",
                     "-A", session.userAgent(),
                     "-H", "Accept: */*",
                     "-H", "Accept-Language: zh-CN,zh;q=0.9",
@@ -344,12 +342,11 @@ public final class MusicCrawler {
             Process process = new ProcessBuilder(command)
                     .redirectErrorStream(true)
                     .start();
-            boolean finished = process.waitFor(65, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                return false;
+            try {
+                return process.waitFor(65, TimeUnit.SECONDS) && process.exitValue() == 0;
+            } finally {
+                if (process.isAlive()) process.destroyForcibly();
             }
-            return process.exitValue() == 0;
         } catch (Exception exception) {
             System.out.println("[crawler] curl err: " + exception.getMessage());
             return false;
@@ -375,6 +372,13 @@ public final class MusicCrawler {
                 output.write(firstBytes);
             }
             copy(input, output);
+            output.flush();
+            String expected = response.firstHeader("Content-Length");
+            if (!expected.isBlank()) {
+                try {
+                    if (Files.size(target) != Long.parseLong(expected)) throw new IOException("下载不完整");
+                } catch (NumberFormatException invalid) { throw new IOException("无效文件长度", invalid); }
+            }
         }
     }
 
@@ -578,6 +582,7 @@ public final class MusicCrawler {
         byte[] buffer = new byte[16_384];
         int length;
         while ((length = input.read(buffer)) >= 0) {
+            if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException("下载已取消");
             output.write(buffer, 0, length);
         }
     }
