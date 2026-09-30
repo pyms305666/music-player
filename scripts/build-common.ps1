@@ -52,10 +52,15 @@ function Invoke-ZaGradle([string] $Root, [string] $Project, [string[]] $Tasks) {
         $env:ANDROID_HOME = $oldAndroid; $env:ANDROID_SDK_ROOT = $oldSdk
     }
 }
-function Write-ZaBuildRecord([string] $Root, [string] $Artifact, [string] $Platform) {
+function Get-ZaSourceSnapshot([string] $Root) {
+    return @{ commit = (& git -C $Root rev-parse HEAD).Trim(); dirty = [bool](& git -C $Root status --porcelain --untracked-files=normal) }
+}
+function Write-ZaBuildRecord([string] $Root, [string] $Artifact, [string] $Platform, [hashtable] $Snapshot) {
     $version = Get-ZaVersion $Root
     $commit = (& git -C $Root rev-parse HEAD).Trim()
     $dirty = [bool](& git -C $Root status --porcelain --untracked-files=normal)
+    if (-not $Snapshot -or $Snapshot.commit -ne $commit -or (-not $Snapshot.dirty -and $dirty)) { throw 'Source changed during build; rebuild from a stable source snapshot' }
+    $dirty = $dirty -or $Snapshot.dirty
     $record = [ordered]@{
         version = $version.versionName; versionCode = [int]$version.versionCode
         sourceCommit = $commit; sourceDirty = $dirty; platform = $Platform

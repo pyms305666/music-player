@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $projectRoot 'scripts/build-common.ps1')
+$sourceSnapshot = Get-ZaSourceSnapshot $projectRoot
 $canonicalVersion = (Get-ZaVersion $projectRoot).versionName
 if ($Version -and $Version -ne $canonicalVersion) { throw 'Package version must match version.properties' }
 $Version = $canonicalVersion
@@ -79,4 +80,4 @@ if ($LASTEXITCODE -ne 0) {
 $installer = Get-ChildItem -LiteralPath $destination -Filter "*.exe" -File | Select-Object -First 1
 Write-Host "Installer created: $($installer.FullName)"
 
-Write-ZaBuildRecord $projectRoot $installer.FullName "windows"
+Write-ZaBuildRecord $projectRoot $installer.FullName "windows" $sourceSnapshot

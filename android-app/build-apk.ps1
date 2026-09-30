@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $androidRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $androidRoot
 . (Join-Path $projectRoot 'scripts/build-common.ps1')
+$sourceSnapshot = Get-ZaSourceSnapshot $projectRoot
 $version = (Get-ZaVersion $projectRoot).versionName
 $toolsRoot = Join-Path $projectRoot ".tools"
 $sdkRoot = Join-Path $toolsRoot "android-sdk"
@@ -101,4 +102,4 @@ New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 Copy-Item -LiteralPath $apk -Destination $distApk -Force
 Write-Host "APK: $distApk"
 
-Write-ZaBuildRecord $projectRoot $distApk "android-debug"
+Write-ZaBuildRecord $projectRoot $distApk "android-debug" $sourceSnapshot
