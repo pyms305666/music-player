@@ -24,7 +24,7 @@ public final class TrackLibraryService {
     private static final Set<String> SUPPORTED_EXTENSIONS =
             Set.of("mp3", "m4a", "aac", "wav", "aif", "aiff");
 
-    private final Map<Path, Long> creationTimeCache = new HashMap<>();
+    private final Map<Path, Long> creationTimeCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     public List<Track> scanFolder(Path directory) throws IOException {
         if (directory == null || !Files.isDirectory(directory)) {
@@ -35,6 +35,7 @@ public final class TrackLibraryService {
                     .filter(this::isSupportedAudio)
                     .sorted()
                     .map(Track::new)
+                    .peek(this::creationTime)
                     .toList();
         }
     }
@@ -47,8 +48,11 @@ public final class TrackLibraryService {
                 .filter(Files::isRegularFile)
                 .filter(this::isSupportedAudio)
                 .map(Track::new)
+                .peek(this::creationTime)
                 .toList();
     }
+
+    public void primeCreationTimes(List<Track> tracks) { tracks.forEach(this::creationTime); }
 
     public ImportResult mergeUnique(List<Track> existingTracks, List<Track> importedTracks) {
         List<Track> candidates = importedTracks == null ? List.of() : importedTracks;

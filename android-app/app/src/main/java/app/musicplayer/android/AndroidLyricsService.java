@@ -25,8 +25,9 @@ import app.musicplayer.online.CrawlerSession;
  * （网易云 → QQ → 酷狗 → LRCLIB），不再借用在线下载搜索的结果。
  */
 public final class AndroidLyricsService {
+    private final app.musicplayer.util.LatestRequest<LyricsLookupResult> requests = new app.musicplayer.util.LatestRequest<>();
     private final CrawlerSession session = new CrawlerSession();
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+    private final ExecutorService executor = Executors.newFixedThreadPool(2, runnable -> {
         Thread thread = new Thread(runnable, "android-lyrics");
         thread.setDaemon(true);
         return thread;
@@ -46,6 +47,7 @@ public final class AndroidLyricsService {
     public LyricsLookupResult searchOnline(Track track, long durationMillis) {
         Duration duration = durationMillis > 0 ? Duration.ofMillis(durationMillis) : null;
         for (OnlineLyricsProvider provider : providers) {
+            if (Thread.currentThread().isInterrupted()) return null;
             Optional<OnlineLyricsResult> result = provider.search(track, duration, http);
             if (result.isPresent() && result.get().hasLyrics()) {
                 OnlineLyricsResult found = result.get();
@@ -57,10 +59,12 @@ public final class AndroidLyricsService {
     }
 
     public CompletableFuture<LyricsLookupResult> searchOnlineAsync(Track track, long durationMillis) {
-        return CompletableFuture.supplyAsync(() -> searchOnline(track, durationMillis), executor);
+        return requests.submit(executor, () -> session.withinTimeout(15_000, () -> searchOnline(track, durationMillis)));
     }
 
     public void close() {
+        requests.close();
         executor.shutdownNow();
+        session.close();
     }
 }

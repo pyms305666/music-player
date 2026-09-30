@@ -143,11 +143,18 @@ public final class MusicPlayerApp extends Application {
     private HBox desktopHero;
 
     private MediaPlayer mediaPlayer;
+    private volatile boolean closing;
+    private final java.util.concurrent.ExecutorService libraryExecutor = Executors.newSingleThreadExecutor(r -> {
+        // Drain queued database writes before the JVM exits after closing the window.
+        return new Thread(r, "library-io");
+    });
+    private final java.util.List<Track> pendingImports = new java.util.ArrayList<>();
     private Track currentTrack;
     private String currentArtworkSource;
     private Lyrics currentLyrics = Lyrics.empty("导入歌曲后开始播放");
     private boolean previewingOnlineResult;
     private long lyricsRequestId;
+    private long playbackRequestId;
     private long onlineSearchRequestId;
     private long onlinePreviewRequestId;
     private ScheduledFuture<?> lyricRetryTask;
@@ -254,13 +261,15 @@ public final class MusicPlayerApp extends Application {
 
     @Override
     public void stop() {
+        closing = true;
         cancelLyricRetry();
         retryExecutor.shutdownNow();
         artworkService.close();
         if (lyricsService != null) { lyricsService.close(); }
         if (onlineMusicSearchService != null) { onlineMusicSearchService.close(); }
         if (mediaPlayer != null) { mediaPlayer.dispose(); }
-        if (database != null) { database.close(); }
+        if (database != null) libraryExecutor.execute(database::close);
+        libraryExecutor.shutdown();
     }
 
     private void initializeServices() {
@@ -651,38 +660,65 @@ public final class MusicPlayerApp extends Application {
         Path dp = Path.of(System.getProperty("user.home"), "Music");
         if (Files.isDirectory(dp)) c.setInitialDirectory(dp.toFile());
         var dir = c.showDialog(stage); if (dir == null) return;
-        try {
-            addImportedTracks(trackLibrary.scanFolder(dir.toPath()), "文件夹");
-        } catch (IOException e) { statusLabel.setText("导入失败：" + e.getMessage()); }
+        statusLabel.setText("正在扫描文件夹...");
+        CompletableFuture.supplyAsync(() -> {
+            try { return trackLibrary.scanFolder(dir.toPath()); }
+            catch (IOException error) { throw new java.util.concurrent.CompletionException(error); }
+        }, libraryExecutor).whenComplete((imported, error) -> Platform.runLater(() -> {
+            if (closing) return;
+            if (error != null) { statusLabel.setText("导入失败：" + error.getMessage()); return; }
+            addImportedTracks(imported, "文件夹");
+        }));
     }
 
     private void importFiles(Stage stage) {
         FileChooser c = new FileChooser(); c.setTitle("选择音频文件");
         c.getExtensionFilters().add(new FileChooser.ExtensionFilter("音频文件", "*.mp3", "*.m4a", "*.aac", "*.wav", "*.aif", "*.aiff"));
         List<java.io.File> files = c.showOpenMultipleDialog(stage); if (files == null || files.isEmpty()) return;
-        addImportedTracks(trackLibrary.fromFiles(files.stream().map(java.io.File::toPath).toList()), "音频文件");
+        CompletableFuture.supplyAsync(() -> trackLibrary.fromFiles(files.stream().map(java.io.File::toPath).toList()), libraryExecutor)
+                .whenComplete((imported, error) -> Platform.runLater(() -> {
+                    if (closing) return;
+                    if (error != null) { statusLabel.setText("导入失败：" + error.getMessage()); return; }
+                    addImportedTracks(imported, "音频文件");
+                }));
     }
 
     private void addImportedTracks(List<Track> imported, String source) {
         if (imported == null || imported.isEmpty()) { statusLabel.setText("没有找到可导入的" + source); return; }
-        TrackLibraryService.ImportResult result = trackLibrary.mergeUnique(tracks, imported);
+        var existing = new java.util.ArrayList<>(tracks);
+        existing.addAll(pendingImports);
+        var result = trackLibrary.mergeUnique(existing, imported);
         List<Track> added = result.addedTracks();
-        int dup = result.duplicateCount();
-        if (added.isEmpty()) { statusLabel.setText("全部 " + imported.size() + " 首都已在歌单中"); return; }
-        tracks.addAll(added); database.saveTracks(added);
-        sortTracks();
-        applyTrackFilter(searchField == null ? "" : searchField.getText());
-        playlistView.getSelectionModel().select(added.get(0));
-        statusLabel.setText("已新增 " + added.size() + " 首" + (dup > 0 ? "，忽略重复 " + dup + " 首" : ""));
-        if (currentTrack == null) playTrack(added.get(0));
+        if (added.isEmpty()) { statusLabel.setText("歌曲已经在曲库或导入任务中"); return; }
+        pendingImports.addAll(added);
+        CompletableFuture.runAsync(() -> database.saveTracks(added), libraryExecutor).whenComplete((ignored, error) -> Platform.runLater(() -> {
+            pendingImports.removeAll(added);
+            if (closing) return;
+            if (error != null) { statusLabel.setText("保存曲库失败：" + error.getMessage()); return; }
+            tracks.addAll(added);
+            sortTracks();
+            applyTrackFilter(searchField == null ? "" : searchField.getText());
+            playlistView.getSelectionModel().select(added.get(0));
+            statusLabel.setText("已新增 " + added.size() + " 首");
+            if (currentTrack == null) playTrack(added.get(0));
+        }));
     }
 
     private void restoreSavedTracks() {
-        List<Track> saved = database.loadTracks().stream()
-                .filter(t -> Files.isRegularFile(t.path()))
-                .filter(t -> trackLibrary.isSupportedAudio(t.path()))
-                .toList();
-        if (!saved.isEmpty()) { tracks.setAll(saved); sortTracks(); applyTrackFilter(""); playlistView.getSelectionModel().select(0); statusLabel.setText("已恢复 " + saved.size() + " 首歌曲"); }
+        CompletableFuture.supplyAsync(() -> {
+            var saved = database.loadTracks().stream().filter(t -> Files.isRegularFile(t.path()))
+                    .filter(t -> trackLibrary.isSupportedAudio(t.path())).toList();
+            trackLibrary.primeCreationTimes(saved);
+            return saved;
+        }, libraryExecutor).whenComplete((saved, error) -> Platform.runLater(() -> {
+            if (closing) return;
+            if (error != null) { statusLabel.setText("读取曲库失败：" + error.getMessage()); return; }
+            if (!saved.isEmpty()) {
+                tracks.addAll(trackLibrary.mergeUnique(tracks, saved).addedTracks());
+                sortTracks(); applyTrackFilter(""); playlistView.getSelectionModel().select(0);
+                statusLabel.setText("已恢复 " + tracks.size() + " 首歌曲");
+            }
+        }));
     }
 
     private void applyTrackFilter(String q) {
@@ -708,35 +744,50 @@ public final class MusicPlayerApp extends Application {
         playbackControls.setTrackInfo(currentTrack.title(), currentTrack.artist());
         progressSlider.setValue(0); timeLabel.setText("00:00 / 00:00");
         showArtwork(null); showLyrics(Lyrics.empty("正在准备歌词..."));
-        PlaybackFileResolver.Resolution playbackResolution = playbackFileResolver.resolve(currentTrack.path());
-        Path playbackPath = playbackResolution.path();
-        if (playbackResolution.correctedExtension()) {
-            statusLabel.setText("检测到下载文件扩展名异常，已按 MP3 兼容播放");
-        }
-        if (audioFileInspector.detect(playbackPath) == AudioFormat.RAW_AAC) {
-            showPlayerError(new IllegalStateException("JavaFX 无法稳定播放原始 AAC 音频"));
-            return;
-        }
+        long request = playbackRequestId;
+        CompletableFuture.supplyAsync(() -> {
+                    var resolved = playbackFileResolver.resolve(track.path());
+                    if (audioFileInspector.detect(resolved.path()) == AudioFormat.RAW_AAC)
+                        throw new IllegalStateException("JavaFX 无法稳定播放原始 AAC 音频");
+                    return resolved;
+                }, libraryExecutor)
+                .whenComplete((resolution, error) -> Platform.runLater(() -> {
+                    if (closing || request != playbackRequestId || currentTrack != track) return;
+                    if (error != null) { showPlayerError(error); return; }
+                    if (resolution.correctedExtension()) statusLabel.setText("已按实际音频格式准备播放");
+                    createPlayer(track, resolution.path(), request);
+                }));
+    }
 
+    private void createPlayer(Track track, Path playbackPath, long request) {
         try {
             Media media = new Media(playbackPath.toUri().toString());
-            mediaPlayer = new MediaPlayer(media); mediaPlayer.setVolume(volumeSlider.getValue());
-            mediaPlayer.currentTimeProperty().addListener((o, ot, nt) -> updatePlaybackProgress(nt));
-            mediaPlayer.setOnReady(() -> { updateMetadata(media); database.saveTrack(currentTrack, javaDuration(mediaPlayer.getTotalDuration())); updateDurationLabel(); loadLyrics(currentTrack, false); mediaPlayer.play(); });
-            mediaPlayer.setOnPlaying(() -> playbackControls.setPlaying(true));
-            mediaPlayer.setOnPaused(() -> playbackControls.setPlaying(false));
-            mediaPlayer.setOnStopped(() -> playbackControls.setPlaying(false));
-            mediaPlayer.setOnEndOfMedia(this::handleEndOfMedia);
-            mediaPlayer.setOnError(() -> showPlayerError(mediaPlayer.getError()));
-            media.setOnError(() -> showPlayerError(media.getError()));
-        } catch (MediaException e) { showPlayerError(e); }
+            MediaPlayer created = new MediaPlayer(media);
+            mediaPlayer = created;
+            created.setVolume(volumeSlider.getValue());
+            created.currentTimeProperty().addListener((o, ot, nt) -> { if (mediaPlayer == created) updatePlaybackProgress(nt); });
+            created.setOnReady(() -> {
+                if (mediaPlayer != created || closing || currentTrack != track) return;
+                updateMetadata(media); updateDurationLabel(); loadLyrics(track, false); created.play();
+            });
+            created.setOnPlaying(() -> { if (mediaPlayer == created) playbackControls.setPlaying(true); });
+            created.setOnPaused(() -> { if (mediaPlayer == created) playbackControls.setPlaying(false); });
+            created.setOnStopped(() -> { if (mediaPlayer == created) playbackControls.setPlaying(false); });
+            created.setOnEndOfMedia(() -> { if (mediaPlayer == created) handleEndOfMedia(); });
+            created.setOnError(() -> { if (mediaPlayer == created) showPlayerError(created.getError()); });
+            media.setOnError(() -> { if (mediaPlayer == created) showPlayerError(media.getError()); });
+        } catch (MediaException error) { showPlayerError(error); }
     }
 
     private void updateMetadata(Media media) {
         String t = valueAsString(media.getMetadata().get("title")), a = valueAsString(media.getMetadata().get("artist"));
         currentTrack.updateMetadata(t, a); titleLabel.setText(currentTrack.title()); artistLabel.setText(currentTrack.artist());
         playbackControls.setTrackInfo(currentTrack.title(), currentTrack.artist());
-        playlistView.refresh(); database.saveTrack(currentTrack, mediaPlayer == null ? null : javaDuration(mediaPlayer.getTotalDuration()));
+        playlistView.refresh();
+        Track snapshot = new Track(currentTrack.path()); snapshot.updateMetadata(currentTrack.title(), currentTrack.artist());
+        var duration = mediaPlayer == null ? null : javaDuration(mediaPlayer.getTotalDuration());
+        CompletableFuture.runAsync(() -> database.saveTrack(snapshot, duration), libraryExecutor)
+                .whenComplete((ignored, error) -> { if (error != null && !closing) Platform.runLater(() -> statusLabel.setText("歌曲信息保存失败")); });
     }
 
     private static String valueAsString(Object v) { return v instanceof String s ? s : null; }
@@ -761,7 +812,11 @@ public final class MusicPlayerApp extends Application {
 
         long reqId = ++onlinePreviewRequestId;
 
-        onlineMusicSearchService.downloadAsync(info, DOWNLOAD_DIR).whenComplete((downloadedPath, err) -> Platform.runLater(() -> {
+        onlineMusicSearchService.downloadAsync(info, DOWNLOAD_DIR).thenApplyAsync(path -> {
+            Track downloaded = new Track(path); database.saveTracks(List.of(downloaded));
+            trackLibrary.primeCreationTimes(List.of(downloaded)); return path;
+        }, libraryExecutor).whenComplete((downloadedPath, err) -> Platform.runLater(() -> {
+            if (closing) return;
             boolean autoPlay = reqId == onlinePreviewRequestId;
             if (err != null || downloadedPath == null) {
                 showLyrics(Lyrics.empty("爬取下载失败"));
@@ -778,7 +833,7 @@ public final class MusicPlayerApp extends Application {
             }
 
             tracks.add(newTrack);
-            database.saveTracks(List.of(newTrack));
+
             sortTracks();
             if (searchField != null && !searchField.getText().isBlank()) searchField.setText("");
             else applyTrackFilter("");
@@ -1015,14 +1070,14 @@ public final class MusicPlayerApp extends Application {
         long reqId = ++onlineSearchRequestId; loadingOnlineSearch.setVisible(true); loadingOnlineSearch.setManaged(true);
         statusLabel.setText("正在在线搜索：" + q.trim());
         onlineMusicSearchService.searchAsync(q).whenComplete((results, err) -> Platform.runLater(() -> {
-            if (reqId != onlineSearchRequestId) return;
+            if (closing || reqId != onlineSearchRequestId) return;
             loadingOnlineSearch.setVisible(false); loadingOnlineSearch.setManaged(false);
             if (err != null) { onlineResults.clear(); statusLabel.setText("在线搜索失败"); return; }
             onlineResults.setAll(results);
             long downloadableCount = results.stream().filter(OnlineTrackInfo::canAttemptDownload).count();
             statusLabel.setText(results.isEmpty()
                     ? "没有找到在线结果"
-                    : "在线搜索完成，共 " + results.size() + " 条结果，可下载 " + downloadableCount + " 条");
+                    : "在线搜索完成，共 " + results.size() + " 条结果，可尝试下载 " + downloadableCount + " 条");
             if (!results.isEmpty()) onlineResultsView.getSelectionModel().select(0);
         }));
     }
@@ -1035,7 +1090,7 @@ public final class MusicPlayerApp extends Application {
         showArtwork(info.artworkUrl()); showLyrics(Lyrics.empty("正在加载在线预览歌词..."));
         statusLabel.setText("预览：" + info.title() + "（双击下载到本地播放）");
         onlineMusicSearchService.loadPreviewAsync(info).whenComplete((r, err) -> Platform.runLater(() -> {
-            if (reqId != onlinePreviewRequestId || onlineResultsView.getSelectionModel().getSelectedItem() != info) return;
+            if (closing || reqId != onlinePreviewRequestId || onlineResultsView.getSelectionModel().getSelectedItem() != info) return;
             previewingOnlineResult = true;
             if (err != null) { showLyrics(Lyrics.empty("在线预览加载失败")); return; }
             showArtwork(r.artworkUrl() == null || r.artworkUrl().isBlank() ? info.artworkUrl() : r.artworkUrl());
@@ -1048,13 +1103,17 @@ public final class MusicPlayerApp extends Application {
     private void removeSelectedTrack() {
         Track sel = playlistView == null ? null : playlistView.getSelectionModel().getSelectedItem();
         if (sel == null) { statusLabel.setText("请先选择要移除的歌曲"); return; }
+        CompletableFuture.runAsync(() -> database.removeTrack(sel), libraryExecutor).whenComplete((ignored, error) -> Platform.runLater(() -> {
+            if (closing) return;
+            if (error != null) { statusLabel.setText("移除失败：" + error.getMessage()); return; }
         int ri = tracks.indexOf(sel); boolean removingCurrent = sel == currentTrack;
-        tracks.remove(sel); database.removeTrack(sel);
+        tracks.remove(sel);
         applyTrackFilter(searchField == null ? "" : searchField.getText());
         if (removingCurrent) { cancelLyricRetry(); disposePlayer(); currentTrack = null; previewingOnlineResult = false; if (playbackContextLabel != null) playbackContextLabel.setText("未播放"); playlistPane.setCurrentTrack(null); playbackControls.setTrackInfo(null, null); playbackControls.setPlaying(false); titleLabel.setText("未播放歌曲"); artistLabel.setText("当前歌曲已从歌单和缓存移除"); timeLabel.setText("00:00 / 00:00"); showArtwork(null); showLyrics(Lyrics.empty("当前歌曲已移除")); if (!tracks.isEmpty()) { int ni = Math.min(ri, tracks.size() - 1); Track nt = tracks.get(ni); if (filteredTracks.contains(nt)) playlistView.getSelectionModel().select(nt); else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0); } }
         else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(Math.min(ri, filteredTracks.size() - 1));
         statusLabel.setText("已移除：" + sel);
+        }));
     }
 
-    private void disposePlayer() { lyricsRequestId++; if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); mediaPlayer = null; } }
+    private void disposePlayer() { lyricsRequestId++; playbackRequestId++; if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); mediaPlayer = null; } }
 }

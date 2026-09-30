@@ -51,7 +51,8 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
                     REFERER);
             results.addAll(parseSearchResponse(body));
         } catch (Exception exception) {
-            System.out.println("[crawler] kuwo search err: " + exception.getMessage());
+            if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new IllegalStateException("来源搜索失败", exception);
         }
         return results;
     }

@@ -53,7 +53,11 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
-import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
+import androidx.media3.common.MediaMetadata;
+import android.content.ComponentName;
+import com.google.common.util.concurrent.ListenableFuture;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -105,7 +109,13 @@ public final class MainActivity extends AppCompatActivity {
     private AndroidMusicDatabase database;
     private OnlineMusicSearchService onlineService;
     private AndroidLyricsService lyricsService;
-    private ExoPlayer player;
+    private MediaController player;
+    private ListenableFuture<MediaController> controllerFuture;
+    private boolean uiVisible;
+    private int lastLyricIndex = Integer.MIN_VALUE;
+    private Lyrics renderedLyrics;
+    private final java.util.concurrent.ExecutorService libraryExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private int libraryRequestId;
     private File privateMusicDir;
     private File onlineTempDir;
     private ActivityResultLauncher<String[]> importLauncher;
@@ -170,7 +180,7 @@ public final class MainActivity extends AppCompatActivity {
         database = new AndroidMusicDatabase(this);
         onlineService = new OnlineMusicSearchService();
         lyricsService = new AndroidLyricsService();
-        player = new ExoPlayer.Builder(this).build();
+
 
         bindViews();
         configureWindowInsets();
@@ -179,10 +189,10 @@ public final class MainActivity extends AppCompatActivity {
         configureLists();
         configureImport();
         configureActions();
-        configurePlayer();
+        connectPlayer();
         reloadTracks();
         bottomNavigation.setSelectedItemId(R.id.nav_lyrics);
-        progressHandler.post(progressUpdater);
+
     }
 
     private void bindViews() {
@@ -328,10 +338,62 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void connectPlayer() {
+        controllerFuture = new MediaController.Builder(this,
+                new SessionToken(this, new ComponentName(this, PlaybackService.class))).buildAsync();
+        controllerFuture.addListener(() -> {
+            if (isDestroyed()) return;
+            try {
+                player = controllerFuture.get();
+                configurePlayer();
+                playMode = player.getShuffleModeEnabled() ? PlayMode.SHUFFLE
+                        : player.getRepeatMode() == Player.REPEAT_MODE_ONE ? PlayMode.REPEAT_ONE : PlayMode.ORDER;
+                updatePlayModeUi();
+                syncCurrentTrack();
+            } catch (Exception error) { showStatus("无法连接播放服务：" + rootMessage(error)); }
+        }, ContextCompat.getMainExecutor(this));
+    }
+
+    private MediaItem mediaItem(TrackEntry entry) {
+        return new MediaItem.Builder().setMediaId(entry.key()).setUri(playbackUri(entry))
+                .setMediaMetadata(new MediaMetadata.Builder().setTitle(entry.track().title())
+                        .setArtist(entry.track().artist()).build()).build();
+    }
+
+    private void syncCurrentTrack() {
+        if (!uiVisible || player == null || player.getCurrentMediaItem() == null) return;
+        String key = player.getCurrentMediaItem().mediaId;
+        for (TrackEntry entry : tracks) {
+            if (entry.key().equals(key) && (currentTrack == null || !entry.key().equals(currentTrack.key()))) {
+                previewRequestId++;
+                playbackRequestId++;
+                currentTrack = entry;
+                displayTrack(entry);
+                break;
+            }
+        }
+        playButton.setImageResource(player.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+    }
+
+    private void syncPlaybackQueue() {
+        if (player == null || player.getMediaItemCount() == 0 || player.getCurrentMediaItem() == null) return;
+        boolean equal = player.getMediaItemCount() == tracks.size();
+        for (int i = 0; equal && i < tracks.size(); i++) equal = player.getMediaItemAt(i).mediaId.equals(tracks.get(i).key());
+        if (equal) return;
+        int index = -1;
+        String playingKey = player.getCurrentMediaItem().mediaId;
+        for (int i = 0; i < tracks.size(); i++) if (tracks.get(i).key().equals(playingKey)) { index = i; break; }
+        if (index >= 0) {
+            long position = player.getCurrentPosition();
+            boolean prepared = player.getPlaybackState() != Player.STATE_IDLE;
+            player.setMediaItems(tracks.stream().map(this::mediaItem).toList(), index, position);
+            if (prepared) player.prepare();
+        }
+    }
+
     private void configurePlayer() {
-        player.setVolume(0.7f);
-        verticalVolume.setProgress(70);
-        updateVolumeUi(70);
+        verticalVolume.setProgress(Math.round(player.getVolume() * 100));
+        updateVolumeUi(Math.round(player.getVolume() * 100));
         player.addListener(new Player.Listener() {
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
@@ -340,15 +402,8 @@ public final class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onPlaybackStateChanged(int playbackState) {
-                if (playbackState == Player.STATE_ENDED) {
-                    if (playMode == PlayMode.REPEAT_ONE && currentTrack != null) {
-                        player.seekTo(0);
-                        player.play();
-                    } else {
-                        playRelative(1);
-                    }
-                }
+            public void onMediaItemTransition(@Nullable MediaItem item, int reason) {
+                syncCurrentTrack();
             }
 
             @Override
@@ -369,7 +424,7 @@ public final class MainActivity extends AppCompatActivity {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) { }
             @Override public void onStartTrackingTouch(SeekBar seekBar) { seeking = true; }
             @Override public void onStopTrackingTouch(SeekBar seekBar) {
-                long duration = player.getDuration();
+                long duration = player == null ? 0 : player.getDuration();
                 if (duration > 0) player.seekTo(duration * seekBar.getProgress() / seekBar.getMax());
                 seeking = false;
             }
@@ -417,6 +472,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void toggleMute() {
+        if (player == null) return;
         if (player.getVolume() > 0f) {
             lastAudibleVolume = player.getVolume();
             player.setVolume(0f);
@@ -458,7 +514,7 @@ public final class MainActivity extends AppCompatActivity {
                 showStatus("已导入 " + count + " 首歌曲");
                 bottomNavigation.setSelectedItemId(R.id.nav_playlist);
             });
-        });
+        }, libraryExecutor);
     }
 
     private File copyIntoPrivateLibrary(Uri uri) throws IOException {
@@ -494,10 +550,19 @@ public final class MainActivity extends AppCompatActivity {
         return new TrackEntry(track, createdAt);
     }
 
-    private void reloadTracks() {
-        tracks.clear();
-        tracks.addAll(database.loadTracks());
-        refreshTrackList();
+    private void reloadTracks() { reloadTracks(() -> { }); }
+
+    private void reloadTracks(Runnable afterLoad) {
+        int request = ++libraryRequestId;
+        CompletableFuture.supplyAsync(database::loadTracks, libraryExecutor).whenComplete((loaded, error) -> runOnUiThread(() -> {
+            if (isDestroyed() || request != libraryRequestId) return;
+            if (error != null) { showStatus("读取曲库失败：" + rootMessage(error)); return; }
+            tracks.clear();
+            tracks.addAll(loaded);
+            syncCurrentTrack();
+            refreshTrackList();
+            afterLoad.run();
+        }));
     }
 
     private void refreshTrackList() {
@@ -522,57 +587,70 @@ public final class MainActivity extends AppCompatActivity {
                         || entry.fileName().toLowerCase(Locale.ROOT).contains(query))
                 .toList();
         trackAdapter.submit(visible);
+        syncPlaybackQueue();
         updateRemoveButton();
     }
 
     private void playTrack(TrackEntry entry) {
+        if (player == null) { showStatus("播放服务连接中，请稍后重试"); return; }
         previewRequestId++;
         playbackRequestId++;
         currentTrack = entry;
-        titleText.setText(entry.track().title());
-        artistText.setText(entry.track().artist());
-        bottomNavigation.setSelectedItemId(R.id.nav_lyrics);
-        showPage(lyricsPage);
-        player.setMediaItem(MediaItem.fromUri(playbackUri(entry)));
+        int index = indexOfCurrent();
+        if (index < 0) return;
+        player.setMediaItems(tracks.stream().map(this::mediaItem).toList(), index, 0);
         player.prepare();
         player.play();
+        bottomNavigation.setSelectedItemId(R.id.nav_lyrics);
+        displayTrack(entry);
+    }
+
+    private void displayTrack(TrackEntry entry) {
+        titleText.setText(entry.track().title());
+        artistText.setText(entry.track().artist());
         loadEmbeddedArtwork(entry);
         loadLyrics(entry);
         showStatus("正在播放：" + entry.track().title());
     }
 
     private void loadLyrics(TrackEntry entry) {
-        int reqId = ++lyricsRequestId;
-        AndroidMusicDatabase.CachedLyrics cached = database.loadLyrics(entry);
-        if (cached != null) {
-            currentLyrics = LrcParser.parse(cached.source(), cached.rawText());
-            renderLyrics(-1);
-            if (!TextUtils.isEmpty(cached.artworkUrl())) loadArtwork(cached.artworkUrl());
-            return;
-        }
-        File localLrc = localLrcFile(entry);
-        if (localLrc != null) {
-            try {
-                Lyrics lyrics = LrcParser.parse("本地歌词：" + localLrc.getName(), readLyricsText(localLrc));
-                if (!lyrics.lines().isEmpty()) {
-                    currentLyrics = lyrics;
-                    database.saveLyrics(entry, lyrics, null);
-                    renderLyrics(-1);
-                    return;
-                }
-            } catch (IOException ignored) {
-            }
-        }
-        currentLyrics = Lyrics.empty("正在搜索歌词...");
+        int request = ++lyricsRequestId;
+        setRefreshLoading(false);
+        currentLyrics = Lyrics.empty("正在加载歌词...");
         renderLyrics(-1);
-        lookupLyricsOnline(entry, reqId, false);
+        CompletableFuture.supplyAsync(() -> {
+            AndroidMusicDatabase.CachedLyrics cached = database.loadLyrics(entry);
+            if (cached != null) return new LyricsLookupResult(LrcParser.parse(cached.source(), cached.rawText()), cached.artworkUrl());
+            File local = localLrcFile(entry);
+            if (local != null) {
+                try {
+                    Lyrics lyrics = LrcParser.parse("本地歌词：" + local.getName(), readLyricsText(local));
+                    if (!lyrics.lines().isEmpty()) {
+                        database.saveLyrics(entry, lyrics, null);
+                        return LyricsLookupResult.lyricsOnly(lyrics);
+                    }
+                } catch (IOException ignored) { }
+            }
+            return null;
+        }, libraryExecutor).whenComplete((lookup, error) -> runOnUiThread(() -> {
+            if (isDestroyed() || request != lyricsRequestId) return;
+            if (lookup != null) {
+                currentLyrics = lookup.lyrics();
+                renderLyrics(-1);
+                if (!TextUtils.isEmpty(lookup.artworkUrl())) loadArtwork(lookup.artworkUrl());
+            } else lookupLyricsOnline(entry, request, false);
+        }));
     }
 
     /** 走共享歌词渠道（网易云 → QQ → 酷狗 → LRCLIB）在线查词，与下载来源完全解耦。 */
     private void lookupLyricsOnline(TrackEntry entry, int reqId, boolean forceRefresh) {
         setRefreshLoading(true);
-        long duration = player.getDuration();
+        long duration = player == null ? 0 : player.getDuration();
         lyricsService.searchOnlineAsync(entry.track(), duration)
+                .thenApplyAsync(lookup -> {
+                    if (lookup != null) database.saveLyrics(entry, lookup.lyrics(), lookup.artworkUrl());
+                    return lookup;
+                }, libraryExecutor)
                 .whenComplete((lookup, error) -> runOnUiThread(() -> {
                     if (isDestroyed() || reqId != lyricsRequestId) return;
                     setRefreshLoading(false);
@@ -582,7 +660,6 @@ public final class MainActivity extends AppCompatActivity {
                         return;
                     }
                     currentLyrics = lookup.lyrics();
-                    database.saveLyrics(entry, lookup.lyrics(), lookup.artworkUrl());
                     renderLyrics(-1);
                     if (!TextUtils.isEmpty(lookup.artworkUrl())) loadArtwork(lookup.artworkUrl());
                     if (forceRefresh) showStatus("歌词已更新：" + lookup.lyrics().source());
@@ -637,21 +714,20 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void loadEmbeddedArtwork(TrackEntry entry) {
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        try {
-            if (entry.storageType() == TrackEntry.StorageType.MEDIA_STORE) {
-                retriever.setDataSource(this, Uri.parse(entry.location()));
-            } else {
-                retriever.setDataSource(entry.location());
-            }
-            byte[] picture = retriever.getEmbeddedPicture();
+        int request = previewRequestId;
+        showArtworkPlaceholder();
+        CompletableFuture.supplyAsync(() -> {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                if (entry.storageType() == TrackEntry.StorageType.MEDIA_STORE) retriever.setDataSource(this, Uri.parse(entry.location()));
+                else retriever.setDataSource(entry.location());
+                return retriever.getEmbeddedPicture();
+            } catch (RuntimeException ignored) { return null; }
+            finally { try { retriever.release(); } catch (IOException ignored) { } }
+        }, libraryExecutor).whenComplete((picture, error) -> runOnUiThread(() -> {
+            if (isDestroyed() || request != previewRequestId || currentTrack == null || !currentTrack.key().equals(entry.key())) return;
             if (picture != null) loadArtwork(picture);
-            else showArtworkPlaceholder();
-        } catch (RuntimeException ignored) {
-            showArtworkPlaceholder();
-        } finally {
-            try { retriever.release(); } catch (IOException ignored) { }
-        }
+        }));
     }
 
     private void loadArtwork(Object source) {
@@ -730,13 +806,15 @@ public final class MainActivity extends AppCompatActivity {
         int request = ++playbackRequestId;
         showStatus("正在下载：" + selected.title());
         onlineService.downloadAsync(selected, onlineTempDir.toPath())
-                .thenApply(path -> {
+                .thenApplyAsync(path -> {
                     try {
-                        return publishDownloadedTrack(path.toFile(), selected, useRootDirectory);
+                        TrackEntry entry = publishDownloadedTrack(path.toFile(), selected, useRootDirectory);
+                        database.saveTrack(entry);
+                        return entry;
                     } catch (IOException error) {
                         throw new CompletionException(error);
                     }
-                })
+                }, libraryExecutor)
                 .whenComplete((entry, error) -> runOnUiThread(() -> {
             downloadInProgress = false;
             if (isDestroyed()) return;
@@ -744,12 +822,12 @@ public final class MainActivity extends AppCompatActivity {
                 showStatus("下载失败：" + rootMessage(error));
                 return;
             }
-            database.saveTrack(entry);
-            reloadTracks();
-            if (request == playbackRequestId) {
-                playTrack(entry);
-                showStatus("下载完成并开始播放");
-            } else showStatus("下载完成，已加入曲库");
+            reloadTracks(() -> {
+                if (request == playbackRequestId) {
+                    playTrack(entry);
+                    showStatus("下载完成并开始播放");
+                } else showStatus("下载完成，已加入曲库");
+            });
         }));
     }
 
@@ -944,13 +1022,18 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
         if (currentTrack != null && currentTrack.key().equals(selected.key())) {
-            player.stop();
+            if (player != null) { player.stop(); player.clearMediaItems(); }
             currentTrack = null;
         }
-        database.removeTrack(selected);
-        boolean deleted = deleteStoredTrack(selected);
-        reloadTracks();
-        showStatus(deleted ? "已从歌单和本地文件中删除" : "已移除歌单记录，文件可能已在外部删除");
+        CompletableFuture.supplyAsync(() -> {
+            database.removeTrack(selected);
+            return deleteStoredTrack(selected);
+        }, libraryExecutor).whenComplete((deleted, error) -> runOnUiThread(() -> {
+            if (isDestroyed()) return;
+            if (error != null) { showStatus("移除失败：" + rootMessage(error)); return; }
+            reloadTracks();
+            showStatus(deleted ? "已从歌单和本地文件中删除" : "已移除歌单记录，文件可能已在外部删除");
+        }));
     }
 
     private void updateRemoveButton() {
@@ -960,6 +1043,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void togglePlayback() {
+        if (player == null) return;
         if (currentTrack == null) {
             if (!tracks.isEmpty()) playTrack(tracks.get(0));
             return;
@@ -968,16 +1052,12 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void playRelative(int direction) {
-        if (tracks.isEmpty()) return;
-        int index = currentTrack == null ? -1 : indexOfCurrent();
-        if (playMode == PlayMode.SHUFFLE && tracks.size() > 1) {
-            int next;
-            do { next = random.nextInt(tracks.size()); } while (next == index);
-            playTrack(tracks.get(next));
-            return;
-        }
-        int next = app.musicplayer.playlist.QueueOrder.relative(index, direction, tracks.size());
-        playTrack(tracks.get(next));
+        if (player == null || tracks.isEmpty()) return;
+        if (player.getMediaItemCount() == 0) { playTrack(tracks.get(0)); return; }
+        previewRequestId++;
+        playbackRequestId++;
+        if (direction > 0) player.seekToNextMediaItem(); else player.seekToPreviousMediaItem();
+        player.play();
     }
 
     private int indexOfCurrent() {
@@ -988,11 +1068,18 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void cyclePlayMode() {
+        if (player == null) return;
         playMode = switch (playMode) {
             case ORDER -> PlayMode.SHUFFLE;
             case SHUFFLE -> PlayMode.REPEAT_ONE;
             case REPEAT_ONE -> PlayMode.ORDER;
         };
+        player.setShuffleModeEnabled(playMode == PlayMode.SHUFFLE);
+        player.setRepeatMode(playMode == PlayMode.REPEAT_ONE ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_ALL);
+        updatePlayModeUi();
+    }
+
+    private void updatePlayModeUi() {
         int icon = switch (playMode) {
             case ORDER -> R.drawable.ic_repeat;
             case SHUFFLE -> R.drawable.ic_shuffle;
@@ -1010,6 +1097,7 @@ public final class MainActivity extends AppCompatActivity {
     private final Runnable progressUpdater = new Runnable() {
         @Override
         public void run() {
+            if (!uiVisible) return;
             long duration = Math.max(0, player == null ? 0 : player.getDuration());
             long position = Math.max(0, player == null ? 0 : player.getCurrentPosition());
             if (!seeking && duration > 0) progressBar.setProgress((int) (position * progressBar.getMax() / duration));
@@ -1021,7 +1109,7 @@ public final class MainActivity extends AppCompatActivity {
     };
 
     private void updateLyricPosition(long positionMillis) {
-        if (currentLyrics == null || !currentLyrics.timed()) return;
+        if (lyricsPage.getVisibility() != View.VISIBLE || currentLyrics == null || !currentLyrics.timed()) return;
         int active = -1;
         for (int index = 0; index < currentLyrics.lines().size(); index++) {
             LyricLine line = currentLyrics.lines().get(index);
@@ -1033,6 +1121,9 @@ public final class MainActivity extends AppCompatActivity {
 
     private void renderLyrics(int activeIndex) {
         if (currentLyrics == null) return;
+        if (renderedLyrics == currentLyrics && lastLyricIndex == activeIndex) return;
+        renderedLyrics = currentLyrics;
+        lastLyricIndex = activeIndex;
         SpannableStringBuilder builder = new SpannableStringBuilder();
         int activeStart = -1;
         int activeEnd = -1;
@@ -1117,13 +1208,29 @@ public final class MainActivity extends AppCompatActivity {
     private record MediaStoreFile(Uri uri, String fileName) {
     }
 
+    @Override protected void onStart() {
+        super.onStart();
+        uiVisible = true;
+        syncCurrentTrack();
+        progressHandler.removeCallbacks(progressUpdater);
+        progressHandler.post(progressUpdater);
+    }
+
+    @Override protected void onStop() {
+        uiVisible = false;
+        progressHandler.removeCallbacks(progressUpdater);
+        super.onStop();
+    }
+
     @Override
     protected void onDestroy() {
         progressHandler.removeCallbacksAndMessages(null);
-        if (player != null) player.release();
+        if (controllerFuture != null) MediaController.releaseFuture(controllerFuture);
+        player = null;
         if (onlineService != null) onlineService.close();
         if (lyricsService != null) lyricsService.close();
-        if (database != null) database.close();
+        if (database != null) libraryExecutor.execute(database::close);
+        libraryExecutor.shutdown();
         super.onDestroy();
     }
 

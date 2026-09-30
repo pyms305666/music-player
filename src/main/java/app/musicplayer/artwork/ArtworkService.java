@@ -28,7 +28,6 @@ public final class ArtworkService implements AutoCloseable {
             return thread;
         });
         this.httpClient = HttpClient.newBuilder()
-                .executor(executor)
                 .followRedirects(HttpClient.Redirect.ALWAYS)
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -50,14 +49,11 @@ public final class ArtworkService implements AutoCloseable {
         if (!isRemoteUrl(url)) {
             return CompletableFuture.completedFuture(null);
         }
-        Path target = cachedPath(url);
-        if (Files.isRegularFile(target)) {
-            return CompletableFuture.completedFuture(target);
-        }
-        return CompletableFuture.supplyAsync(() -> download(url, target), executor);
+        return CompletableFuture.supplyAsync(() -> download(url, cachedPath(url)), executor);
     }
 
     private Path download(String url, Path target) {
+        Path temporary = null;
         try {
             if (Files.isRegularFile(target)) {
                 return target;
@@ -67,7 +63,8 @@ public final class ArtworkService implements AutoCloseable {
                     .header("User-Agent", "Mozilla/5.0")
                     .GET()
                     .build();
-            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            HttpResponse<byte[]> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.limiting(HttpResponse.BodyHandlers.ofByteArray(), 12 * 1024 * 1024));
             String contentType = response.headers().firstValue("Content-Type").orElse("");
             if (response.statusCode() < 200
                     || response.statusCode() >= 400
@@ -77,10 +74,16 @@ public final class ArtworkService implements AutoCloseable {
                 return null;
             }
             Files.createDirectories(cacheDir);
-            Files.write(target, response.body());
+            temporary = Files.createTempFile(cacheDir, ".za-artwork-", ".part");
+            Files.write(temporary, response.body());
+            try { Files.move(temporary, target, java.nio.file.StandardCopyOption.ATOMIC_MOVE); }
+            catch (java.nio.file.AtomicMoveNotSupportedException unsupported) { Files.move(temporary, target); }
             return target;
         } catch (Exception ignored) {
+            if (ignored instanceof InterruptedException) Thread.currentThread().interrupt();
             return null;
+        } finally {
+            if (temporary != null) try { Files.deleteIfExists(temporary); } catch (java.io.IOException ignored) { }
         }
     }
 

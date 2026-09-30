@@ -36,7 +36,7 @@ import java.util.concurrent.TimeoutException;
  * 稳定性策略：并行搜索 + 单来源超时；来源级熔断（连续失败暂停一段时间）；
  * 解析结果按 source|id 缓存；下载时对受限歌曲自动换源到其他来源。
  */
-public final class MusicCrawler {
+public final class MusicCrawler implements AutoCloseable {
     private static final int SEARCH_TIMEOUT_SECONDS = 10;
     private static final long RESOLVE_CACHE_TTL_MS = 4 * 60 * 1000;
     private static final long FAILED_RESOLVE_TTL_MS = 45 * 1000;
@@ -44,15 +44,24 @@ public final class MusicCrawler {
     private static final long[] SUSPEND_DELAYS_MS = {60_000, 5 * 60_000, 15 * 60_000};
 
     private final CrawlerSession session = new CrawlerSession();
-    private final List<OnlineSourceProvider> providers = List.of(
-            new KugouSourceProvider(session),
-            new KuwoSourceProvider(session),
-            new MiguSourceProvider(session),
-            new QqSourceProvider(session),
-            new NeteaseSourceProvider(session)
-    );
-    private final Map<String, OnlineSourceProvider> providersByName = indexProviders(providers);
-    private final ExecutorService searchExecutor = Executors.newFixedThreadPool(4, runnable -> {
+    private final List<OnlineSourceProvider> providers;
+    private final Map<String, OnlineSourceProvider> providersByName;
+    private final long searchBudgetNanos;
+
+    public MusicCrawler() {
+        providers = List.of(new KugouSourceProvider(session), new KuwoSourceProvider(session),
+                new MiguSourceProvider(session), new QqSourceProvider(session), new NeteaseSourceProvider(session));
+        providersByName = indexProviders(providers);
+        searchBudgetNanos = TimeUnit.SECONDS.toNanos(SEARCH_TIMEOUT_SECONDS);
+    }
+
+    MusicCrawler(List<OnlineSourceProvider> providers, long budgetMillis) {
+        this.providers = List.copyOf(providers);
+        this.providersByName = indexProviders(providers);
+        this.searchBudgetNanos = TimeUnit.MILLISECONDS.toNanos(budgetMillis);
+    }
+
+    private final ExecutorService searchExecutor = Executors.newFixedThreadPool(5, runnable -> {
         Thread thread = new Thread(runnable, "crawler-search");
         thread.setDaemon(true);
         return thread;
@@ -69,47 +78,38 @@ public final class MusicCrawler {
         }
 
         session.ensurePrimed();
-        List<CompletableFuture<List<OnlineTrackInfo>>> futures = new ArrayList<>();
+        long deadline = System.nanoTime() + searchBudgetNanos;
+        var completions = new java.util.concurrent.ExecutorCompletionService<List<OnlineTrackInfo>>(searchExecutor);
+        List<java.util.concurrent.Future<List<OnlineTrackInfo>>> futures = new ArrayList<>();
         for (OnlineSourceProvider provider : providers) {
-            if (isSuspended(provider.sourceName())) {
-                System.out.println("[crawler][" + provider.sourceName() + "] suspended, skipped");
-                continue;
-            }
-            futures.add(CompletableFuture.supplyAsync(() -> {
+            if (isSuspended(provider.sourceName())) continue;
+            futures.add(completions.submit(() -> {
+                session.setDeadline(deadline);
                 try {
                     List<OnlineTrackInfo> results = provider.search(normalizedQuery);
-                    recordSuccess(provider.sourceName());
+                    if (!Thread.currentThread().isInterrupted()) recordSuccess(provider.sourceName());
                     return results;
-                } catch (RuntimeException exception) {
-                    recordFailure(provider.sourceName());
-                    System.out.println("[crawler][" + provider.sourceName() + "] search err: "
-                            + exception.getMessage());
+                } catch (RuntimeException error) {
+                    if (!Thread.currentThread().isInterrupted()) recordFailure(provider.sourceName());
                     return List.of();
-                }
-            }, searchExecutor));
+                } finally { session.clearDeadline(); }
+            }));
         }
-
-        List<OnlineTrackInfo> allResults = new ArrayList<>();
-        for (CompletableFuture<List<OnlineTrackInfo>> future : futures) {
-            try {
-                allResults.addAll(future.get(SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS));
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-                break;
-            } catch (TimeoutException | ExecutionException | CancellationException exception) {
-                System.out.println("[crawler] search abandoned: " + exception.getMessage());
+        List<OnlineTrackInfo> results = new ArrayList<>();
+        try {
+            for (int received = 0; received < futures.size(); received++) {
+                long left = Math.max(0, deadline - System.nanoTime());
+                var completed = completions.poll(left, TimeUnit.NANOSECONDS);
+                if (completed == null) break;
+                try { results.addAll(completed.get()); }
+                catch (ExecutionException | CancellationException ignored) { }
             }
-        }
-
-        List<OnlineTrackInfo> uniqueResults = deduplicate(allResults);
-        List<OnlineTrackInfo> annotatedResults = uniqueResults.stream()
-                .map(this::annotateAvailability)
-                .sorted(Comparator
-                        .comparingInt(MusicCrawler::availabilityPriority)
-                        .thenComparingInt(this::sourcePriority))
-                .toList();
-        System.out.println("[crawler] total: " + annotatedResults.size());
-        return annotatedResults;
+        } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+        finally { for (var future : futures) if (!future.isDone()) future.cancel(true); }
+        // Address resolution happens only when the user requests a download.
+        return deduplicate(results).stream()
+                .map(track -> track.withAvailability(false, "可尝试下载"))
+                .sorted(Comparator.comparingInt(this::sourcePriority)).toList();
     }
 
     public String resolveDownloadUrl(OnlineTrackInfo track) {
@@ -278,14 +278,14 @@ public final class MusicCrawler {
         return health != null && health.suspendedUntil > System.currentTimeMillis();
     }
 
-    private void recordSuccess(String source) {
+    private synchronized void recordSuccess(String source) {
         ProviderHealth health = healthBySource.get(source);
         if (health != null) {
             health.consecutiveFailures = 0;
         }
     }
 
-    private void recordFailure(String source) {
+    private synchronized void recordFailure(String source) {
         ProviderHealth health = healthBySource.computeIfAbsent(source, key -> new ProviderHealth());
         int failures = health.consecutiveFailures + 1;
         health.consecutiveFailures = failures;
@@ -585,6 +585,12 @@ public final class MusicCrawler {
             if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException("下载已取消");
             output.write(buffer, 0, length);
         }
+    }
+
+    @Override public void close() {
+        searchExecutor.shutdownNow();
+        session.close();
+        resolutionCache.clear();
     }
 
     private record CachedResolution(String url, long expiresAt) {

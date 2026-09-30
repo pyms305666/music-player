@@ -21,6 +21,8 @@ import java.util.concurrent.Executors;
  * so all requests carry the same session.
  */
 public final class OnlineMusicSearchService implements AutoCloseable {
+    private final app.musicplayer.util.LatestRequest<List<OnlineTrackInfo>> searches = new app.musicplayer.util.LatestRequest<>();
+    private final app.musicplayer.util.LatestRequest<LyricsLookupResult> previews = new app.musicplayer.util.LatestRequest<>();
 
     private final MusicCrawler crawler = new MusicCrawler();
     private final ExecutorService executor = Executors.newFixedThreadPool(3, runnable -> {
@@ -32,7 +34,7 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     // ---- search / download (delegated to crawler) ----
 
     public CompletableFuture<List<OnlineTrackInfo>> searchAsync(String query) {
-        return CompletableFuture.supplyAsync(() -> crawler.search(query), executor);
+        return searches.submit(executor, () -> crawler.search(query));
     }
 
     public CompletableFuture<String> resolveDownloadUrlAsync(OnlineTrackInfo info) {
@@ -52,9 +54,9 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     // ---- lyrics preview (reuses crawler's HTTP session) ----
 
     public CompletableFuture<LyricsLookupResult> loadPreviewAsync(OnlineTrackInfo trackInfo) {
-        return CompletableFuture.supplyAsync(() ->
+        return previews.submit(executor, () ->
             loadPreview(trackInfo).orElseGet(() ->
-                LyricsLookupResult.lyricsOnly(Lyrics.empty("在线结果暂无歌词"))), executor);
+                LyricsLookupResult.lyricsOnly(Lyrics.empty("在线结果暂无歌词"))));
     }
 
     private Optional<LyricsLookupResult> loadPreview(OnlineTrackInfo info) {
@@ -192,6 +194,9 @@ public final class OnlineMusicSearchService implements AutoCloseable {
 
     @Override
     public void close() {
+        searches.close();
+        previews.close();
         executor.shutdownNow();
+        crawler.close();
     }
 }

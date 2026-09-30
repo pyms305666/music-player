@@ -59,7 +59,8 @@ final class QqSourceProvider implements OnlineSourceProvider {
                 }
             }
         } catch (Exception exception) {
-            System.out.println("[crawler] qq search err: " + exception.getMessage());
+            if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new IllegalStateException("来源搜索失败", exception);
         }
         return results;
     }

@@ -11,8 +11,8 @@ import java.util.Set;
 /**
  * 集中管理应用运行目录和所有持久化数据目录。
  *
- * <p>打包后的 jpackage 应用优先使用 exe 所在目录；开发环境则回退到代码位置或当前工作目录。
- * 这样数据库、在线下载、歌词、封面和播放兼容缓存始终位于同一个 downloads 目录中。</p>
+ * <p>安装版数据位于用户目录 ZA-Music-Data，开发版默认使用项目 downloads。
+ * 数据库、下载与各类缓存统一由 dataDir 管理，旧安装数据在初始化时迁移。</p>
  */
 public record AppPaths(
         Path baseDir,

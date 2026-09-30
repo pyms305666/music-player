@@ -44,7 +44,8 @@ final class KugouSourceProvider implements OnlineSourceProvider {
                 results.addAll(parseSearchResponseByRegex(json));
             }
         } catch (Exception exception) {
-            System.out.println("[crawler] kugou search err: " + exception.getMessage());
+            if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new IllegalStateException("来源搜索失败", exception);
         }
         return results;
     }

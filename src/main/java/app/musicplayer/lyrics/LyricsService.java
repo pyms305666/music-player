@@ -25,10 +25,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public final class LyricsService implements AutoCloseable {
+    private final app.musicplayer.util.LatestRequest<LyricsLookupResult> requests = new app.musicplayer.util.LatestRequest<>();
     private final MusicDatabase database;
     private final Path lyricsCacheDir;
+    private final ThreadLocal<Long> lookupDeadline = new ThreadLocal<>();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .build();
@@ -48,14 +51,18 @@ public final class LyricsService implements AutoCloseable {
     private final LyricsHttp lyricsHttp = new LyricsHttp() {
         @Override
         public String fetch(String url, String referer) throws Exception {
+            Long limit = lookupDeadline.get();
+            long remaining = limit == null ? TimeUnit.SECONDS.toNanos(12) : limit - System.nanoTime();
+            if (remaining <= 0) throw new java.util.concurrent.TimeoutException("Lyrics lookup deadline expired");
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .timeout(Duration.ofSeconds(12))
+                    .timeout(Duration.ofNanos(Math.min(TimeUnit.SECONDS.toNanos(12), remaining)))
                     .header("User-Agent", "Mozilla/5.0 SimpleMusicPlayer/1.0")
                     .header("Referer", referer)
                     .GET()
                     .build();
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response;
+            try { response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)); }
+            catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); throw cancelled; }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("HTTP " + response.statusCode());
             }
@@ -73,42 +80,34 @@ public final class LyricsService implements AutoCloseable {
     }
 
     public CompletableFuture<LyricsLookupResult> findLyrics(Track track, Duration duration) {
-        // 歌词加载优先级：
-        // 1. 数据库缓存，最快，也能离线使用；
-        // 2. 歌曲同目录同名 .lrc；
-        // 3. 网易云音乐 / QQ 音乐 / 酷狗音乐 / LRCLIB 联网搜索。
-        Optional<Lyrics> cachedLyrics = database.loadLyrics(track);
-        if (cachedLyrics.isPresent()) {
-            return CompletableFuture.completedFuture(LyricsLookupResult.lyricsOnly(cachedLyrics.get()));
-        }
-
-        Optional<Lyrics> fileCacheLyrics = readCachedLyrics(track);
-        if (fileCacheLyrics.isPresent()) {
-            database.saveLyrics(track, fileCacheLyrics.get());
-            return CompletableFuture.completedFuture(LyricsLookupResult.lyricsOnly(fileCacheLyrics.get()));
-        }
-
-        Optional<Lyrics> localLyrics = readLocalLyrics(track);
-        if (localLyrics.isPresent()) {
-            database.saveLyrics(track, localLyrics.get());
-            saveCachedLyrics(track, localLyrics.get());
-            return CompletableFuture.completedFuture(LyricsLookupResult.lyricsOnly(localLyrics.get()));
-        }
-
-        return searchOnlineAsync(track, duration);
+        return requests.submit(executor, () -> {
+            var cached = database.loadLyricsLookup(track);
+            if (cached.isPresent()) return cached.get();
+            Optional<Lyrics> local = readLocalLyrics(track);
+            if (local.isEmpty()) local = readCachedLyrics(track);
+            if (local.isPresent()) {
+                database.saveLyrics(track, local.get());
+                return LyricsLookupResult.lyricsOnly(local.get());
+            }
+            return lookupAndCache(track, duration);
+        });
     }
 
     public CompletableFuture<LyricsLookupResult> searchOnlineAsync(Track track, Duration duration) {
-        return CompletableFuture.supplyAsync(() -> {
-            Optional<LyricsLookupResult> result = searchOnline(track, duration);
-            // 联网搜到后立即写入缓存，后续播放同一首歌不再依赖网络。
-            result.ifPresent(found -> {
-                database.saveLyrics(track, found.lyrics());
-                saveCachedLyrics(track, found.lyrics());
-            });
-            return result.orElseGet(() -> LyricsLookupResult.lyricsOnly(
-                    Lyrics.empty("没有找到歌词，正在后台继续搜索")));
-        }, executor);
+        return requests.submit(executor, () -> lookupAndCache(track, duration));
+    }
+
+    private LyricsLookupResult lookupAndCache(Track track, Duration duration) {
+        lookupDeadline.set(System.nanoTime() + TimeUnit.SECONDS.toNanos(15));
+        try {
+        Optional<LyricsLookupResult> result = searchOnline(track, duration);
+        if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+        result.ifPresent(found -> {
+            database.saveLyrics(track, found.lyrics(), found.artworkUrl());
+            saveCachedLyrics(track, found.lyrics());
+        });
+        return result.orElseGet(() -> LyricsLookupResult.lyricsOnly(Lyrics.empty("没有找到歌词，正在后台继续搜索")));
+        } finally { lookupDeadline.remove(); }
     }
 
     private Optional<Lyrics> readLocalLyrics(Track track) {
@@ -134,6 +133,7 @@ public final class LyricsService implements AutoCloseable {
 
     private Optional<LyricsLookupResult> searchOnline(Track track, Duration duration) {
         for (OnlineLyricsProvider provider : onlineProviders) {
+            if (Thread.currentThread().isInterrupted() || lookupDeadline.get() != null && System.nanoTime() >= lookupDeadline.get()) return Optional.empty();
             Optional<OnlineLyricsResult> result = provider.search(track, duration, lyricsHttp);
             if (result.isPresent() && result.get().hasLyrics()) {
                 OnlineLyricsResult found = result.get();
@@ -184,6 +184,7 @@ public final class LyricsService implements AutoCloseable {
 
     @Override
     public void close() {
+        requests.close();
         executor.shutdownNow();
     }
 }

@@ -67,7 +67,8 @@ final class MiguSourceProvider implements OnlineSourceProvider {
                     SEARCH_HEADERS);
             results.addAll(parseSearchResponse(json));
         } catch (Exception exception) {
-            System.out.println("[crawler] migu search err: " + exception.getMessage());
+            if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new IllegalStateException("来源搜索失败", exception);
         }
         return results;
     }

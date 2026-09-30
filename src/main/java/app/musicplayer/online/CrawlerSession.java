@@ -18,7 +18,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 /** 所有在线来源共享的 HTTP、Cookie 和请求头；仅使用桌面与 Android 都支持的标准 API。 */
-public final class CrawlerSession {
+public final class CrawlerSession implements AutoCloseable {
     private static final String[] USER_AGENTS = {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
@@ -29,13 +29,34 @@ public final class CrawlerSession {
     private final Random random = new Random();
     private final CookieManager cookieManager = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
     private boolean primed;
+    private final ThreadLocal<Long> deadline = new ThreadLocal<>();
+    private final java.util.Set<HttpURLConnection> active = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private volatile boolean closed;
+
+    void setDeadline(long nanos) { deadline.set(nanos); }
+    void clearDeadline() { deadline.remove(); }
+    public <T> T withinTimeout(long milliseconds, java.util.function.Supplier<T> work) {
+        Long previous = deadline.get();
+        long limit = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(milliseconds);
+        deadline.set(previous == null ? limit : Math.min(previous, limit));
+        try { return work.get(); }
+        finally { if (previous == null) deadline.remove(); else deadline.set(previous); }
+    }
+    private int timeout(int maximum) throws InterruptedException {
+        Long limit = deadline.get();
+        if (closed || Thread.currentThread().isInterrupted()) throw new InterruptedException("Request cancelled");
+        if (limit == null) return maximum;
+        long remaining = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(limit - System.nanoTime());
+        if (remaining <= 0) throw new InterruptedException("Search deadline expired");
+        return (int) Math.max(1, Math.min(maximum, remaining));
+    }
 
     public synchronized void ensurePrimed() {
         if (primed) {
             return;
         }
         primed = true;
-        tryFetchHome("https://music.163.com/");
+
         try {
             HttpCookie csrf = new HttpCookie("__csrf", randomHex(32));
             csrf.setDomain(".music.163.com");
@@ -43,10 +64,7 @@ public final class CrawlerSession {
             cookieManager.getCookieStore().add(URI.create("https://music.163.com/"), csrf);
         } catch (RuntimeException ignored) {
         }
-        snooze(400);
-        tryFetchHome("https://y.qq.com/");
-        snooze(400);
-        tryFetchHome("https://www.kugou.com/");
+
     }
 
     public String fetch(String url, String referer) throws IOException, InterruptedException {
@@ -101,16 +119,8 @@ public final class CrawlerSession {
 
     String cookieHeader(String url) {
         try {
-            List<HttpCookie> cookies = cookieManager.getCookieStore().get(URI.create(url));
-            if (cookies.isEmpty()) {
-                cookies = cookieManager.getCookieStore().getCookies();
-            }
-            return cookies.stream()
-                    .map(cookie -> cookie.getName() + "=" + cookie.getValue())
-                    .collect(Collectors.joining("; "));
-        } catch (RuntimeException ignored) {
-            return "";
-        }
+            return String.join("; ", cookieManager.get(URI.create(url), Map.of()).getOrDefault("Cookie", List.of()));
+        } catch (IOException | RuntimeException ignored) { return ""; }
     }
 
     String userAgent() {
@@ -152,8 +162,8 @@ public final class CrawlerSession {
         URI uri = URI.create(url);
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setInstanceFollowRedirects(true);
-        connection.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
-        connection.setReadTimeout(readTimeout);
+        connection.setConnectTimeout(timeout(CONNECT_TIMEOUT_MILLIS));
+        connection.setReadTimeout(timeout(readTimeout));
         connection.setRequestMethod(method);
         connection.setRequestProperty("User-Agent", userAgent());
         connection.setRequestProperty("Referer", referer);
@@ -165,14 +175,22 @@ public final class CrawlerSession {
         }
         headers.forEach(connection::setRequestProperty);
 
+        active.add(connection);
+        try {
+        if (closed) throw new IOException("Session closed");
         if (body != null) {
             connection.setDoOutput(true);
             connection.setFixedLengthStreamingMode(body.length);
+        }
+        connection.connect();
+        connection.setReadTimeout(timeout(readTimeout));
+        if (body != null) {
             try (var output = connection.getOutputStream()) {
                 output.write(body);
             }
         }
 
+        connection.setReadTimeout(timeout(readTimeout));
         int statusCode = connection.getResponseCode();
         Map<String, List<String>> responseHeaders = connection.getHeaderFields();
         cookieManager.put(uri, responseHeaders);
@@ -182,6 +200,11 @@ public final class CrawlerSession {
         }
         InputStream bodyStream = new DisconnectingInputStream(source, connection);
         return new DownloadResponse(statusCode, responseHeaders, bodyStream);
+        } catch (IOException | RuntimeException | InterruptedException error) {
+            active.remove(connection);
+            connection.disconnect();
+            throw error;
+        }
     }
 
     private static void ensureSuccess(DownloadResponse response, String url) throws IOException {
@@ -211,6 +234,12 @@ public final class CrawlerSession {
         }
     }
 
+    @Override public void close() {
+        closed = true;
+        for (HttpURLConnection connection : active) connection.disconnect();
+        active.clear();
+    }
+
     record DownloadResponse(int statusCode, Map<String, List<String>> headers, InputStream body)
             implements AutoCloseable {
         String firstHeader(String name) {
@@ -232,7 +261,7 @@ public final class CrawlerSession {
         }
     }
 
-    private static final class DisconnectingInputStream extends FilterInputStream {
+    private final class DisconnectingInputStream extends FilterInputStream {
         private final HttpURLConnection connection;
 
         private DisconnectingInputStream(InputStream input, HttpURLConnection connection) {
@@ -240,11 +269,25 @@ public final class CrawlerSession {
             this.connection = connection;
         }
 
+        private void checkDeadline() throws IOException {
+            try { connection.setReadTimeout(timeout(connection.getReadTimeout())); }
+            catch (InterruptedException cancelled) {
+                connection.disconnect();
+                throw new java.io.InterruptedIOException(cancelled.getMessage());
+            }
+        }
+
+        @Override public int read() throws IOException { checkDeadline(); return in.read(); }
+        @Override public int read(byte[] bytes, int offset, int length) throws IOException {
+            checkDeadline(); return in.read(bytes, offset, length);
+        }
+
         @Override
         public void close() throws IOException {
             try {
                 super.close();
             } finally {
+                active.remove(connection);
                 connection.disconnect();
             }
         }

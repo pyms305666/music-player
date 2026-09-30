@@ -3,6 +3,7 @@ package app.musicplayer.data;
 import app.musicplayer.lyrics.LrcParser;
 import app.musicplayer.model.LyricLine;
 import app.musicplayer.model.Lyrics;
+import app.musicplayer.model.LyricsLookupResult;
 import app.musicplayer.model.Track;
 
 import java.nio.file.Path;
@@ -57,7 +58,27 @@ public final class MusicDatabase implements AutoCloseable {
                     )
                     """);
         }
+        boolean artworkColumn = false;
+        try (Statement statement = connection.createStatement(); ResultSet columns = statement.executeQuery("pragma table_info(lyrics)")) {
+            while (columns.next()) if ("artwork_url".equals(columns.getString("name"))) artworkColumn = true;
+        }
+        if (!artworkColumn) try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("alter table lyrics add column artwork_url text");
+        }
     }
+
+    private void transaction(SqlAction action) {
+        try {
+            connection.setAutoCommit(false);
+            try { action.run(); connection.commit(); }
+            catch (SQLException | RuntimeException failure) {
+                connection.rollback();
+                throw failure;
+            } finally { connection.setAutoCommit(true); }
+        } catch (SQLException failure) { throw new IllegalStateException("曲库写入失败", failure); }
+    }
+
+    @FunctionalInterface private interface SqlAction { void run() throws SQLException; }
 
     public synchronized List<Track> loadTracks() {
         List<Track> tracks = new ArrayList<>();
@@ -72,8 +93,7 @@ public final class MusicDatabase implements AutoCloseable {
                 tracks.add(track);
             }
         } catch (SQLException exception) {
-            logFailure("读取歌曲列表", exception);
-            return List.of();
+            throw new IllegalStateException("读取曲库失败", exception);
         }
 
         return tracks;
@@ -91,6 +111,7 @@ public final class MusicDatabase implements AutoCloseable {
                     updated_at = excluded.updated_at
                 """;
 
+        transaction(() -> {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (Track track : tracks) {
                 statement.setString(1, track.path().toAbsolutePath().toString());
@@ -101,9 +122,8 @@ public final class MusicDatabase implements AutoCloseable {
                 statement.addBatch();
             }
             statement.executeBatch();
-        } catch (SQLException exception) {
-            logFailure("批量保存歌曲", exception);
         }
+        });
     }
 
     public synchronized void saveTrack(Track track, java.time.Duration duration) {
@@ -133,19 +153,23 @@ public final class MusicDatabase implements AutoCloseable {
             statement.setString(6, now);
             statement.executeUpdate();
         } catch (SQLException exception) {
-            logFailure("保存歌曲元数据", exception);
+            throw new IllegalStateException("保存歌曲元数据失败", exception);
         }
     }
 
     public synchronized Optional<Lyrics> loadLyrics(Track track) {
-        String sql = "select source, raw_lyrics from lyrics where track_path = ?";
+        return loadLyricsLookup(track).map(LyricsLookupResult::lyrics);
+    }
+
+    public synchronized Optional<LyricsLookupResult> loadLyricsLookup(Track track) {
+        String sql = "select source, raw_lyrics, artwork_url from lyrics where track_path = ?";
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, track.path().toAbsolutePath().toString());
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     // 数据库保存的是原始歌词文本，读取时重新解析，保证时间轴高亮逻辑一致。
-                    return Optional.of(LrcParser.parse(resultSet.getString("source"), resultSet.getString("raw_lyrics")));
+                    return Optional.of(new LyricsLookupResult(LrcParser.parse(resultSet.getString("source"), resultSet.getString("raw_lyrics")), resultSet.getString("artwork_url")));
                 }
             }
         } catch (SQLException exception) {
@@ -156,7 +180,9 @@ public final class MusicDatabase implements AutoCloseable {
         return Optional.empty();
     }
 
-    public synchronized void saveLyrics(Track track, Lyrics lyrics) {
+    public synchronized void saveLyrics(Track track, Lyrics lyrics) { saveLyrics(track, lyrics, null); }
+
+    public synchronized void saveLyrics(Track track, Lyrics lyrics, String artworkUrl) {
         // 只缓存真正找到的歌词。错误提示、空歌词或“继续搜索”这类占位内容不写入数据库。
         if (lyrics == null || lyrics.lines().isEmpty() || lyrics.source().startsWith("没有找到")
                 || lyrics.source().startsWith("暂无") || lyrics.source().startsWith("歌词加载失败")) {
@@ -170,12 +196,13 @@ public final class MusicDatabase implements AutoCloseable {
         }
 
         String sql = """
-                insert into lyrics(track_path, source, raw_lyrics, updated_at)
-                values(?, ?, ?, ?)
+                insert into lyrics(track_path, source, raw_lyrics, updated_at, artwork_url)
+                values(?, ?, ?, ?, ?)
                 on conflict(track_path) do update set
                     source = excluded.source,
                     raw_lyrics = excluded.raw_lyrics,
-                    updated_at = excluded.updated_at
+                    updated_at = excluded.updated_at,
+                    artwork_url = coalesce(excluded.artwork_url, lyrics.artwork_url)
                 """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -183,6 +210,7 @@ public final class MusicDatabase implements AutoCloseable {
             statement.setString(2, lyrics.source());
             statement.setString(3, rawLyrics);
             statement.setString(4, Instant.now().toString());
+            statement.setString(5, artworkUrl);
             statement.executeUpdate();
         } catch (SQLException exception) {
             logFailure("保存歌词缓存", exception);
@@ -194,16 +222,10 @@ public final class MusicDatabase implements AutoCloseable {
             return;
         }
 
-        String absolutePath = track.path().toAbsolutePath().toString();
-        try (PreparedStatement deleteLyrics = connection.prepareStatement("delete from lyrics where track_path = ?");
-             PreparedStatement deleteTrack = connection.prepareStatement("delete from tracks where path = ?")) {
-            deleteLyrics.setString(1, absolutePath);
-            deleteLyrics.executeUpdate();
-            deleteTrack.setString(1, absolutePath);
-            deleteTrack.executeUpdate();
-        } catch (SQLException exception) {
-            logFailure("移除歌曲缓存", exception);
-        }
+        try (PreparedStatement statement = connection.prepareStatement("delete from tracks where path = ?")) {
+            statement.setString(1, track.path().toAbsolutePath().toString());
+            statement.executeUpdate();
+        } catch (SQLException exception) { throw new IllegalStateException("移除歌曲失败", exception); }
     }
 
     @Override
