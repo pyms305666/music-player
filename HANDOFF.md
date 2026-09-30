@@ -1,12 +1,12 @@
-# 项目交接：ZA音乐 4.1.5
+# 项目交接：ZA音乐 4.1.8
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版与原生 Android 版均为 `4.1.5`。
-- 数据统一位于程序目录的 `downloads/`。
+- 版本：Windows 桌面版与原生 Android 版均为 `4.1.8`。
+- Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
 ## 主要模块
@@ -28,8 +28,8 @@
 - `ui.PlaybackControls`：底部播放、进度和音量控件。
 - `ui.MobileViewSwitcher`：9:16 移动端的歌单、歌词和在线搜索底部导航。
 - `config.LayoutMode`：通过 `--mobile` 或 `musicplayer.mobile` 系统属性选择移动布局。
-- `lyrics.OnlineLyricsProvider` + 四个歌词渠道（网易云/QQ/酷狗/LRCLIB）：双端共享，HTTP 通过 `LyricsHttp` 接口注入——桌面用 java.net.http，Android 用共享的 `CrawlerSession`。注意 `LyricsService` 依赖桌面 `MusicDatabase`，不参与 Android 同步。
-- `android-app`：原生 Java Android 工程，使用 Media3、Android SQLite、SAF 文件导入，并在构建时同步共享模型、歌词渠道和在线来源代码。`AndroidLyricsService` 在 Android 端运行同一套歌词四连查（与在线下载搜索完全解耦），歌词页右上角有强制刷新按钮。
+- `lyrics.OnlineLyricsProvider` + 四个歌词渠道（网易云/QQ/酷狗/LRCLIB）：双端共享，HTTP 通过 `LyricsHttp` 接口注入——桌面用 java.net.http，Android 用共享的 `CrawlerSession`。注意 `LyricsService` 依赖桌面 `MusicDatabase`，保留在桌面模块。
+- `android-app`：原生 Java Android 工程，使用 Media3、Android SQLite、SAF 文件导入，直接依赖 `shared` Java 17 模块中的模型、歌词渠道和在线来源代码。`AndroidLyricsService` 在 Android 端运行同一套歌词四连查（与在线下载搜索完全解耦），歌词页右上角有强制刷新按钮。
 - Android 在线下载优先写入手机根目录 `music/`；未授予所有文件访问权限时使用 MediaStore 写入 `Music/music/`，数据库 schema 2 同时兼容文件路径和 `content://` 地址。
 
 ## 验证命令
@@ -56,7 +56,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.
 
 ## 维护说明
 
-- 本地验证以 `verify.ps1` 为准；Android 调试 APK 使用 `android-app/build-apk.ps1` 生成。Android SDK、Gradle 和 JDK 由该脚本下载到项目 `.tools/`。
+- 本地验证以 `verify.ps1` 为准；Android 调试 APK 使用 `android-app/build-apk.ps1` 生成。Android SDK/JDK 由该脚本准备，Gradle 使用固定版本及 SHA-256 的 Wrapper。
 - 不删除 `downloads/` 及其中用户数据。
 - 在线来源可能随网站接口调整而失效，构建测试不得依赖实时网站可用性。新 Provider 的搜索/解析逻辑抽成包内可见静态方法，用真实响应裁剪的 fixture 做离线测试；改动在线逻辑后可用临时探针类对真实接口做一次性烟测，验证完删除。
 - `package.ps1` 目前构建 Windows app-image 和 EXE 安装程序；发布目录 `release/` 的文件整理应以实际发布流程为准，不代表该脚本会自动生成 ZIP、APK 或校验文件。
@@ -81,3 +81,17 @@ Android assembleDebug/assembleDebugAndroidTest/lintDebug 成功，lint 为 0 err
 本轮没有改变两端布局，没有进行多机型或长时间耗电验证，也没有验证进程被系统终止后的自动恢复。耳机拔出处理由 ExoPlayer 提供，本轮未做实体耳机拔插测试。在线来源测试采用离线响应，发布不保证第三方网站始终可用。
 
 发布附件：Windows EXE、Android Debug APK、SHA256SUMS.txt；不向 Git 追加二进制。Windows UpgradeCode 和 ZA-Music 安装目录、ZA-Music-Data 数据目录继续沿用第一轮。
+
+
+## 2026-09-30 第三轮（4.1.8）
+
+- 两端共享模块：`shared`（Java 17），独立工程分别输出到 `shared/build/simple-music-player` 与 `shared/build/simple-music-player-android`；没有 `syncSharedJava`。
+- `version.properties` 是唯一应用版本来源；根 Wrapper 9.6.1、Android Wrapper 8.11.1，均有官方 SHA-256。
+- 清理 Gluon 构建路径，CI 改为实际 JavaFX Windows / 原生 Android；CI APK 为测试用临时签名。
+- 正式 Android 签名由四个 `ZA_*` 环境变量配置；本次发布沿用原调试渠道，不向 GitHub 上传私钥。
+- 发布脚本要求两端附件在干净提交后构建，并检查对应提交的 CI、源码和签名；发布记录及校验文件随 Release 上传。
+- 新增共享缓存键回归、8 种无效发布记录拒绝用例；将桌面真实播放烟测纳入可复用脚本。
+- 本地回归：桌面 28 + 共享 43 项（Java 25），共享 43 项（Java 17）全部通过；发布记录 8 种无效输入拒绝通过；共享 JAR 重建散列相同。
+- Windows JavaFX 实际播放烟测通过；Android lint 0 错误、28 警告。
+- vivo V2528A / Android 16 覆盖升级至 4.1.8 成功，4 项播放服务回归通过；升级前后 2 条个人曲库记录完全一致，SQLite integrity_check 为 ok。测试 APK 已卸载，主应用与数据保留。
+- 每个提交的 CI 和最终安装包来源以 Actions 记录及 Release 的 build-info.json 为准；发布脚本只允许对应提交 CI 成功后公开。

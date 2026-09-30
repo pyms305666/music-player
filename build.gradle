@@ -1,81 +1,24 @@
 plugins {
     id "application"
     id "org.openjfx.javafxplugin" version "0.1.0"
-    id "com.gluonhq.gluonfx-gradle-plugin" version "1.0.29" apply false
 }
-
 group = "app.musicplayer"
-
-def nativeTarget = providers.gradleProperty("target").orElse("host").get()
-def androidBuild = nativeTarget == "android"
-version = "4.1.7"
-
-java {
-    if (androidBuild) {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    } else {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(25)
-        }
-    }
-}
-
+def versions = new Properties()
+file("version.properties").withInputStream { versions.load(it) }
+version = versions.getProperty("versionName")
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
 application {
     mainClass = "app.musicplayer.MusicPlayerLauncher"
-    applicationDefaultJvmArgs = [
-            "--enable-native-access=ALL-UNNAMED",
-            "--enable-native-access=javafx.graphics",
-            "--enable-native-access=javafx.media"
-    ]
+    applicationDefaultJvmArgs = ["--enable-native-access=ALL-UNNAMED", "--enable-native-access=javafx.graphics", "--enable-native-access=javafx.media"]
 }
-
-javafx {
-    version = androidBuild ? "21" : "25.0.1"
-    modules = ["javafx.controls", "javafx.media"]
-}
-
-if (androidBuild) {
-    apply plugin: "com.gluonhq.gluonfx-gradle-plugin"
-
-    gluonfx {
-        target = nativeTarget
-        resourcesList = [
-                '.*[.]css$',
-                '.*[.]png$',
-                '.*[.]jpg$',
-                '.*[.]jpeg$',
-                '.*[.]properties$'
-        ]
-        reflectionList = [
-                "app.musicplayer.MusicPlayerLauncher",
-                "app.musicplayer.MusicPlayerApp"
-        ]
-        release {
-            appLabel = "ZA音乐"
-            versionCode = "40107"
-            versionName = project.version.toString()
-        }
-    }
-}
-
+javafx { version = "25.0.1"; modules = ["javafx.controls", "javafx.media"] }
 dependencies {
+    implementation project(":shared")
     implementation "org.xerial:sqlite-jdbc:3.50.3.0"
-    implementation "org.jsoup:jsoup:1.18.3"
-
     testImplementation platform("org.junit:junit-bom:5.13.4")
     testImplementation "org.junit.jupiter:junit-jupiter"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = "UTF-8"
-    if (androidBuild) {
-        options.release = 17
-    }
-}
-
-tasks.withType(Test).configureEach {
-    useJUnitPlatform()
-    jvmArgs "--enable-native-access=ALL-UNNAMED"
-}
+tasks.withType(JavaCompile).configureEach { options.encoding = "UTF-8" }
+tasks.withType(Test).configureEach { useJUnitPlatform(); jvmArgs "--enable-native-access=ALL-UNNAMED" }
+tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }

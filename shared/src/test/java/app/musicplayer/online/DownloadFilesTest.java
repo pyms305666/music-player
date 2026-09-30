@@ -16,7 +16,8 @@ class DownloadFilesTest {
         Files.writeString(directory.resolve("song.mp3"), "original");
         Path first = Files.writeString(directory.resolve("a.part"), "first");
         Path second = Files.writeString(directory.resolve("b.part"), "second");
-        try (var executor = Executors.newFixedThreadPool(2)) {
+        var executor = Executors.newFixedThreadPool(2);
+        try {
             var results = executor.invokeAll(List.<Callable<Path>>of(
                     () -> DownloadFiles.publish(first, directory, "song", ".mp3"),
                     () -> DownloadFiles.publish(second, directory, "song", ".mp3")));
@@ -26,7 +27,7 @@ class DownloadFilesTest {
             assertEquals("original", Files.readString(directory.resolve("song.mp3")));
             assertFalse(Files.exists(first));
             assertFalse(Files.exists(second));
-        }
+        } finally { executor.shutdownNow(); }
     }
 
     @Test void recognizesContentInsteadOfMisleadingDownloadSuffix() throws Exception {

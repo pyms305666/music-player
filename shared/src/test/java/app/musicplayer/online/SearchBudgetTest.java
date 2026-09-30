@@ -22,8 +22,8 @@ class SearchBudgetTest {
             var results = crawler.search("song");
             assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 1500);
             assertEquals(1, results.size());
-            assertEquals("fast", results.getFirst().source());
-            assertTrue(results.getFirst().canAttemptDownload());
+            assertEquals("fast", results.get(0).source());
+            assertTrue(results.get(0).canAttemptDownload());
             assertEquals(0, resolves.get());
             assertTrue(interrupted.await(2, TimeUnit.SECONDS));
         }

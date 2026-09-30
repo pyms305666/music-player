@@ -1,0 +1,17 @@
+plugins { id "java-library" }
+group = "app.musicplayer"
+def versions = new Properties()
+file("../version.properties").withInputStream { versions.load(it) }
+version = versions.getProperty("versionName")
+// Two independent Gradle builds consume this project; never share their task outputs.
+layout.buildDirectory = file("build/${rootProject.name}")
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+dependencies {
+    implementation "org.jsoup:jsoup:1.18.3"
+    testImplementation platform("org.junit:junit-bom:5.13.4")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = "UTF-8"; options.release = 17 }
+tasks.withType(Test).configureEach { useJUnitPlatform() }
+tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }

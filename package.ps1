@@ -1,9 +1,13 @@
 param(
-    [string] $Version = "4.1.7"
+    [string] $Version
 )
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $projectRoot 'scripts/build-common.ps1')
+$canonicalVersion = (Get-ZaVersion $projectRoot).versionName
+if ($Version -and $Version -ne $canonicalVersion) { throw 'Package version must match version.properties' }
+$Version = $canonicalVersion
 $appName = -join @([char]90, [char]65, [char]38899, [char]20048)
 # Keep the renamed app separate from the old MSI, whose uninstaller removes its install directory.
 $upgradeUuid = "c75b70d9-e17e-4b11-81b3-64f1ba87c760"
@@ -14,7 +18,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # jpackage exe packaging needs the matching WiX generation; this project builds with JDK 25 + WiX 5.
-$projectJpackage = "C:\jdk-25.0.2\bin\jpackage.exe"
+$projectJpackage = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME 'bin/jpackage.exe' } else { "C:\jdk-25.0.2\bin\jpackage.exe" }
 if (Test-Path $projectJpackage) {
     $jpackage = $projectJpackage
 } else {
@@ -78,3 +82,5 @@ if ($LASTEXITCODE -ne 0) {
 
 $installer = Get-ChildItem -LiteralPath $destination -Filter "*.exe" -File | Select-Object -First 1
 Write-Host "Installer created: $($installer.FullName)"
+
+Write-ZaBuildRecord $projectRoot $installer.FullName "windows"

@@ -2,6 +2,14 @@ plugins {
     id "com.android.application"
 }
 
+def versions = new Properties()
+rootProject.file("../version.properties").withInputStream { versions.load(it) }
+def signingKeys = ["ZA_KEYSTORE", "ZA_STORE_PASSWORD", "ZA_KEY_ALIAS", "ZA_KEY_PASSWORD"]
+def signingValues = signingKeys.collectEntries { [(it): System.getenv(it)] }
+def configured = signingValues.values().count { it != null && !it.isBlank() }
+if (configured != 0 && configured != signingKeys.size()) {
+    throw new GradleException("Formal signing requires all four ZA signing environment variables")
+}
 android {
     namespace "app.musicplayer.android"
     compileSdk 35
@@ -10,13 +18,24 @@ android {
         applicationId "app.musicplayer.android"
         minSdk 28
         targetSdk 35
-        versionCode 40107
-        versionName "4.1.7"
+        versionCode versions.getProperty("versionCode").toInteger()
+        versionName versions.getProperty("versionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (configured == signingKeys.size()) {
+            formal {
+                storeFile file(signingValues.ZA_KEYSTORE)
+                storePassword signingValues.ZA_STORE_PASSWORD
+                keyAlias signingValues.ZA_KEY_ALIAS
+                keyPassword signingValues.ZA_KEY_PASSWORD
+            }
+        }
+    }
     buildTypes {
         release {
+            if (configured == signingKeys.size()) signingConfig signingConfigs.formal
             minifyEnabled false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
@@ -29,33 +48,8 @@ android {
     }
 }
 
-def sharedOutput = layout.buildDirectory.dir("generated/shared-java")
-
-tasks.register("syncSharedJava", Sync) {
-    from(rootProject.file("../src/main/java")) {
-        include "app/musicplayer/model/*.java"
-        include "app/musicplayer/online/*.java"
-        include "app/musicplayer/playlist/PlaylistSort.java"
-        include "app/musicplayer/playlist/SortDirection.java"
-        include "app/musicplayer/playlist/QueueOrder.java"
-        include "app/musicplayer/util/JsonSupport.java"
-        include "app/musicplayer/util/Hashing.java"
-        include "app/musicplayer/util/LatestRequest.java"
-        include "app/musicplayer/lyrics/LrcParser.java"
-        include "app/musicplayer/lyrics/LyricsHttp.java"
-        include "app/musicplayer/lyrics/OnlineLyricsProvider.java"
-        include "app/musicplayer/lyrics/NeteaseMusicProvider.java"
-        include "app/musicplayer/lyrics/QqMusicProvider.java"
-        include "app/musicplayer/lyrics/KugouMusicProvider.java"
-        include "app/musicplayer/lyrics/LrclibLyricsProvider.java"
-    }
-    into(sharedOutput)
-}
-
-android.sourceSets.main.java.srcDir(sharedOutput)
-tasks.named("preBuild").configure { dependsOn("syncSharedJava") }
-
 dependencies {
+    implementation project(":shared")
     androidTestImplementation "androidx.test.ext:junit:1.2.1"
     androidTestImplementation "androidx.test:runner:1.6.2"
     androidTestImplementation "androidx.test:core:1.6.1"
@@ -69,5 +63,13 @@ dependencies {
     implementation "androidx.media3:media3-session:1.6.1"
     implementation "com.google.android.material:material:1.12.0"
     implementation "com.github.bumptech.glide:glide:4.16.0"
-    implementation "org.jsoup:jsoup:1.18.3"
+}
+
+// Fail closed when requesting a release APK without the formal key configuration.
+tasks.configureEach {
+    if (name == "packageRelease") {
+        doFirst {
+            if (configured != signingKeys.size()) throw new GradleException("Release APK requires formal signing; use assembleDebug for the existing GitHub debug channel")
+        }
+    }
 }

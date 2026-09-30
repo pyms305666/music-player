@@ -1,4 +1,4 @@
-# ZA音乐 4.1.7
+# ZA音乐 4.1.8
 
 ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
@@ -18,33 +18,30 @@ ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器
 ## 项目结构
 
 ```text
-├─ src/main/java/app/musicplayer/       桌面端代码及 Android 共用逻辑
-│  ├─ config/                           路径、布局和 SQLite 原生库配置
-│  ├─ model/                            歌曲、歌词和在线结果模型
-│  ├─ data/                             桌面端 SQLite 数据访问
-│  ├─ lyrics/                           LRC 解析、歌词服务及在线歌词来源
-│  ├─ online/                           在线来源、搜索和下载编排
-│  ├─ playback/                         音频格式识别和播放文件处理
-│  ├─ playlist/                         曲库导入、去重、搜索和排序
-│  ├─ artwork/                          封面下载和缓存
-│  └─ ui/                               JavaFX 播放器界面
-├─ src/test/java/                       桌面端自动化测试
-├─ src/main/resources/                  桌面端图标和样式
-├─ android-app/                         原生 Android 工程
-├─ packaging/                           Windows 安装包资源
-├─ run.ps1                              Windows 桌面端 Gradle 命令入口
-├─ verify.ps1                           桌面端测试和发行目录验证
-└─ package.ps1                          Windows 安装包构建脚本
+├─ src/main/java/app/musicplayer/       JavaFX 界面、桌面数据与播放服务
+├─ src/test/java/                       桌面模块测试
+├─ src/main/resources/                  桌面图标和样式
+├─ shared/                              两端直接依赖的 Java 17 共享模块
+│  ├─ src/main/java/                    模型、队列、歌词、在线搜索与下载
+│  └─ src/test/java/                    共享逻辑离线回归测试
+├─ android-app/                         原生 Android UI、SQLite 与 Media3 服务
+├─ scripts/                             构建、桌面播放烟测和发布校验
+├─ .github/workflows/build.yml           Windows / 原生 Android CI
+├─ version.properties                   唯一的应用版本号与 Android versionCode
+├─ packaging/                           Windows 安装资源
+├─ run.ps1                              桌面 Gradle 命令入口
+├─ verify.ps1                           桌面、共享模块及发布工具验证
+└─ package.ps1                          Windows 安装包构建
 ```
 
-`MusicPlayerLauncher` 是桌面应用入口，`MusicPlayerApp` 负责 JavaFX 生命周期和界面协调。Android 工程在构建时从 `src/main/java` 同步指定的共享源码；Android 数据库和界面实现独立于桌面端。
+`MusicPlayerLauncher` 是桌面应用入口，`MusicPlayerApp` 协调 JavaFX 页面。根工程与独立的 `android-app` 工程均通过 `project(":shared")` 依赖共享模块；不再复制源码。两套构建的共享模块输出目录独立，Android 数据库和界面实现仍然独立。
 
 ## 环境要求
 
 - Windows 10/11，用于运行下列 PowerShell 脚本。
-- 桌面开发需要 JDK 25；`run.ps1` 会在项目 `.tools/` 中下载 Gradle 9.6.1。需能访问 Gradle 分发站点及 Maven 仓库。
-- Android APK 脚本会在 `.tools/` 中准备 Android SDK、Gradle 8.11.1 和 JDK 17。首次构建需联网下载工具和依赖，并接受 Android SDK 许可。
-- Windows 安装包需要 JDK（含 `jpackage`）和 WiX 5.0.2。`package.ps1` 查找 `C:\jdk-25.0.2\bin\jpackage.exe`，找不到时使用 PATH 中的 `jpackage.exe`。
+- 桌面使用 JDK 25.0.2，设置 `JAVA_HOME`；本机也支持 `C:\jdk-25.0.2`。Gradle 9.6.1 由已提交的 Wrapper 下载并校验 SHA-256；已存在的同版本 `.tools/gradle-*` 可复用。
+- Android APK 脚本会在 `.tools/` 中准备 Android SDK 与 JDK 17.0.19；Gradle 8.11.1 由 Wrapper 下载。首次构建需联网下载工具和依赖，并接受 Android SDK 许可。
+- Windows 安装包需要 JDK（含 `jpackage`）和 WiX 5.0.2。`package.ps1` 优先使用 `JAVA_HOME` 下的 `jpackage`，本机可回退至 `C:\jdk-25.0.2` 或 PATH。
 
 工具下载和构建产物保存在项目内的 `.tools/`、`build/`、`android-app/app/build/` 等目录；这些目录不属于源代码。
 
@@ -86,7 +83,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
 ```
 
-APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`，脚本也会复制一份到 `android-app\dist\ZA音乐-Android-4.1.5-debug.apk`。Debug APK 使用 Android 默认调试密钥签名，适合测试安装；发布到商店前需配置正式签名和发布构建流程。
+APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`，脚本也会复制一份到 `android-app\dist\ZA音乐-Android-4.1.8-debug.apk`。Debug APK 使用 Android 默认调试密钥签名，适合测试安装；发布到商店前需配置正式签名和发布构建流程。
 
 Android 应用要求 Android 9（API 28）或更高版本。首次导入或管理音频时，系统可能请求音频读取或文件管理权限；也可通过系统文件选择器导入文件。在线搜索与下载需要网络。下载音乐优先保存到内部存储 `music/`，必要时回退到共享存储 `Music/music/`。Android 数据和媒体文件位于设备上，与 Windows 版数据目录不自动同步。
 
@@ -113,7 +110,7 @@ wix extension add --global WixToolset.Util.wixext/5.0.2
 .\package.ps1
 ```
 
-脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。`package.ps1 -Version 4.1.5` 可指定版本号。安装后的应用在用户数据目录保存曲库，通常不需要用户另行安装 Java。
+脚本先运行 `verify.ps1`，再生成含 Java 运行时的 Windows 安装包。每次构建会在 `build\installer\<版本>-<时间戳>\` 新建输出目录，不覆盖旧目录。版本从 `version.properties` 读取；传入不同的 `-Version` 会被拒绝，避免文件名与程序版本不一致。安装后的应用在用户数据目录保存曲库，通常不需要用户另行安装 Java。
 
 ## 数据和缓存
 
@@ -136,7 +133,7 @@ Windows 4.1.5 的“ZA音乐”使用新的安装目录。首次启动时，如�
 
 ## 发布文件
 
-历史发布文件保存在 `release/4.1.3/`、`release/4.1.3-desktop-ui/` 和 `release/4.1.4/`。4.1.5 的 Windows 安装包、Android Debug APK 与 SHA-256 校验文件统一放在 `release/4.1.5/` 并随源码提交。
+最新安装包位于 [GitHub Releases](https://github.com/pyms305666/music-player/releases)。从 4.1.6 起不再向 Git 提交二进制附件；历史已跟踪文件保留。4.1.8 起额外发布 `build-info.json`，包含源码提交、对应 CI、构建工具、Android 证书及附件 SHA-256；`SHA256SUMS.txt` 同时覆盖两个安装包与构建记录。
 
 ## 常见问题
 
@@ -177,3 +174,39 @@ Android 真机回归测试位于 `android-app/app/src/androidTest/`。构建测�
 ```
 
 测试使用缓存 WAV 音频，保留个人曲库；包括关闭页面后的循环与重连、单曲循环和切歌、临时音频焦点、息屏循环。测试需要手机已解锁，息屏测试后可能需要再次解锁。验证结果及具体设备见 `HANDOFF.md`。
+
+
+## 4.1.8 第三轮：维护与发布
+
+版本统一维护在 `version.properties`；升级时同时递增 `versionName` 与 `versionCode`。Gradle Wrapper 固定版本和分发包校验码。CI 使用 JDK 25.0.2 / 17.0.19、AGP 8.9.2、WiX 5.0.2，Actions 固定至提交。
+
+### 本地回归与 CI
+
+```powershell
+.\verify.ps1
+.\android-app\verify.ps1
+.\scripts\desktop-smoke.ps1
+```
+
+前两项执行两端构建、共享逻辑在两个 Java 版本下的测试、Android lint，以及发布记录校验的正反向用例。最后一项需要 Windows 桌面及可用音频设备，使用独立临时曲库测试恢复、慢 I/O 时响应、快速选歌、末曲循环和暂停/恢复，不读取个人曲库。Android 服务回归见上一节。
+
+`Build and verify` 工作流在推送、PR 和手动触发时构建真实 Windows 安装包与原生 Android APK；Android API 35 模拟器运行服务回归。CI 测试 APK 使用运行器临时调试密钥，**不能用于现有已安装版本的覆盖升级**。官方 GitHub 调试渠道 APK 使用本地原证书构建；CI 不保管该私钥。共享 JAR 在同一环境重复构建时校验字节一致；安装包含时间信息，不承诺 EXE/APK 跨环境字节完全一致。
+
+### 签名管理
+
+GitHub Android 调试渠道保持包名 `app.musicplayer.android` 和原证书。维护者须备份本机调试 keystore，丢失密钥后无法生成兼容的覆盖升级 APK。不要把 keystore、密码写入 Git。
+
+正式签名入口要求全部提供 `ZA_KEYSTORE`（绝对路径）、`ZA_STORE_PASSWORD`、`ZA_KEY_ALIAS`、`ZA_KEY_PASSWORD` 环境变量，再在 `android-app` 运行 `gradlew assembleRelease`；缺失/不完整配置会停止构建。正式签名是单独渠道，换证书不能直接覆盖当前调试渠道；发布工具当前只允许原调试渠道证书。Windows EXE 尚未配置 Authenticode 签名。
+
+### 发布流程
+
+1. 修改唯一版本文件和发布说明，执行回归后提交并推送源码。
+2. 确认该提交的 `Build and verify` 两个 CI job 全部通过。
+3. 在干净工作树重新执行 `package.ps1`、`android-app/verify.ps1`；脚本在附件旁保存源码与散列记录。
+4. 设置已授权的 `GH_TOKEN` 或登录 `gh`，执行发布脚本；也可以先加 `-VerifyOnly` 校验。
+
+```powershell
+.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.8.md'
+```
+
+脚本检查干净源码、附件构建提交、应用版本、包名/证书、散列、远端分支和对应提交的 CI。它先创建草稿并校验上传附件，再公开并检查 tag 与源码一致。不覆盖已有 Release；失败后检查保留的草稿再处理。构建记录是发布核对信息，不是第三方签发的供应链证明。

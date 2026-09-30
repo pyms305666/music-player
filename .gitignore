@@ -16,3 +16,7 @@ music-player.db
 
 .DS_Store
 Thumbs.db
+
+# Signing keys stay outside source control.
+*.jks
+*.keystore

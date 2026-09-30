@@ -6,7 +6,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LatestRequestTest {
     @Test void cancelsObsoleteWorkerAndCompletesLatest() throws Exception {
-        try (var executor = Executors.newFixedThreadPool(2); var requests = new LatestRequest<String>()) {
+        var executor = Executors.newFixedThreadPool(2);
+        try (var requests = new LatestRequest<String>()) {
             CountDownLatch started = new CountDownLatch(1), interrupted = new CountDownLatch(1);
             var first = requests.submit(executor, () -> {
                 started.countDown();
@@ -18,6 +19,6 @@ class LatestRequestTest {
             assertEquals("new", requests.submit(executor, () -> "new").get(2, TimeUnit.SECONDS));
             assertTrue(first.isCancelled());
             assertTrue(interrupted.await(2, TimeUnit.SECONDS));
-        }
+        } finally { executor.shutdownNow(); }
     }
 }
