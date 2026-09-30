@@ -48,36 +48,30 @@ if (-not (Test-Path -LiteralPath $iconPath)) {
     throw "Windows application icon was not found: $iconPath"
 }
 
-& $jpackage `
-    --type app-image `
-    --dest $destination `
-    --name $appName `
-    --app-version $Version `
-    --vendor "pyms305666" `
-    --input $inputDirectory `
-    --main-jar $mainJar `
-    --main-class "app.musicplayer.MusicPlayerLauncher" `
-    --icon $iconPath `
-    --java-options "--enable-native-access=ALL-UNNAMED" `
-    --java-options "--enable-native-access=javafx.graphics" `
-    --java-options "--enable-native-access=javafx.media" `
-    --java-options "-Dfile.encoding=UTF-8"
+# Use UTF-8 option files so an English Windows ACP cannot replace the Chinese name.
+function Invoke-JpackageOptions([string[]] $Options, [string] $OptionFile) {
+    $lines = $Options | ForEach-Object { '"' + $_.Replace('\', '\\').Replace('"', '\"') + '"' }
+    [IO.File]::WriteAllLines($OptionFile, [string[]]$lines, [Text.UTF8Encoding]::new($false))
+    & $jpackage '-J-Dfile.encoding=UTF-8' "@$OptionFile"
+    if ($LASTEXITCODE) { throw "jpackage failed with exit code $LASTEXITCODE" }
+}
+Invoke-JpackageOptions @(
+    '--type', 'app-image', '--dest', $destination, '--name', $appName,
+    '--app-version', $Version, '--vendor', 'pyms305666', '--input', $inputDirectory,
+    '--main-jar', $mainJar, '--main-class', 'app.musicplayer.MusicPlayerLauncher', '--icon', $iconPath,
+    '--java-options', '--enable-native-access=ALL-UNNAMED',
+    '--java-options', '--enable-native-access=javafx.graphics',
+    '--java-options', '--enable-native-access=javafx.media', '--java-options', '-Dfile.encoding=UTF-8'
+) (Join-Path $destination 'app-image.args')
 if ($LASTEXITCODE -ne 0) {
     throw "Application image creation failed with exit code $LASTEXITCODE."
 }
 
-& $jpackage `
-    --type exe `
-    --dest $destination `
-    --app-image $appImage `
-    --name $appName `
-    --app-version $Version `
-    --vendor "pyms305666" `
-    --win-menu `
-    --win-shortcut `
-    --win-per-user-install `
-    --install-dir "ZA-Music" `
-    --win-upgrade-uuid $upgradeUuid
+Invoke-JpackageOptions @(
+    '--type', 'exe', '--dest', $destination, '--app-image', $appImage, '--name', $appName,
+    '--app-version', $Version, '--vendor', 'pyms305666', '--win-menu', '--win-shortcut',
+    '--win-per-user-install', '--install-dir', 'ZA-Music', '--win-upgrade-uuid', $upgradeUuid
+) (Join-Path $destination 'installer.args')
 if ($LASTEXITCODE -ne 0) {
     throw "Installer creation failed with exit code $LASTEXITCODE."
 }
