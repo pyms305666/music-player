@@ -13,7 +13,7 @@ $appName = -join @([char]90, [char]65, [char]38899, [char]20048)
 # Keep the renamed app separate from the old MSI, whose uninstaller removes its install directory.
 $upgradeUuid = "c75b70d9-e17e-4b11-81b3-64f1ba87c760"
 
-& (Join-Path $projectRoot "verify.ps1")
+& (Join-Path $projectRoot "verify.ps1") -SkipClean
 if ($LASTEXITCODE -ne 0) {
     throw "Project verification failed. Packaging stopped."
 }
@@ -49,11 +49,11 @@ if (-not (Test-Path -LiteralPath $iconPath)) {
     throw "Windows application icon was not found: $iconPath"
 }
 
-# Use UTF-8 option files so an English Windows ACP cannot replace the Chinese name.
+# UTF-8 arguments preserve the name; a fixed Chinese locale selects MSI codepage 936.
 function Invoke-JpackageOptions([string[]] $Options, [string] $OptionFile) {
     $lines = $Options | ForEach-Object { '"' + $_.Replace('\', '\\').Replace('"', '\"') + '"' }
     [IO.File]::WriteAllLines($OptionFile, [string[]]$lines, [Text.UTF8Encoding]::new($false))
-    & $jpackage '-J-Dfile.encoding=UTF-8' "@$OptionFile"
+    & $jpackage '-J-Dfile.encoding=UTF-8' '-J-Duser.language=zh' '-J-Duser.country=CN' "@$OptionFile"
     if ($LASTEXITCODE) { throw "jpackage failed with exit code $LASTEXITCODE" }
 }
 Invoke-JpackageOptions @(
