@@ -41,7 +41,7 @@ ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器
 - Windows 10/11，用于运行下列 PowerShell 脚本。
 - 桌面使用 JDK 25.0.2，设置 `JAVA_HOME`；本机也支持 `C:\jdk-25.0.2`。Gradle 9.6.1 由已提交的 Wrapper 下载并校验 SHA-256；已存在的同版本 `.tools/gradle-*` 可复用。
 - Android APK 脚本会在 `.tools/` 中准备 Android SDK 与 JDK 17.0.19；Gradle 8.11.1 由 Wrapper 下载。首次构建需联网下载工具和依赖，并接受 Android SDK 许可。
-- Windows 安装包需要 JDK（含 `jpackage`）和 WiX 5.0.2。`package.ps1` 优先使用 `JAVA_HOME` 下的 `jpackage`，本机可回退至 `C:\jdk-25.0.2` 或 PATH。
+- Windows 安装包需要 JDK（含 `jpackage`）和 WiX 5.0.2。`package.ps1` 优先使用本机 `C:\jdk-25.0.2`，否则使用 `JAVA_HOME` 或 PATH 的 `jpackage`；选中的工具必须为 JDK 25，避免与 WiX 5 不兼容。
 
 工具下载和构建产物保存在项目内的 `.tools/`、`build/`、`android-app/app/build/` 等目录；这些目录不属于源代码。
 

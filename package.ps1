@@ -18,15 +18,17 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # jpackage exe packaging needs the matching WiX generation; this project builds with JDK 25 + WiX 5.
-$projectJpackage = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME 'bin/jpackage.exe' } else { "C:\jdk-25.0.2\bin\jpackage.exe" }
+$projectJpackage = "C:\jdk-25.0.2\bin\jpackage.exe"
 if (Test-Path $projectJpackage) {
     $jpackage = $projectJpackage
+} elseif ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME 'bin/jpackage.exe'))) {
+    $jpackage = Join-Path $env:JAVA_HOME 'bin/jpackage.exe'
 } else {
     $jpackage = (Get-Command jpackage.exe -ErrorAction SilentlyContinue).Source
 }
-if (-not $jpackage) {
-    throw "jpackage.exe was not found. Install a JDK that includes jpackage."
-}
+if (-not $jpackage) { throw "jpackage.exe was not found; install JDK 25.0.2" }
+$jpackageVersion = (& $jpackage --version | Out-String).Trim()
+if ($LASTEXITCODE -or $jpackageVersion -notmatch '^25[.]') { throw "Windows packaging requires JDK 25; selected jpackage is $jpackageVersion" }
 
 $wixDirectory = Join-Path $projectRoot ".tools\wix"
 if (-not (Test-Path (Join-Path $wixDirectory "wix.exe"))) {
