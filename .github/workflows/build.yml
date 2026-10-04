@@ -89,6 +89,7 @@ jobs:
           path: |
             .tools/rotation-ci/*.apk
             .tools/rotation-ci/*.apk.build.json
+            .tools/rotation-ci/*.txt
             android-app/app/build/reports/
           include-hidden-files: true
           if-no-files-found: error

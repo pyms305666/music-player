@@ -61,7 +61,10 @@ def exercise(args):
         if "Success" not in result:
             raise RuntimeError("APK installation failed")
     policy = json.loads(Path(args.policy).read_text())
+    instrumentation_number = 0
     def instrument(method, phase="", seed=False):
+        nonlocal instrumentation_number
+        instrumentation_number += 1
         test_class = method if method.startswith("app.musicplayer.") else "app.musicplayer.android." + method
         options = ["-e", "class", test_class]
         if phase:
@@ -72,7 +75,20 @@ def exercise(args):
         output = command("shell", "am", "instrument", "-w", *options,
                          "app.musicplayer.android.test/androidx.test.runner.AndroidJUnitRunner")
         print(output)
+        # Diagnostics belong only to disposable CI devices, never a personal phone.
+        if serial.startswith("emulator-"):
+            WORK.mkdir(parents=True, exist_ok=True)
+            label = f"instrument-{instrumentation_number:02d}"
+            (WORK / (label + ".txt")).write_text(output, encoding="utf-8")
         if not re.search(r"OK \(\d+ tests?\)", output) or "FAILURES" in output:
+            if serial.startswith("emulator-"):
+                try:
+                    logs = command("logcat", "-d", "-v", "threadtime", "ExoPlayerImpl:V",
+                                   "MediaSessionService:V", "AudioTrack:V", "AudioManager:V",
+                                   "TestRunner:V", "AndroidRuntime:E", "*:S")
+                    (WORK / (label + "-logcat.txt")).write_text(logs, encoding="utf-8")
+                except Exception as diagnostic_error:
+                    print("Could not collect failure logcat:", diagnostic_error, file=sys.stderr)
             raise RuntimeError("Instrumentation regression failed")
     if args.baseline:
         install(args.baseline)

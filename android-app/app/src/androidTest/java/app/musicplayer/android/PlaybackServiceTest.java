@@ -125,30 +125,82 @@ public class PlaybackServiceTest {
     }
 
     private void start(List<MediaItem> queue, int repeatMode) throws Exception {
-        CountDownLatch ready = new CountDownLatch(1);
+        long deadline = android.os.SystemClock.elapsedRealtime() + 10_000;
         main(() -> {
-            controller.addListener(new Player.Listener() {
-                @Override public void onIsPlayingChanged(boolean value) { if (value) ready.countDown(); }
-            });
             controller.setVolume(0f); controller.setShuffleModeEnabled(false); controller.setRepeatMode(repeatMode);
             controller.setMediaItems(queue); controller.prepare(); controller.play();
         });
-        assertTrue("Audio did not start", ready.await(10, TimeUnit.SECONDS));
+        long previous = -1;
+        while (android.os.SystemClock.elapsedRealtime() < deadline) {
+            AtomicReference<Long> sample = new AtomicReference<>(-1L);
+            main(() -> {
+                if (!controller.isPlaying() || controller.getCurrentMediaItemIndex() != 0
+                        || controller.getRepeatMode() != repeatMode || controller.getShuffleModeEnabled()
+                        || controller.getMediaItemCount() != queue.size()) return;
+                for (int i = 0; i < queue.size(); i++)
+                    if (!queue.get(i).mediaId.equals(controller.getMediaItemAt(i).mediaId)) return;
+                sample.set(controller.getCurrentPosition());
+            });
+            if (previous >= 0 && sample.get() >= previous + 50) return;
+            previous = sample.get();
+            Thread.sleep(100);
+        }
+        fail("Expected audio did not advance; " + playbackDiagnostics());
+    }
+
+    // No URI or personal song identifiers: diagnostics are safe on the user's library too.
+    private String playbackDiagnostics() {
+        AtomicReference<String> state = new AtomicReference<>();
+        main(() -> state.set("state=" + controller.getPlaybackState()
+                + ", playing=" + controller.isPlaying() + ", playWhenReady=" + controller.getPlayWhenReady()
+                + ", suppression=" + controller.getPlaybackSuppressionReason()
+                + ", repeat=" + controller.getRepeatMode() + ", shuffle=" + controller.getShuffleModeEnabled()
+                + ", index=" + controller.getCurrentMediaItemIndex() + ", count=" + controller.getMediaItemCount()
+                + ", position=" + controller.getCurrentPosition() + ", duration=" + controller.getDuration()
+                + ", error=" + (controller.getPlayerError() == null ? "none" : controller.getPlayerError().getErrorCodeName())));
+        return state.get();
     }
 
     @Test public void queueLoopsAfterActivityDestroyedAndReopensWithSameSession() throws Exception {
         List<String> transitions = Collections.synchronizedList(new ArrayList<>());
+        List<String> events = Collections.synchronizedList(new ArrayList<>());
+        long began = android.os.SystemClock.elapsedRealtime();
+        var activityDestroyed = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch wrapped = new CountDownLatch(1);
         main(() -> controller.addListener(new Player.Listener() {
             @Override public void onMediaItemTransition(MediaItem item, int reason) {
                 if (item == null) return;
-                transitions.add(item.mediaId);
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && item.mediaId.equals("first")) wrapped.countDown();
+                String id = item.mediaId.equals("first") || item.mediaId.equals("second") ? item.mediaId : "<other>";
+                transitions.add(id);
+                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
+                        + "ms transition=" + id + " reason=" + reason);
+                if (activityDestroyed.get() && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+                        && item.mediaId.equals("first")) wrapped.countDown();
+            }
+            @Override public void onEvents(Player player, Player.Events changed) {
+                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
+                        + "ms state=" + player.getPlaybackState() + " playing=" + player.isPlaying()
+                        + " suppression=" + player.getPlaybackSuppressionReason());
+            }
+            @Override public void onPositionDiscontinuity(Player.PositionInfo oldPosition,
+                    Player.PositionInfo newPosition, int reason) {
+                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
+                        + "ms discontinuity=" + oldPosition.mediaItemIndex + ":" + oldPosition.positionMs
+                        + "->" + newPosition.mediaItemIndex + ":" + newPosition.positionMs + " reason=" + reason);
+            }
+            @Override public void onPlayWhenReadyChanged(boolean value, int reason) {
+                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
+                        + "ms playWhenReady=" + value + " reason=" + reason);
             }
         }));
         start(List.of(audio("first", 2), audio("second", 2)), Player.REPEAT_MODE_ALL);
         closeActivity();
-        assertTrue("Last track failed to wrap", wrapped.await(12, TimeUnit.SECONDS));
+        main(() -> {
+            activityDestroyed.set(true);
+            if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began) + "ms Activity destroyed");
+        });
+        boolean didWrap = wrapped.await(12, TimeUnit.SECONDS);
+        assertTrue("Last track failed to wrap; " + playbackDiagnostics() + "; events=" + events, didWrap);
         assertEquals(Arrays.asList("first", "second", "first"), transitions.subList(0, 3));
         // Remove every UI/controller binding, leaving only the foreground service.
         main(controller::release); controller = null;
