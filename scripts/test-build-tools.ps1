@@ -29,3 +29,13 @@ $rejected = $false
 try { $null = Assert-ZaArtifactRecord $artifact 'android-debug' 'fixture-commit' $fixtureVersion } catch { $rejected = $true }
 if (-not $rejected) { throw 'Missing provenance must fail closed' }
 Write-Host 'BUILD TOOLS PASSED: valid provenance accepted; 8 invalid source/hash/identity cases rejected'
+$release = $good.Clone(); $release.platform = 'android-release'; $release.qa = $true
+Write-TestRecord $release
+$rejected = $false
+try { $null = Assert-ZaArtifactRecord $artifact 'android-release' 'fixture-commit' $fixtureVersion } catch { $rejected = $true }
+if (-not $rejected) { throw 'QA release record accepted' }
+$release.qa = $false; Write-TestRecord $release
+$rejected = $false
+try { $null = Assert-ZaArtifactRecord $artifact 'android-release' 'fixture-commit' $fixtureVersion } catch { $rejected = $true }
+if (-not $rejected) { throw 'Invalid APK accepted solely from a release record' }
+Write-Host 'FORMAL SIGNING GATE PASSED: QA and invalid binary rejected'

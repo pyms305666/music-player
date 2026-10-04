@@ -1,11 +1,11 @@
-# 项目交接：ZA音乐 4.1.8
+# 项目交接：ZA音乐 4.1.9
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版与原生 Android 版均为 `4.1.8`。
+- 版本：Windows 桌面版与原生 Android 版均为 `4.1.9`。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
@@ -95,3 +95,13 @@ Android assembleDebug/assembleDebugAndroidTest/lintDebug 成功，lint 为 0 err
 - Windows JavaFX 实际播放烟测通过；Android lint 0 错误、28 警告。
 - vivo V2528A / Android 16 覆盖升级至 4.1.8 成功，4 项播放服务回归通过；升级前后 2 条个人曲库记录完全一致，SQLite integrity_check 为 ok。测试 APK 已卸载，主应用与数据保留。
 - 每个提交的 CI 和最终安装包来源以 Actions 记录及 Release 的 build-info.json 为准；发布脚本只允许对应提交 CI 成功后公开。
+
+## 2026-10-04 Android 正式签名（4.1.9）
+
+- 包名保持 `app.musicplayer.android`，新证书 SHA-256 为 `ccb15116f0a591ef3a6c49f88aa73cb9458afb6f69775be0659a0432d3f48e68`。Android 13+ 选择新证书，API 28–32 继续使用原证书；所有发布 APK 均关闭调试。
+- `android-app/signing/` 只存公钥证书、策略和轮换证明。正式私钥和重新加密的原私钥保存在仓库外的 Windows 当前用户签名保险库；密码由 DPAPI 保护，密钥 ZIP 与独立密码恢复文件需分别离线备份。禁止重新生成既有生产密钥。
+- 旧证书保留 installed-data 与 permission 能力：真机证实关闭 permission 会触发 AndroidX 签名权限重复声明错误，阻止覆盖升级；修复后数据校验通过。rollback/shared-uid/auth 能力关闭。
+- `scripts/android-signing.py package` 执行 Release 构建、共享测试及 lint，再签入 API 33 边界的轮换证明；`verify` 重新读取 APK 二进制验证 API 28/31/32/33/35/36 的证书、包名、版本和关闭调试状态。发布脚本拒绝 QA 包和伪造的构建记录。
+- CI 增加 API 28/31/32/33 迁移矩阵，使用一次性旧/新密钥，覆盖带测试数据的旧版→正式版→更高版本正式版、权限/设置/可读文件/UID 保留、播放回归以及全新安装。上传列表不包含任何密钥或密码。
+- vivo V2528A / Android 16 原版有 102 首歌曲、3 条歌词缓存；升级前一致性数据库备份通过。正式包覆盖升级后的曲库、文件可读性、设置、权限与 UID 散列检查通过。后续完整回归及最终附件的来源以 CI 和 Release 构建记录为准。
+- 保持两端 UI 与业务逻辑；Windows 沿用原 UpgradeCode、安装目录和数据目录。未执行个人主应用卸载或清除数据。

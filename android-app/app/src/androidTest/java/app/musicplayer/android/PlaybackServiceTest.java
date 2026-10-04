@@ -55,7 +55,7 @@ public class PlaybackServiceTest {
         // Shell launch avoids vendor restrictions on instrumentation activity starts.
         try (var command = InstrumentationRegistry.getInstrumentation().getUiAutomation()
                 .executeShellCommand("am start -n app.musicplayer.android/.MainActivity")) {
-            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) { input.readAllBytes(); }
+            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) { while (input.read(new byte[1024]) != -1) { /* Drain shell output on API 28 too. */ } }
         }
         for (int i = 0; i < 100; i++) {
             AtomicReference<MainActivity> screen = new AtomicReference<>();
@@ -210,7 +210,7 @@ public class PlaybackServiceTest {
 
     private void shell(String command) throws Exception {
         try (var descriptor = InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
-             var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) { input.readAllBytes(); }
+             var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) { while (input.read(new byte[1024]) != -1) { /* Drain shell output on API 28 too. */ } }
     }
 
     @Test public void temporaryAudioFocusLossPausesAndResumes() throws Exception {

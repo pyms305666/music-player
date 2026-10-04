@@ -18,12 +18,21 @@ android {
         applicationId "app.musicplayer.android"
         minSdk 28
         targetSdk 35
-        versionCode versions.getProperty("versionCode").toInteger()
+        versionCode providers.gradleProperty("zaQaVersionCode").orElse(versions.getProperty("versionCode")).get().toInteger()
         versionName versions.getProperty("versionName")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    testBuildType providers.gradleProperty("androidTestBuildType").orElse("debug").get()
     signingConfigs {
+        if (System.getenv("ZA_OLD_KEYSTORE")) {
+            debug {
+                storeFile file(System.getenv("ZA_OLD_KEYSTORE"))
+                storePassword System.getenv("ZA_OLD_STORE_PASSWORD")
+                keyAlias System.getenv("ZA_OLD_KEY_ALIAS")
+                keyPassword System.getenv("ZA_OLD_KEY_PASSWORD")
+            }
+        }
         if (configured == signingKeys.size()) {
             formal {
                 storeFile file(signingValues.ZA_KEYSTORE)

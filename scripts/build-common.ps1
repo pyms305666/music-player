@@ -100,5 +100,16 @@ function Assert-ZaArtifactRecord([string] $Artifact, [string] $Platform, [string
     if ($record.sourceDirty -ne $false -or $record.sourceCommit -ne $Commit -or $record.version -ne $Version -or $record.platform -ne $Platform) { throw "Artifact was built from different/dirty source: $Artifact" }
     if ($record.sha256 -ne (Get-FileHash -LiteralPath $Artifact).Hash.ToLowerInvariant()) { throw "Artifact hash mismatch: $Artifact" }
     if ($Platform -eq 'android-debug' -and ($record.applicationId -ne 'app.musicplayer.android' -or $record.signerSha256 -ne '1cd53ceaeef7ce7772d274b450982deeb34424d896612a66a95d9ee00dd2e3ff')) { throw 'Android channel signer/package changed; upgrade would be incompatible' }
+    if ($Platform -eq 'android-release') {
+        if ($record.qa -ne $false) { throw 'QA APK cannot be published' }
+        $root = Split-Path -Parent $PSScriptRoot
+        $factsText = & python (Join-Path $root 'scripts/android-signing.py') verify --apk $Artifact
+        if ($LASTEXITCODE) { throw 'Android binary signing/manifest verification failed' }
+        $facts = $factsText | ConvertFrom-Json
+        if ($record.versionCode -ne $facts.versionCode -or $record.signing.applicationId -ne $facts.applicationId -or $record.signing.lineageSha256 -ne $facts.lineageSha256) { throw 'Android build record differs from binary facts' }
+        foreach ($api in @('28','31','32','33','35','36')) {
+            if ($record.signing.apiSigners.$api -ne $facts.apiSigners.$api) { throw "Android signer record differs for API $api" }
+        }
+    }
     return $record
 }

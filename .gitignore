@@ -20,3 +20,6 @@ Thumbs.db
 # Signing keys stay outside source control.
 *.jks
 *.keystore
+*.p12
+*.dpapi
+android-app/dist/

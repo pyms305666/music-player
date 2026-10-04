@@ -12,9 +12,9 @@ if (-not $NotesFile) { $NotesFile = Join-Path $root "docs/release-$version.md" }
 $repo = 'pyms305666/music-player'
 $sha = (& git -C $root rev-parse HEAD).Trim()
 if (& git -C $root status --porcelain --untracked-files=normal) { throw 'Publish requires a clean source tree; commit, then rebuild both artifacts' }
-if (-not $AndroidApk) { $AndroidApk = Join-Path $root 'android-app/app/build/outputs/apk/debug/app-debug.apk' }
+if (-not $AndroidApk) { $AndroidApk = Join-Path $root "android-app/dist/ZA-Music-Android-$version.apk" }
 $records = @()
-foreach ($pair in @(@($WindowsInstaller,'windows'),@($AndroidApk,'android-debug'))) {
+foreach ($pair in @(@($WindowsInstaller,'windows'),@($AndroidApk,'android-release'))) {
     $artifact = (Resolve-Path -LiteralPath $pair[0]).Path
     $record = Assert-ZaArtifactRecord $artifact $pair[1] $sha $version
     if ($pair[1] -eq 'windows') {
@@ -29,14 +29,14 @@ if ($LASTEXITCODE -or $remote.object.sha -ne $sha) { throw 'Remote branch does n
 $runs = gh run list --repo $repo --workflow build.yml --commit $sha --limit 20 --json databaseId,conclusion,status,url | ConvertFrom-Json
 if ($LASTEXITCODE) { throw 'Unable to query build workflow' }
 $ci = $runs | Where-Object { $_.status -eq 'completed' -and $_.conclusion -eq 'success' } | Select-Object -First 1
-if (-not $ci) { throw 'Both CI jobs must pass for this exact source commit before publication' }
+if (-not $ci) { throw 'All CI jobs must pass for this exact source commit before publication' }
 $stage = Join-Path $root "release/$version"
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-$winName = "ZA-Music-Windows-$version.exe"; $apkName = "ZA-Music-Android-$version-debug.apk"
+$winName = "ZA-Music-Windows-$version.exe"; $apkName = "ZA-Music-Android-$version.apk"
 Copy-Item -LiteralPath $WindowsInstaller -Destination (Join-Path $stage $winName) -Force
 Copy-Item -LiteralPath $AndroidApk -Destination (Join-Path $stage $apkName) -Force
 $records[0].artifact = $winName; $records[1].artifact = $apkName
-[ordered]@{version=$version; sourceCommit=$sha; ciUrl=$ci.url; artifacts=$records} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stage 'build-info.json') -Encoding UTF8
+[ordered]@{version=$version; sourceCommit=$sha; ciUrl=$ci.url; artifacts=$records} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $stage 'build-info.json') -Encoding UTF8
 $files = @($winName,$apkName,'build-info.json') | ForEach-Object { Join-Path $stage $_ }
 $lines = $files | ForEach-Object { (Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant() + '  ' + (Split-Path -Leaf $_) }
 [IO.File]::WriteAllLines((Join-Path $stage 'SHA256SUMS.txt'),[string[]]$lines,[Text.UTF8Encoding]::new($false))

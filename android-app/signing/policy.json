@@ -1,0 +1,8 @@
+{
+  "applicationId": "app.musicplayer.android",
+  "minSdk": 28,
+  "rotationMinSdk": 33,
+  "oldSignerSha256": "1cd53ceaeef7ce7772d274b450982deeb34424d896612a66a95d9ee00dd2e3ff",
+  "newSignerSha256": "ccb15116f0a591ef3a6c49f88aa73cb9458afb6f69775be0659a0432d3f48e68",
+  "lineageSha256": "e67b622c921a7094336890fb151a65fa40d881c8aa955e38a52235d3a3072bcb"
+}

@@ -1,4 +1,4 @@
-# ZA音乐 4.1.8
+# ZA音乐 4.1.9
 
 ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
@@ -83,7 +83,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\android-app\build-apk.ps1 -Clean
 ```
 
-APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`，脚本也会复制一份到 `android-app\dist\ZA音乐-Android-4.1.8-debug.apk`。Debug APK 使用 Android 默认调试密钥签名，适合测试安装；发布到商店前需配置正式签名和发布构建流程。
+开发用 APK 默认生成到 `android-app\app\build\outputs\apk\debug\app-debug.apk`。GitHub Release 从 4.1.9 起提供关闭调试的 Release APK；正式发布请使用下面的轮换签名打包流程，不要分发 Gradle 的中间 APK。
 
 Android 应用要求 Android 9（API 28）或更高版本。首次导入或管理音频时，系统可能请求音频读取或文件管理权限；也可通过系统文件选择器导入文件。在线搜索与下载需要网络。下载音乐优先保存到内部存储 `music/`，必要时回退到共享存储 `Music/music/`。Android 数据和媒体文件位于设备上，与 Windows 版数据目录不自动同步。
 
@@ -190,23 +190,30 @@ Android 真机回归测试位于 `android-app/app/src/androidTest/`。构建测�
 
 前两项执行两端构建、共享逻辑在两个 Java 版本下的测试、Android lint，以及发布记录校验的正反向用例。最后一项需要 Windows 桌面及可用音频设备，使用独立临时曲库测试恢复、慢 I/O 时响应、快速选歌、末曲循环和暂停/恢复，不读取个人曲库。Android 服务回归见上一节。
 
-`Build and verify` 工作流在推送、PR 和手动触发时构建真实 Windows 安装包与原生 Android APK；Android API 35 模拟器运行服务回归。CI 测试 APK 使用运行器临时调试密钥，**不能用于现有已安装版本的覆盖升级**。官方 GitHub 调试渠道 APK 使用本地原证书构建；CI 不保管该私钥。共享 JAR 在同一环境重复构建时校验字节一致；安装包含时间信息，不承诺 EXE/APK 跨环境字节完全一致。
+`Build and verify` 工作流构建 Windows 安装包及原生 Android APK，API 35 模拟器运行开发包回归；API 28、31、32、33 模拟器分别验证旧证书覆盖升级、正式版本连续升级、数据和权限保留、播放及全新安装。CI 为每个任务创建一次性新旧密钥，**其测试 APK 不能覆盖用户安装的官方版本**，CI 不保管生产私钥。共享 JAR 在同一环境重复构建时校验字节一致；不承诺 EXE/APK 跨环境字节完全一致。
 
 ### 签名管理
 
-GitHub Android 调试渠道保持包名 `app.musicplayer.android` 和原证书。维护者须备份本机调试 keystore，丢失密钥后无法生成兼容的覆盖升级 APK。不要把 keystore、密码写入 Git。
+包名保持 `app.musicplayer.android`。4.1.9 采用 APK v3/v3.1 证书轮换：Android 13/API 33 及以上使用专用正式证书，Android 9/API 28 至 12L/API 32 保留原证书用于兼容；两者均为关闭调试的 Release 构建。旧版无需卸载，可覆盖升级并保留数据。旧证书的数据迁移和签名权限兼容能力开启，回退、共享 UID、认证能力关闭。旧 Android 系统仍依赖旧证书，因此不能称为所有系统均已更换证书。
 
-正式签名入口要求全部提供 `ZA_KEYSTORE`（绝对路径）、`ZA_STORE_PASSWORD`、`ZA_KEY_ALIAS`、`ZA_KEY_PASSWORD` 环境变量，再在 `android-app` 运行 `gradlew assembleRelease`；缺失/不完整配置会停止构建。正式签名是单独渠道，换证书不能直接覆盖当前调试渠道；发布工具当前只允许原调试渠道证书。Windows EXE 尚未配置 Authenticode 签名。
+公钥证书、证书指纹及轮换证明位于 `android-app/signing/`，可公开。私钥、密码和密钥备份必须放在仓库外。首次配置可执行 `python scripts/signing_vault.py init`：仅允许一次初始化，使用本机原调试证书生成轮换证明，新私钥采用加密 PKCS12，密码由 Windows 当前用户 DPAPI 保护；密钥 ZIP 和独立密码恢复文件须分别离线备份。已有签名身份禁止重新生成。
+
+```powershell
+python scripts/android-signing.py package
+python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android-4.1.9.apk
+```
+
+打包先执行共享测试、Release 构建和 lint，再用新旧密钥与轮换证明签名，逐个验证 API 28/31/32/33/35/36 的证书选择和二进制清单，生成 APK 旁的构建记录。测试 APK 仅用于本地验证，验证后卸载，不上传 Release。外部构建须同时提供新旧两组四个环境变量（`ZA_KEYSTORE`、`ZA_STORE_PASSWORD`、`ZA_KEY_ALIAS`、`ZA_KEY_PASSWORD`，旧组增加 `OLD_`：如 `ZA_OLD_KEYSTORE`）。直接 `assembleRelease` 得到的中间包不包含完整发布轮换流程。Windows EXE 尚未配置 Authenticode 签名。
 
 ### 发布流程
 
 1. 修改唯一版本文件和发布说明，执行回归后提交并推送源码。
-2. 确认该提交的 `Build and verify` 两个 CI job 全部通过。
-3. 在干净工作树重新执行 `package.ps1`、`android-app/verify.ps1`；脚本在附件旁保存源码与散列记录。
+2. 确认该提交的 `Build and verify` 全部 CI job 通过。
+3. 在干净工作树重新执行 `package.ps1`、`python scripts/android-signing.py package`；记录绑定源码和散列。真机验证正式包覆盖升级、数据保留及播放回归。
 4. 设置已授权的 `GH_TOKEN` 或登录 `gh`，执行发布脚本；也可以先加 `-VerifyOnly` 校验。
 
 ```powershell
-.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.8.md'
+.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.9.md'
 ```
 
 脚本检查干净源码、附件构建提交、应用版本、包名/证书、散列、远端分支和对应提交的 CI。它先创建草稿并校验上传附件，再公开并检查 tag 与源码一致。不覆盖已有 Release；失败后检查保留的草稿再处理。构建记录是发布核对信息，不是第三方签发的供应链证明。
