@@ -1,6 +1,7 @@
 package app.musicplayer;
 
 import app.musicplayer.artwork.ArtworkService;
+import app.musicplayer.artwork.ArtworkPresenter;
 import app.musicplayer.config.AppPaths;
 import app.musicplayer.config.LayoutMode;
 import app.musicplayer.data.MusicDatabase;
@@ -16,6 +17,8 @@ import app.musicplayer.online.OnlineMusicSearchService;
 import app.musicplayer.playlist.PlaylistSort;
 import app.musicplayer.playlist.SortDirection;
 import app.musicplayer.playlist.TrackLibraryService;
+import app.musicplayer.playlist.LocalSearch;
+import app.musicplayer.playlist.SearchSnapshot;
 import app.musicplayer.playback.AudioFileInspector;
 import app.musicplayer.playback.AudioFormat;
 import app.musicplayer.playback.PlaybackFileResolver;
@@ -28,7 +31,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -45,8 +47,8 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
@@ -92,7 +94,8 @@ public final class MusicPlayerApp extends Application {
     private static final double MAX_LYRICS_FONT_SIZE = 30.0;
 
     private final ObservableList<Track> tracks = FXCollections.observableArrayList();
-    private final FilteredList<Track> filteredTracks = new FilteredList<>(tracks, track -> true);
+    private final ObservableList<Track> filteredTracks = FXCollections.observableArrayList();
+    private final LocalSearch<Track> localSearch = new LocalSearch<>(Platform::runLater, this::displayFilteredTracks);
     private final ObservableList<String> lyricRows = FXCollections.observableArrayList();
     private final ObservableList<OnlineTrackInfo> onlineResults = FXCollections.observableArrayList();
     private final Random random = new Random();
@@ -101,7 +104,8 @@ public final class MusicPlayerApp extends Application {
     private final PlaybackFileResolver playbackFileResolver =
             new PlaybackFileResolver(PLAYBACK_CACHE_DIR, audioFileInspector);
     private final ArtworkService artworkService = new ArtworkService(ARTWORK_CACHE_DIR);
-    private final Preferences preferences = Preferences.userNodeForPackage(MusicPlayerApp.class);
+    private final Preferences preferences = Preferences.userRoot().node(
+            System.getProperty("musicplayer.preferences-node", "/app/musicplayer"));
 
     private final ScheduledExecutorService retryExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "lyrics-retry"); t.setDaemon(true); return t;
@@ -133,6 +137,7 @@ public final class MusicPlayerApp extends Application {
     private ProgressIndicator loadingLyrics;
     private ProgressIndicator loadingOnlineSearch;
     private ImageView artworkImageView;
+    private ArtworkPresenter artworkPresenter;
     private Region artworkDimmer;
     private VBox lyricsMetaBox;
     private HBox sourceRow;
@@ -150,7 +155,6 @@ public final class MusicPlayerApp extends Application {
     });
     private final java.util.List<Track> pendingImports = new java.util.ArrayList<>();
     private Track currentTrack;
-    private String currentArtworkSource;
     private Lyrics currentLyrics = Lyrics.empty("导入歌曲后开始播放");
     private boolean previewingOnlineResult;
     private long lyricsRequestId;
@@ -262,8 +266,10 @@ public final class MusicPlayerApp extends Application {
     @Override
     public void stop() {
         closing = true;
+        localSearch.close();
         cancelLyricRetry();
         retryExecutor.shutdownNow();
+        if (artworkPresenter != null) artworkPresenter.close();
         artworkService.close();
         if (lyricsService != null) { lyricsService.close(); }
         if (onlineMusicSearchService != null) { onlineMusicSearchService.close(); }
@@ -722,8 +728,16 @@ public final class MusicPlayerApp extends Application {
     }
 
     private void applyTrackFilter(String q) {
-        filteredTracks.setPredicate(track -> trackLibrary.matches(track, q));
-        if (currentTrack != null && filteredTracks.contains(currentTrack)) playlistView.getSelectionModel().select(currentTrack);
+        localSearch.search(q);
+    }
+
+    private void displayFilteredTracks(List<Track> values) {
+        if (closing) return;
+        Track selected = playlistView == null ? null : playlistView.getSelectionModel().getSelectedItem();
+        filteredTracks.setAll(values);
+        if (playlistView == null) return;
+        if (selected != null && filteredTracks.contains(selected)) playlistView.getSelectionModel().select(selected);
+        else if (currentTrack != null && filteredTracks.contains(currentTrack)) playlistView.getSelectionModel().select(currentTrack);
         else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0);
     }
 
@@ -781,9 +795,11 @@ public final class MusicPlayerApp extends Application {
 
     private void updateMetadata(Media media) {
         String t = valueAsString(media.getMetadata().get("title")), a = valueAsString(media.getMetadata().get("artist"));
+        String oldTitle = currentTrack.title(), oldArtist = currentTrack.artist();
         currentTrack.updateMetadata(t, a); titleLabel.setText(currentTrack.title()); artistLabel.setText(currentTrack.artist());
         playbackControls.setTrackInfo(currentTrack.title(), currentTrack.artist());
         playlistView.refresh();
+        if (!Objects.equals(oldTitle, currentTrack.title()) || !Objects.equals(oldArtist, currentTrack.artist())) sortTracks();
         Track snapshot = new Track(currentTrack.path()); snapshot.updateMetadata(currentTrack.title(), currentTrack.artist());
         var duration = mediaPlayer == null ? null : javaDuration(mediaPlayer.getTotalDuration());
         CompletableFuture.runAsync(() -> database.saveTrack(snapshot, duration), libraryExecutor)
@@ -980,11 +996,11 @@ public final class MusicPlayerApp extends Application {
     }
 
     private void sortTracks() {
-        if (tracks.isEmpty()) return;
         PlaylistSort sort = sortTypeBox == null ? PlaylistSort.TITLE : sortTypeBox.getValue();
         SortDirection direction = sortOrderBox == null ? SortDirection.ASCENDING : sortOrderBox.getValue();
         Track selected = playlistView == null ? null : playlistView.getSelectionModel().getSelectedItem();
         tracks.sort(trackLibrary.comparator(sort, direction));
+        localSearch.replace(SearchSnapshot.ofTracks(tracks), searchField == null ? "" : searchField.getText());
         if (selected != null && filteredTracks.contains(selected)) {
             playlistView.getSelectionModel().select(selected);
             playlistView.scrollTo(selected);
@@ -1005,37 +1021,9 @@ public final class MusicPlayerApp extends Application {
     private static double clamp(double value, double min, double max) { return Math.max(min, Math.min(max, value)); }
 
     private void showArtwork(String url) {
-        currentArtworkSource = url;
         if (artworkImageView == null) return;
-        if (url == null || url.isBlank()) {
-            artworkImageView.setImage(null);
-            artworkImageView.setVisible(false);
-            return;
-        }
-        if (!artworkService.isRemoteUrl(url)) {
-            artworkImageView.setImage(new Image(url, true));
-            artworkImageView.setVisible(true);
-            return;
-        }
-        Path cached = artworkService.cachedPath(url);
-        if (Files.isRegularFile(cached)) {
-            artworkImageView.setImage(new Image(cached.toUri().toString(), true));
-            artworkImageView.setVisible(true);
-            return;
-        }
-        artworkImageView.setImage(new Image(url, true));
-        artworkImageView.setVisible(true);
-        artworkService.cache(url).thenAccept(target -> {
-            if (target == null || !Objects.equals(currentArtworkSource, url)) {
-                return;
-            }
-            Platform.runLater(() -> {
-                if (Objects.equals(currentArtworkSource, url) && artworkImageView != null) {
-                    artworkImageView.setImage(new Image(target.toUri().toString(), true));
-                    artworkImageView.setVisible(true);
-                }
-            });
-        });
+        if (artworkPresenter == null) artworkPresenter = new ArtworkPresenter(artworkService, artworkImageView);
+        artworkPresenter.show(url);
     }
 
     private void updateHighlightedLyric(Duration ct) {
@@ -1108,7 +1096,7 @@ public final class MusicPlayerApp extends Application {
             if (error != null) { statusLabel.setText("移除失败：" + error.getMessage()); return; }
         int ri = tracks.indexOf(sel); boolean removingCurrent = sel == currentTrack;
         tracks.remove(sel);
-        applyTrackFilter(searchField == null ? "" : searchField.getText());
+        sortTracks();
         if (removingCurrent) { cancelLyricRetry(); disposePlayer(); currentTrack = null; previewingOnlineResult = false; if (playbackContextLabel != null) playbackContextLabel.setText("未播放"); playlistPane.setCurrentTrack(null); playbackControls.setTrackInfo(null, null); playbackControls.setPlaying(false); titleLabel.setText("未播放歌曲"); artistLabel.setText("当前歌曲已从歌单和缓存移除"); timeLabel.setText("00:00 / 00:00"); showArtwork(null); showLyrics(Lyrics.empty("当前歌曲已移除")); if (!tracks.isEmpty()) { int ni = Math.min(ri, tracks.size() - 1); Track nt = tracks.get(ni); if (filteredTracks.contains(nt)) playlistView.getSelectionModel().select(nt); else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0); } }
         else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(Math.min(ri, filteredTracks.size() - 1));
         statusLabel.setText("已移除：" + sel);

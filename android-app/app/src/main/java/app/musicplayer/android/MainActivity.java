@@ -69,6 +69,7 @@ import app.musicplayer.android.data.AndroidMusicDatabase;
 import app.musicplayer.android.data.TrackEntry;
 import app.musicplayer.android.ui.OnlineTrackAdapter;
 import app.musicplayer.android.ui.TrackAdapter;
+import app.musicplayer.android.ui.LocalTrackList;
 import app.musicplayer.android.ui.VerticalVolumeView;
 import app.musicplayer.lyrics.LrcParser;
 import app.musicplayer.model.LyricLine;
@@ -94,7 +95,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -124,6 +124,7 @@ public final class MainActivity extends AppCompatActivity {
     private OnlineTrackInfo pendingStorageDownload;
 
     private TrackAdapter trackAdapter;
+    private LocalTrackList localTrackList;
     private OnlineTrackAdapter onlineAdapter;
     private TrackEntry currentTrack;
     private Lyrics currentLyrics = Lyrics.empty("导入歌曲后开始播放");
@@ -259,6 +260,8 @@ public final class MainActivity extends AppCompatActivity {
             playTrack(entry);
         });
         playlistView.setAdapter(trackAdapter);
+        localTrackList = new LocalTrackList(this::runOnUiThread,
+                rows -> trackAdapter.submit(rows, this::updateRemoveButton));
 
         RecyclerView onlineResults = findViewById(R.id.onlineResults);
         onlineResults.setLayoutManager(new LinearLayoutManager(this));
@@ -274,7 +277,8 @@ public final class MainActivity extends AppCompatActivity {
         sortType.setOnItemSelectedListener(new SimpleItemSelectedListener(this::refreshTrackList));
         sortDirection.setOnItemSelectedListener(new SimpleItemSelectedListener(this::refreshTrackList));
 
-        localSearch.addTextChangedListener(new SimpleTextWatcher(this::refreshTrackList));
+        localSearch.addTextChangedListener(new SimpleTextWatcher(
+                () -> localTrackList.search(localSearch.getText().toString())));
     }
 
     private void configureActions() {
@@ -567,26 +571,14 @@ public final class MainActivity extends AppCompatActivity {
 
     private void refreshTrackList() {
         if (trackAdapter == null) return;
-        String query = localSearch == null ? "" : localSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+        String query = localSearch == null ? "" : localSearch.getText().toString();
         PlaylistSort selectedSort = sortType != null && sortType.getSelectedItem() instanceof PlaylistSort value
                 ? value : PlaylistSort.TITLE;
         SortDirection direction = sortDirection != null && sortDirection.getSelectedItem() instanceof SortDirection value
                 ? value : SortDirection.ASCENDING;
-        Comparator<TrackEntry> comparator = switch (selectedSort) {
-            case ARTIST -> Comparator.comparing(entry -> safe(entry.track().artist()), String.CASE_INSENSITIVE_ORDER);
-            case FILE_NAME -> Comparator.comparing(TrackEntry::fileName, String.CASE_INSENSITIVE_ORDER);
-            case CREATED_AT -> Comparator.comparingLong(TrackEntry::createdAt);
-            case TITLE -> Comparator.comparing(entry -> safe(entry.track().title()), String.CASE_INSENSITIVE_ORDER);
-        };
-        if (direction == SortDirection.DESCENDING) comparator = comparator.reversed();
-        tracks.sort(comparator);
-        List<TrackEntry> visible = tracks.stream()
-                .filter(entry -> query.isBlank()
-                        || safe(entry.track().title()).toLowerCase(Locale.ROOT).contains(query)
-                        || safe(entry.track().artist()).toLowerCase(Locale.ROOT).contains(query)
-                        || entry.fileName().toLowerCase(Locale.ROOT).contains(query))
-                .toList();
-        trackAdapter.submit(visible);
+        List<TrackEntry> ordered = localTrackList.replace(tracks, selectedSort, direction, query);
+        tracks.clear();
+        tracks.addAll(ordered);
         syncPlaybackQueue();
         updateRemoveButton();
     }
@@ -1224,6 +1216,7 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (localTrackList != null) localTrackList.close();
         progressHandler.removeCallbacksAndMessages(null);
         if (controllerFuture != null) MediaController.releaseFuture(controllerFuture);
         player = null;

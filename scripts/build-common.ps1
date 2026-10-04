@@ -89,7 +89,14 @@ function Write-ZaBuildRecord([string] $Root, [string] $Artifact, [string] $Platf
     if ($wrapperText -notmatch 'gradle-([\d.]+)-bin.zip') { throw 'Invalid wrapper version' }
     $record.gradle = $Matches[1]
     $javaPath = if ($Platform -eq 'windows' -and (Test-Path 'C:/jdk-25.0.2/bin/java.exe')) { 'C:/jdk-25.0.2/bin/java.exe' } elseif ($Platform -ne 'windows' -and (Test-Path (Join-Path $Root '.tools/jdk-17-android/bin/java.exe'))) { Join-Path $Root '.tools/jdk-17-android/bin/java.exe' } elseif ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME 'bin/java.exe' } else { 'java' }
-    $javaVersion = & $javaPath -version 2>&1
+    # Java prints its version to stderr; Windows PowerShell 5.1 otherwise treats
+    # that successful command as a terminating NativeCommandError under Stop.
+    $recordErrorPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $javaVersion = & $javaPath -version 2>&1
+        if ($LASTEXITCODE) { throw 'Unable to query build JDK version' }
+    } finally { $ErrorActionPreference = $recordErrorPreference }
     $record.jdk = ($javaVersion | Select-Object -First 1).ToString()
     $record | ConvertTo-Json | Set-Content -LiteralPath ($Artifact + '.build.json') -Encoding UTF8
 }

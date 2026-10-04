@@ -7,32 +7,41 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.ListAdapter;
+import androidx.recyclerview.widget.DiffUtil;
 
 import app.musicplayer.android.R;
 import app.musicplayer.android.data.TrackEntry;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
-public final class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.Holder> {
-    private final List<TrackEntry> items = new ArrayList<>();
+public final class TrackAdapter extends ListAdapter<TrackRow, TrackAdapter.Holder> {
     private final Consumer<TrackEntry> onClick;
-    private int selectedPosition = RecyclerView.NO_POSITION;
+    private String selectedKey;
+    private static final DiffUtil.ItemCallback<TrackRow> DIFF = new DiffUtil.ItemCallback<>() {
+        @Override public boolean areItemsTheSame(@NonNull TrackRow old, @NonNull TrackRow next) {
+            return old.key().equals(next.key());
+        }
+        @Override public boolean areContentsTheSame(@NonNull TrackRow old, @NonNull TrackRow next) {
+            return Objects.equals(old.title(), next.title()) && Objects.equals(old.artist(), next.artist())
+                    && Objects.equals(old.fileName(), next.fileName());
+        }
+    };
 
     public TrackAdapter(Consumer<TrackEntry> onClick) {
+        super(DIFF);
         this.onClick = onClick;
     }
 
-    public void submit(List<TrackEntry> values) {
-        items.clear();
-        items.addAll(values);
-        selectedPosition = RecyclerView.NO_POSITION;
-        notifyDataSetChanged();
+    public void submit(List<TrackRow> values, Runnable committed) {
+        submitList(values, committed);
     }
 
     public TrackEntry selected() {
-        return selectedPosition >= 0 && selectedPosition < items.size() ? items.get(selectedPosition) : null;
+        return getCurrentList().stream().filter(row -> Objects.equals(row.key(), selectedKey))
+                .map(TrackRow::entry).findFirst().orElse(null);
     }
 
     @NonNull
@@ -43,24 +52,24 @@ public final class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.Holder
 
     @Override
     public void onBindViewHolder(@NonNull Holder holder, int position) {
-        TrackEntry entry = items.get(position);
-        holder.title.setText(entry.track().title());
+        TrackRow row = getItem(position);
+        holder.title.setText(row.title());
         holder.subtitle.setText(holder.itemView.getContext().getString(
-                R.string.track_subtitle, entry.track().artist(), entry.fileName()));
-        holder.itemView.setBackgroundResource(position == selectedPosition
+                R.string.track_subtitle, row.artist(), row.fileName()));
+        holder.itemView.setBackgroundResource(Objects.equals(row.key(), selectedKey)
                 ? R.drawable.track_item_selected_background : R.drawable.track_item_background);
         holder.itemView.setOnClickListener(view -> {
-            int old = selectedPosition;
-            selectedPosition = holder.getBindingAdapterPosition();
-            if (old != RecyclerView.NO_POSITION) notifyItemChanged(old);
-            notifyItemChanged(selectedPosition);
-            onClick.accept(entry);
+            int next = holder.getBindingAdapterPosition();
+            if (next == RecyclerView.NO_POSITION) return;
+            String old = selectedKey;
+            TrackRow clicked = getItem(next);
+            selectedKey = clicked.key();
+            for (int index = 0; index < getItemCount(); index++) {
+                String key = getItem(index).key();
+                if (Objects.equals(key, old) || Objects.equals(key, selectedKey)) notifyItemChanged(index);
+            }
+            onClick.accept(clicked.entry());
         });
-    }
-
-    @Override
-    public int getItemCount() {
-        return items.size();
     }
 
     static final class Holder extends RecyclerView.ViewHolder {

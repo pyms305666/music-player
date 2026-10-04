@@ -8,5 +8,6 @@ New-Item -ItemType Directory -Path $work | Out-Null
 $libs = Join-Path $root 'build/install/simple-music-player/lib/*'
 & (Join-Path $jdk 'bin/javac.exe') -cp $libs -d $work (Join-Path $PSScriptRoot 'DesktopSmoke.java')
 if ($LASTEXITCODE) { throw 'Smoke harness compilation failed' }
-& (Join-Path $jdk 'bin/java.exe') '--enable-native-access=ALL-UNNAMED' "-Dmusicplayer.data-dir=$work/data" "-Djava.util.prefs.userRoot=$work/prefs" -cp "$libs;$work" DesktopSmoke
+$qaPreferences = '/app/musicplayer/qa/' + (Split-Path -Leaf $work)
+& (Join-Path $jdk 'bin/java.exe') '--enable-native-access=ALL-UNNAMED' "-Dmusicplayer.data-dir=$work/data" "-Dmusicplayer.preferences-node=$qaPreferences" -cp "$libs;$work" DesktopSmoke
 if ($LASTEXITCODE) { throw 'Desktop smoke failed' }

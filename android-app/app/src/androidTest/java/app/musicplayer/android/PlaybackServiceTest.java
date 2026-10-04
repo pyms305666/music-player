@@ -226,6 +226,50 @@ public class PlaybackServiceTest {
         awaitPlaying(true);
     }
 
+    @Test public void typingLocalSearchDoesNotReplaceThePlayingQueue() throws Exception {
+        start(List.of(audio("search-fixture", 20)), Player.REPEAT_MODE_ALL);
+        var changed = new java.util.concurrent.atomic.AtomicInteger();
+        main(() -> controller.addListener(new Player.Listener() {
+            @Override public void onTimelineChanged(androidx.media3.common.Timeline timeline, int reason) {
+                if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) changed.incrementAndGet();
+            }
+        }));
+        main(() -> {
+            android.widget.EditText search = activity.findViewById(R.id.localSearch);
+            search.setText("a"); search.setText("ab"); search.setText("abc"); search.setText("");
+        });
+        Thread.sleep(500);
+        main(() -> {
+            assertEquals(0, changed.get());
+            assertTrue(controller.isPlaying());
+            assertEquals("search-fixture", controller.getCurrentMediaItem().mediaId);
+            assertEquals(1, controller.getMediaItemCount());
+        });
+    }
+
+    @Test public void personalLibraryAudioAdvancesInBackground() throws Exception {
+        app.musicplayer.android.data.TrackEntry entry;
+        try (var database = new app.musicplayer.android.data.AndroidMusicDatabase(context())) {
+            var tracks = database.loadTracks();
+            org.junit.Assume.assumeFalse("Disposable CI library is empty", tracks.isEmpty());
+            entry = tracks.get(0);
+        }
+        // Close the screen to prevent lyric lookup or metadata writes during a read-only check.
+        closeActivity();
+        Uri uri = entry.storageType() == app.musicplayer.android.data.TrackEntry.StorageType.MEDIA_STORE
+                ? Uri.parse(entry.location()) : Uri.fromFile(new File(entry.location()));
+        start(List.of(new MediaItem.Builder().setMediaId("personal-validation").setUri(uri).build()),
+                Player.REPEAT_MODE_ALL);
+        Thread.sleep(500);
+        AtomicReference<Long> before = new AtomicReference<>();
+        main(() -> before.set(controller.getCurrentPosition()));
+        Thread.sleep(700);
+        main(() -> {
+            assertTrue(controller.isPlaying());
+            assertTrue("Personal library audio did not advance", controller.getCurrentPosition() > before.get() + 300);
+        });
+    }
+
     private void awaitPlaying(boolean expected) throws Exception {
         for (int i = 0; i < 50; i++) {
             AtomicReference<Boolean> value = new AtomicReference<>(); main(() -> value.set(controller.isPlaying()));

@@ -1,15 +1,21 @@
-# 项目交接：ZA音乐 4.1.9
+# 项目交接：ZA音乐 4.1.10
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版与原生 Android 版均为 `4.1.9`。
+- 版本：Windows 桌面版与原生 Android 版均为 `4.1.10`。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
 ## 主要模块
+
+- `playlist.SearchSnapshot` / `LocalSearch`：不可变匹配字段、后台过滤、200ms 大曲库防抖和请求版本校验。
+- Android `ui.LocalTrackList` / `TrackRow` / `TrackAdapter`：曲库变更时排序并建快照，搜索仅更新显示；DiffUtil 比较不可变字段，选择按歌曲标识保留。
+- `artwork.ArtworkPresenter` / `ArtworkDecoder` / `DecodedArtworkCache`：显示尺寸及 DPI 采样、切歌取消、8 张/16MiB 解码缓存。`ArtworkService` 按地址合并下载，最后一个消费者取消时中断工作。
+
+第一轮性能记录及限制见 `docs/performance-4.1.10.md`。后续优化逐轮测试、审查和发布，第一轮发布后再进入在线搜索与下载轮次。
 
 - `config.AppPaths`：运行目录解析、缓存目录创建、旧数据库复制迁移。
 - `config.LegacyInstallMigration`：Windows 安装版首次启动时，将旧名称安装目录的 `downloads/` 复制到“ZA音乐”目录，并修正数据库中旧下载文件的路径。

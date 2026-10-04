@@ -10,6 +10,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import app.musicplayer.util.LatestRequest;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,6 +23,29 @@ public final class ArtworkService implements AutoCloseable {
     private final Path cacheDir;
     private final ExecutorService executor;
     private final HttpClient httpClient;
+    private final Map<String, Download> downloads = new HashMap<>();
+    private boolean closed;
+
+    private static final class Download {
+        final LatestRequest<Path> work = new LatestRequest<>();
+        CompletableFuture<Path> result;
+        int consumers;
+    }
+
+    /** Each consumer can cancel independently; the last one interrupts network work. */
+    public final class Request implements AutoCloseable {
+        private final CompletableFuture<Path> result = new CompletableFuture<>();
+        private Request(String url, Download download) {
+            download.consumers++;
+            result.whenComplete((ignored, error) -> release(url, download));
+            download.result.whenComplete((path, error) -> {
+                if (error == null) result.complete(path);
+                else result.completeExceptionally(error);
+            });
+        }
+        public CompletableFuture<Path> result() { return result; }
+        @Override public void close() { result.cancel(false); }
+    }
 
     public ArtworkService(Path cacheDir) {
         this.cacheDir = cacheDir;
@@ -49,7 +76,26 @@ public final class ArtworkService implements AutoCloseable {
         if (!isRemoteUrl(url)) {
             return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.supplyAsync(() -> download(url, cachedPath(url)), executor);
+        return acquire(url).result();
+    }
+
+    public synchronized Request acquire(String url) {
+        if (closed) throw new IllegalStateException("Artwork service is closed");
+        if (!isRemoteUrl(url)) throw new IllegalArgumentException("Remote artwork URL required");
+        Download download = downloads.get(url);
+        if (download == null) {
+            download = new Download();
+            downloads.put(url, download);
+            download.result = download.work.submit(executor, () -> download(url, cachedPath(url)));
+        }
+        return new Request(url, download);
+    }
+
+    private synchronized void release(String url, Download download) {
+        if (--download.consumers == 0) {
+            downloads.remove(url, download);
+            download.work.close();
+        }
     }
 
     private Path download(String url, Path target) {
@@ -76,6 +122,7 @@ public final class ArtworkService implements AutoCloseable {
             Files.createDirectories(cacheDir);
             temporary = Files.createTempFile(cacheDir, ".za-artwork-", ".part");
             Files.write(temporary, response.body());
+            if (Thread.currentThread().isInterrupted()) return null;
             try { Files.move(temporary, target, java.nio.file.StandardCopyOption.ATOMIC_MOVE); }
             catch (java.nio.file.AtomicMoveNotSupportedException unsupported) { Files.move(temporary, target); }
             return target;
@@ -94,7 +141,7 @@ public final class ArtworkService implements AutoCloseable {
                 int dot = path.lastIndexOf('.');
                 if (dot >= 0 && dot < path.length() - 1) {
                     String extension = path.substring(dot).toLowerCase(Locale.ROOT);
-                    if (extension.length() <= 8) {
+                    if (extension.matches("\\.(png|jpe?g|webp|gif|bmp|img)")) {
                         return extension;
                     }
                 }
@@ -106,7 +153,11 @@ public final class ArtworkService implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        closed = true;
+        List.copyOf(downloads.values()).forEach(download -> download.work.close());
+        downloads.clear();
         executor.shutdownNow();
+        httpClient.shutdownNow();
     }
 }

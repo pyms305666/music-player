@@ -3,7 +3,7 @@ package app.musicplayer.ui;
 import app.musicplayer.model.Track;
 import app.musicplayer.playlist.PlaylistSort;
 import app.musicplayer.playlist.SortDirection;
-import javafx.collections.transformation.FilteredList;
+import javafx.collections.ObservableList;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -38,7 +38,7 @@ public final class PlaylistPane extends VBox {
     private Track currentTrack;
 
     public PlaylistPane(
-            FilteredList<Track> tracks,
+            ObservableList<Track> tracks,
             Preferences preferences,
             Consumer<String> filterAction,
             Runnable sortAction,
