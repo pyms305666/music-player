@@ -39,3 +39,5 @@ $rejected = $false
 try { $null = Assert-ZaArtifactRecord $artifact 'android-release' 'fixture-commit' $fixtureVersion } catch { $rejected = $true }
 if (-not $rejected) { throw 'Invalid APK accepted solely from a release record' }
 Write-Host 'FORMAL SIGNING GATE PASSED: QA and invalid binary rejected'
+# The rejected Python verifier intentionally exits nonzero; do not leak it to callers.
+$global:LASTEXITCODE = 0
