@@ -3,9 +3,6 @@ package app.musicplayer.online;
 import app.musicplayer.model.OnlineTrackInfo;
 import app.musicplayer.util.JsonSupport;
 
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -214,35 +211,17 @@ final class MiguSourceProvider implements OnlineSourceProvider {
     }
 
     private boolean isPlayableAudio(String url) {
-        try {
-            HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
-            connection.setInstanceFollowRedirects(true);
-            connection.setConnectTimeout(8_000);
-            connection.setReadTimeout(8_000);
-            connection.setRequestMethod("GET");
-            connection.setRequestProperty("User-Agent", session.userAgent());
-            connection.setRequestProperty("Range", "bytes=0-" + (PROBE_BYTES - 1));
-            int statusCode = connection.getResponseCode();
-            InputStream input = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
-            if (input == null) {
-                connection.disconnect();
-                return false;
-            }
+        try (var response = session.probe(url, REFERER, PROBE_BYTES)) {
             byte[] header = new byte[PROBE_BYTES];
             int length = 0;
-            try {
-                while (length < header.length) {
-                    int read = input.read(header, length, header.length - length);
-                    if (read < 0) {
-                        break;
-                    }
-                    length += read;
+            while (length < header.length) {
+                int read = response.body().read(header, length, header.length - length);
+                if (read < 0) {
+                    break;
                 }
-            } finally {
-                input.close();
-                connection.disconnect();
+                length += read;
             }
-            return statusCode >= 200 && statusCode < 400 && MusicCrawler.isAudioContent(header, length);
+            return response.statusCode() >= 200 && response.statusCode() < 400 && MusicCrawler.isAudioContent(header, length);
         } catch (Exception exception) {
             System.out.println("[crawler] migu probe err: " + exception.getMessage());
             return false;

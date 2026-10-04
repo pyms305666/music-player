@@ -13,6 +13,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Runs timer and UI queues explicitly; no sleeps or wall-clock performance assertions. */
 class ThrottledDeliveryTest {
+    @Test void stoppedSchedulerDoesNotInterruptTaskCompletionOrCancellation() {
+        var shown = new ArrayList<String>();
+        var scheduler = new ScheduledThreadPoolExecutor(1);
+        scheduler.shutdownNow();
+        try (var delivery = new ThrottledDelivery<String>(scheduler, Runnable::run, shown::add)) {
+            assertDoesNotThrow(() -> delivery.finish("cancelled"));
+            assertDoesNotThrow(() -> delivery.offer("late"));
+            assertTrue(shown.isEmpty());
+        }
+    }
+
+    @Test void stoppedUiDiscardsPendingProgressAndPreventsRescheduling() {
+        try (var scheduler = new Scheduler();
+             var delivery = new ThrottledDelivery<String>(scheduler, work -> {
+                 throw new java.util.concurrent.RejectedExecutionException("UI closed");
+             }, value -> fail("Closed UI must not receive progress"))) {
+            delivery.offer("pending"); scheduler.tick();
+            assertDoesNotThrow(() -> delivery.finish("terminal"));
+            assertTrue(scheduler.timers.isEmpty());
+        }
+    }
     private static final class Timer extends FutureTask<Void> implements ScheduledFuture<Void> {
         final long delay;
         Timer(Runnable work, long delay) { super(work, null); this.delay = delay; }

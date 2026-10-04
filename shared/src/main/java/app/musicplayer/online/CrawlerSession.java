@@ -8,16 +8,20 @@ import java.io.InputStream;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.HttpCookie;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
+import okhttp3.Call;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
-/** 所有在线来源共享的 HTTP、Cookie 和请求头；仅使用桌面与 Android 都支持的标准 API。 */
+/** Shared HTTP session. Synchronous calls stay on task workers; cancellation closes only their socket. */
 public final class CrawlerSession implements AutoCloseable {
     private static final String[] USER_AGENTS = {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -31,7 +35,8 @@ public final class CrawlerSession implements AutoCloseable {
     private boolean primed;
     private final ThreadLocal<Long> deadline = new ThreadLocal<>();
     private final ThreadLocal<RequestCancellation> cancellation = new ThreadLocal<>();
-    private final java.util.Set<HttpURLConnection> active = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<Call> active = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private OkHttpClient client;
     private volatile boolean closed;
 
     void setDeadline(long nanos) { deadline.set(nanos); }
@@ -58,11 +63,12 @@ public final class CrawlerSession implements AutoCloseable {
         try { return work.get(); }
         finally { if (previous == null) deadline.remove(); else deadline.set(previous); }
     }
-    private int timeout(int maximum) throws InterruptedException {
+    private int timeout(int maximum) throws IOException, InterruptedException {
         Long limit = deadline.get();
         RequestCancellation token = cancellation.get();
         if (token != null) token.check();
-        if (closed || Thread.currentThread().isInterrupted()) throw new InterruptedException("Request cancelled");
+        if (closed) throw new IOException("Session closed");
+        if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Request cancelled");
         if (limit == null) return maximum;
         long remaining = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(limit - System.nanoTime());
         if (remaining <= 0) throw new InterruptedException("Search deadline expired");
@@ -124,6 +130,10 @@ public final class CrawlerSession implements AutoCloseable {
         ), null, 180_000);
     }
 
+    DownloadResponse probe(String url, String referer, int bytes) throws IOException, InterruptedException {
+        return execute("GET", url, referer, Map.of("Range", "bytes=0-" + (bytes - 1)), null, 8_000);
+    }
+
     String cookieValue(String domain, String name) {
         for (HttpCookie cookie : cookieManager.getCookieStore().getCookies()) {
             if (cookie.getDomain() != null
@@ -173,60 +183,54 @@ public final class CrawlerSession implements AutoCloseable {
             byte[] body,
             int readTimeout
     ) throws IOException, InterruptedException {
-        if (Thread.currentThread().isInterrupted()) {
-            throw new InterruptedException();
-        }
-
-        URI uri = URI.create(url);
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setInstanceFollowRedirects(true);
-        connection.setConnectTimeout(timeout(CONNECT_TIMEOUT_MILLIS));
-        connection.setReadTimeout(timeout(readTimeout));
-        connection.setRequestMethod(method);
-        connection.setRequestProperty("User-Agent", userAgent());
-        connection.setRequestProperty("Referer", referer);
-        connection.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-        connection.setRequestProperty("Accept-Encoding", "identity");
-        connection.setRequestProperty("Cache-Control", "no-cache");
-        for (Map.Entry<String, List<String>> entry : cookieManager.get(uri, Map.of()).entrySet()) {
-            connection.setRequestProperty(entry.getKey(), String.join("; ", entry.getValue()));
-        }
-        headers.forEach(connection::setRequestProperty);
-
-        active.add(connection);
+        int connectTimeout = timeout(Math.min(CONNECT_TIMEOUT_MILLIS, readTimeout));
+        int idleTimeout = timeout(readTimeout);
+        Request.Builder request = new Request.Builder().url(url)
+                .header("User-Agent", userAgent()).header("Referer", referer)
+                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                .header("Accept-Encoding", "identity").header("Cache-Control", "no-cache");
+        headers.forEach(request::header);
+        request.method(method, body == null ? null : RequestBody.create(body,
+                MediaType.parse(headers.getOrDefault("Content-Type", "application/octet-stream"))));
+        // Derived clients share the session pool. The absolute deadline also covers body reads.
+        Call call = client().newBuilder().connectTimeout(connectTimeout, TimeUnit.MILLISECONDS)
+                .readTimeout(idleTimeout, TimeUnit.MILLISECONDS).build().newCall(request.build());
+        Long limit = deadline.get();
+        if (limit != null) call.timeout().deadlineNanoTime(limit);
+        active.add(call);
         RequestCancellation token = cancellation.get();
         RequestCancellation.Registration detach = token == null ? () -> { }
-                : token.onCancel(connection::disconnect);
+                : token.onCancel(call::cancel);
         try {
-        if (closed) throw new IOException("Session closed");
-        if (body != null) {
-            connection.setDoOutput(true);
-            connection.setFixedLengthStreamingMode(body.length);
-        }
-        connection.connect();
-        connection.setReadTimeout(timeout(readTimeout));
-        if (body != null) {
-            try (var output = connection.getOutputStream()) {
-                output.write(body);
-            }
-        }
-
-        connection.setReadTimeout(timeout(readTimeout));
-        int statusCode = connection.getResponseCode();
-        Map<String, List<String>> responseHeaders = connection.getHeaderFields();
-        cookieManager.put(uri, responseHeaders);
-        InputStream source = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
-        if (source == null) {
-            source = new ByteArrayInputStream(new byte[0]);
-        }
-        InputStream bodyStream = new DisconnectingInputStream(source, connection, detach);
-        return new DownloadResponse(statusCode, responseHeaders, bodyStream);
+            timeout(readTimeout);
+            Response response = call.execute();
+            InputStream source = response.body() == null ? new ByteArrayInputStream(new byte[0])
+                    : response.body().byteStream();
+            return new DownloadResponse(response.code(), response.headers().toMultimap(),
+                    new ResponseInputStream(source, call, response, detach));
         } catch (IOException | RuntimeException | InterruptedException error) {
-            active.remove(connection);
+            active.remove(call);
             detach.close();
-            connection.disconnect();
+            call.cancel();
             throw error;
         }
+    }
+
+    private synchronized OkHttpClient client() throws IOException {
+        if (closed) throw new IOException("Session closed");
+        if (client == null) {
+            client = new OkHttpClient.Builder().addNetworkInterceptor(chain -> {
+                // Recalculate cookies for every redirect instead of forwarding the original domain's cookies.
+                URI uri = chain.request().url().uri();
+                Request.Builder request = chain.request().newBuilder().removeHeader("Cookie").removeHeader("Cookie2");
+                cookieManager.get(uri, Map.of()).forEach((name, values) -> request.header(name, String.join("; ", values)));
+                Response response = chain.proceed(request.build());
+                try { cookieManager.put(uri, response.headers().toMultimap()); }
+                catch (IOException | RuntimeException error) { response.close(); throw error; }
+                return response;
+            }).build();
+        }
+        return client;
     }
 
     private static void ensureSuccess(DownloadResponse response, String url) throws IOException {
@@ -249,17 +253,14 @@ public final class CrawlerSession implements AutoCloseable {
         }
     }
 
-    private void tryFetchHome(String url) {
-        try {
-            fetch(url, url);
-        } catch (Exception ignored) {
-        }
-    }
-
     @Override public void close() {
-        closed = true;
-        for (HttpURLConnection connection : active) connection.disconnect();
-        active.clear();
+        OkHttpClient captured;
+        synchronized (this) { closed = true; captured = client; }
+        for (Call call : active) call.cancel();
+        if (captured != null) {
+            captured.connectionPool().evictAll();
+            captured.dispatcher().executorService().shutdownNow();
+        }
     }
 
     record DownloadResponse(int statusCode, Map<String, List<String>> headers, InputStream body)
@@ -283,38 +284,26 @@ public final class CrawlerSession implements AutoCloseable {
         }
     }
 
-    private final class DisconnectingInputStream extends FilterInputStream {
-        private final HttpURLConnection connection;
+    private final class ResponseInputStream extends FilterInputStream {
+        private final Call call;
+        private final Response response;
         private final RequestCancellation.Registration detach;
 
-        private DisconnectingInputStream(InputStream input, HttpURLConnection connection,
-                                         RequestCancellation.Registration detach) {
+        private ResponseInputStream(InputStream input, Call call, Response response,
+                                    RequestCancellation.Registration detach) {
             super(input);
-            this.connection = connection;
+            this.call = call;
+            this.response = response;
             this.detach = detach;
-        }
-
-        private void checkDeadline() throws IOException {
-            try { connection.setReadTimeout(timeout(connection.getReadTimeout())); }
-            catch (InterruptedException cancelled) {
-                connection.disconnect();
-                throw new java.io.InterruptedIOException(cancelled.getMessage());
-            }
-        }
-
-        @Override public int read() throws IOException { checkDeadline(); return in.read(); }
-        @Override public int read(byte[] bytes, int offset, int length) throws IOException {
-            checkDeadline(); return in.read(bytes, offset, length);
         }
 
         @Override
         public void close() throws IOException {
             try {
-                super.close();
+                response.close();
             } finally {
-                active.remove(connection);
+                active.remove(call);
                 detach.close();
-                connection.disconnect();
             }
         }
     }

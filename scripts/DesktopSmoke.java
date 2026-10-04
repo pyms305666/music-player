@@ -31,6 +31,18 @@ public class DesktopSmoke {
         for(int i=0;i<120;i++){if(fx(check))return;Thread.sleep(100);}
         throw new AssertionError(reason);
     }
+    static void checkSharedHttpTransport() throws Exception {
+        var server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            try { exchange.sendResponseHeaders(200, 2); exchange.getResponseBody().write(new byte[]{'o', 'k'}); }
+            finally { exchange.close(); }
+        });
+        server.start();
+        try (var session = new app.musicplayer.online.CrawlerSession()) {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            if (!"ok".equals(session.fetch(url, url))) throw new AssertionError("Shared HTTP transport failed");
+        } finally { server.stop(0); }
+    }
     static void checkArtworkPresentation(Path data) throws Exception {
         Path source = data.resolve("cover.png");
         javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(576, 576,
@@ -179,6 +191,7 @@ public class DesktopSmoke {
             });
             await(() -> ((List<?>)field("filteredTracks")).size()==2, "Clearing filter did not restore library");
             checkArtworkPresentation(data);
+            checkSharedHttpTransport();
             checkOnlinePresentation(data);
         System.out.println("DESKTOP SMOKE PASSED: async restore, responsive slow I/O, latest selection, natural queue loop while minimized, pause/resume, local filter without changing playback, incremental online selection, download progress/cancel/retry and search cache");
         }finally{

@@ -51,6 +51,7 @@ final class DownloadQueue implements AutoCloseable {
         Future<?> future;
         DownloadEvent event = DownloadEvent.of(DownloadEvent.Stage.QUEUED);
         boolean terminal;
+        boolean cancelled;
         Job(Key key, OnlineTrackInfo track) { this.key = key; this.track = track; }
     }
     DownloadQueue(Transfer transfer) {
@@ -89,7 +90,7 @@ final class DownloadQueue implements AutoCloseable {
         List<Subscription> subscribers;
         boolean cancelled;
         synchronized (this) {
-            cancelled = job.cancellation.isCancelled();
+            cancelled = job.cancelled || job.cancellation.isCancelled();
             job.terminal = true;
             jobs.remove(job.key, job);
             subscribers = List.copyOf(job.subscribers);
@@ -113,25 +114,42 @@ final class DownloadQueue implements AutoCloseable {
         job.event = event;
         job.subscribers.forEach(subscriber -> subscriber.delivery.offer(event));
     }
-    private synchronized void cancel(Job job, Subscription subscriber) {
-        if (job.terminal || !job.subscribers.remove(subscriber)) return;
-        subscriber.delivery.finish(new DownloadEvent(DownloadEvent.Stage.CANCELLED,
-                job.event.transferredBytes(), job.event.totalBytes()));
+    private void cancel(Job job, Subscription subscriber) {
+        boolean last;
+        DownloadEvent event;
+        synchronized (this) {
+            if (job.terminal || !job.subscribers.remove(subscriber)) return;
+            event = new DownloadEvent(DownloadEvent.Stage.CANCELLED,
+                    job.event.transferredBytes(), job.event.totalBytes());
+            last = job.subscribers.isEmpty();
+            if (last) {
+                job.cancelled = true;
+                job.terminal = true;
+                jobs.remove(job.key, job);
+            }
+        }
+        subscriber.delivery.finish(event);
         subscriber.result.cancel(false);
-        if (job.subscribers.isEmpty()) {
-            jobs.remove(job.key, job);
+        if (last) {
             job.cancellation.close();
             if (job.future != null) { job.future.cancel(true); worker.remove((Runnable) job.future); }
         }
     }
-    @Override public synchronized void close() {
-        closed = true;
-        for (Job job : List.copyOf(jobs.values())) {
+    @Override public void close() {
+        List<Job> captured;
+        List<Subscription> subscribers;
+        synchronized (this) {
+            closed = true;
+            captured = List.copyOf(jobs.values());
+            subscribers = captured.stream().flatMap(job -> job.subscribers.stream()).toList();
+            captured.forEach(job -> { job.cancelled = true; job.terminal = true; job.subscribers.clear(); });
+            jobs.clear();
+        }
+        for (Job job : captured) {
             job.cancellation.close();
             if (job.future != null) job.future.cancel(true);
-            job.subscribers.forEach(subscriber -> { subscriber.delivery.close(); subscriber.result.cancel(false); });
-            job.subscribers.clear();
         }
-        jobs.clear(); worker.shutdownNow(); scheduler.shutdownNow();
+        subscribers.forEach(subscriber -> { subscriber.delivery.close(); subscriber.result.cancel(false); });
+        worker.shutdownNow(); scheduler.shutdownNow();
     }
 }

@@ -20,6 +20,7 @@
 - `online.OnlineSearchSnapshot` / `SearchCoordinator`：不可变来源状态及到达顺序结果；独立协调线程，最多每 100ms 推送一次界面，旧查询回调失效。
 - `SearchResultCache`：规范化关键词，LRU 50 项/2 分钟；仅所有来源正常完成的结果可入缓存，包括正常的空结果。
 - `RequestCancellation`：请求拥有连接/进程的取消注册；只取消本任务，服务整体关闭才断开全部连接。
+- `CrawlerSession`：OkHttp 4.12.0 同步请求复用会话连接池，延迟创建客户端；取消注册绑定单个 Call，截止时间覆盖响应体。CookieManager 在网络拦截器逐跳按域发送/接收 Cookie。避免重新使用会等待阻塞 body read 的 HttpURLConnection.disconnect；下载取消必须实际释放工作线程。
 - `DownloadQueue`：2 个工作线程、8 个等待任务，同歌曲/规范化目标目录共享传输，各订阅独立取消，最后一个取消才中断传输。
 - `DownloadController`：两端共享下载与加入曲库的交接、去重、重试状态；界面组件 `DesktopOnlineTasks` / `AndroidOnlineTasks` 接入现有控件。业务判断使用枚举，不解析提示文字。
 - Android 在线结果使用不可变 `OnlineTrackInfo` 与 `ListAdapter`，按歌曲标识保留选择。正式 APK 继续沿用现有证书轮换和安装身份。
