@@ -3,8 +3,11 @@ package app.musicplayer.online;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.LayoutInflater;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import app.musicplayer.android.R;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -82,7 +85,7 @@ public class AndroidOnlineTasksTest {
         });
         var tasks = new AtomicReference<AndroidOnlineTasks>(); var adapter = new AtomicReference<OnlineTrackAdapter>();
         var recycler = new AtomicReference<RecyclerView>(); var query = new AtomicReference<EditText>();
-        var search = new AtomicReference<Button>(); var download = new AtomicReference<Button>(); var status = new AtomicReference<String>("");
+        var search = new AtomicReference<ImageButton>(); var download = new AtomicReference<Button>(); var status = new AtomicReference<String>("");
         try (var service = new OnlineMusicSearchService(new MusicCrawler(List.of(slow, fast), 5000), System::nanoTime,
                 (track, target, token, progress) -> {
                     Path temporary = Files.createTempFile(target, "owned-", ".part");
@@ -97,9 +100,12 @@ public class AndroidOnlineTasksTest {
                     } finally { Files.deleteIfExists(temporary); }
                 })) {
             main(() -> {
-                query.set(new EditText(context)); query.get().setText("夜曲"); search.set(new Button(context)); download.set(new Button(context));
+                var themed = new androidx.appcompat.view.ContextThemeWrapper(context, R.style.Theme_SimpleMusicPlayer);
+                View layout = LayoutInflater.from(themed).inflate(R.layout.activity_main, null);
+                query.set(layout.findViewById(R.id.onlineSearch)); query.get().setText("夜曲");
+                search.set(layout.findViewById(R.id.onlineSearchButton)); download.set(layout.findViewById(R.id.downloadButton));
                 adapter.set(new OnlineTrackAdapter(info -> tasks.get().selectionChanged()));
-                recycler.set(new RecyclerView(context)); recycler.get().setLayoutManager(new LinearLayoutManager(context));
+                recycler.set(layout.findViewById(R.id.onlineResults)); recycler.get().setLayoutManager(new LinearLayoutManager(context));
                 recycler.get().setItemAnimator(null); recycler.get().setAdapter(adapter.get());
                 tasks.set(new AndroidOnlineTasks(service, command -> new Handler(Looper.getMainLooper()).post(command),
                         new AndroidOnlineTasks.Controls(query.get(), search.get(), download.get(), adapter.get()), status::set, () -> { }));
@@ -111,10 +117,10 @@ public class AndroidOnlineTasksTest {
                 recycler.get().layout(0, 0, 1080, 1000);
                 recycler.get().findViewHolderForAdapterPosition(0).itemView.performClick();
                 assertEquals(first.identity(), adapter.get().selected().identity());
-                assertEquals("取消搜索", search.get().getText().toString());
+                assertEquals("取消搜索", search.get().getContentDescription().toString());
             });
             sourceRelease.countDown();
-            await(() -> adapter.get().getItemCount() == 2 && search.get().getText().toString().equals("搜索"));
+            await(() -> adapter.get().getItemCount() == 2 && search.get().getContentDescription().toString().equals("搜索"));
             main(() -> {
                 assertEquals(first.identity(), adapter.get().selected().identity());
                 tasks.get().download(first, directory, path -> {

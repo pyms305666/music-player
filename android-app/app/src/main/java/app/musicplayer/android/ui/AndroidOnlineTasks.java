@@ -2,6 +2,8 @@ package app.musicplayer.android.ui;
 
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import app.musicplayer.android.R;
 import app.musicplayer.android.data.TrackEntry;
 import app.musicplayer.model.OnlineTrackInfo;
 import app.musicplayer.online.CancellableTask;
@@ -19,7 +21,7 @@ import java.util.function.Function;
 
 /** Connects existing Android controls to task states, without library or playback ownership. */
 public final class AndroidOnlineTasks implements AutoCloseable {
-    public record Controls(EditText query, Button search, Button download, OnlineTrackAdapter results) { }
+    public record Controls(EditText query, ImageButton search, Button download, OnlineTrackAdapter results) { }
     private final OnlineMusicSearchService service;
     private final Executor ui;
     private final Controls controls;
@@ -49,17 +51,23 @@ public final class AndroidOnlineTasks implements AutoCloseable {
         beforeSearch.run(); service.cancelPreview();
         String query = controls.query().getText().toString();
         controls.results().clearSelection(); controls.results().submit(List.of(), this::updateDownloadButton);
-        searching = !query.isBlank(); controls.search().setText(searching ? "取消搜索" : "搜索");
+        searching = !query.isBlank(); updateSearchButton(false);
         search = service.search(query, ui, snapshot -> {
             if (closed || request != generation) return;
             controls.results().submit(snapshot.tracks(), this::updateDownloadButton);
             searching = !snapshot.finished();
-            controls.search().setText(searching ? "取消搜索"
-                    : snapshot.failedSources() > 0 ? "重试搜索" : "搜索");
+            updateSearchButton(snapshot.failedSources() > 0);
             status.accept(OnlineTaskMessages.search(snapshot));
         });
     }
     public void selectionChanged() { updateDownloadButton(); }
+    private void updateSearchButton(boolean retry) {
+        String action = searching ? "取消搜索" : retry ? "重试搜索" : "搜索";
+        controls.search().setContentDescription(action);
+        controls.search().setTooltipText(action);
+        controls.search().setImageResource(searching ? R.drawable.ic_close
+                : retry ? R.drawable.ic_refresh : R.drawable.ic_search);
+    }
     public boolean cancelSelectedDownload() {
         var result = downloads.cancel(controls.results().selected());
         if (result == DownloadController.CancelResult.PUBLISHING) status.accept("正在加入曲库，请稍候");
