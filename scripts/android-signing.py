@@ -1,5 +1,6 @@
 """Android 13+ key rotation. Private material never belongs to this repository."""
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -152,9 +153,11 @@ def package(args):
         raise RuntimeError("Source changed during build")
     record = dict(version=version()["versionName"], versionCode=facts["versionCode"], sourceCommit=before,
                   sourceDirty=dirty, platform="android-release", artifact=output.name, sha256=sha(output),
-                  signing=facts, qa=args.qa, gradle="8.11.1", jdk="")
+                  signing=facts, qa=args.qa, gradle="8.11.1", jdk="",
+                  builtAtUtc=datetime.now(timezone.utc).isoformat())
     # java -version writes stderr; this field is supplied from the runtime release file instead.
-    record["jdk"] = (tools()[0].parents[1] / "release").read_text().splitlines()[0]
+    runtime = dict(line.split("=", 1) for line in (tools()[0].parents[1] / "release").read_text().splitlines() if "=" in line)
+    record["jdk"] = runtime["JAVA_RUNTIME_VERSION"].strip('"')
     output.with_suffix(output.suffix + ".build.json").write_text(json.dumps(record, indent=2) + "\n")
     print("SIGNED AND VERIFIED:", output)
     print("SIGNERS: API 28-32 legacy; API 33+ formal. TEST APK:", test_output)
