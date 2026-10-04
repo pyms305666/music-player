@@ -1,4 +1,4 @@
-# ZA音乐 4.1.10
+# ZA音乐 4.1.11
 
 ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
@@ -10,6 +10,7 @@ ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器
 - 播放、暂停、上一首、下一首、随机播放和单曲循环。
 - 在线搜索酷狗、酷我、咪咕、QQ 音乐和网易云音乐；歌词提供网易云、QQ、酷狗和 LRCLIB 来源。
 - 预览在线歌曲的歌词和封面，下载后加入本地曲库播放。遇到受限或失效的下载地址时会尝试其他来源。
+- 在线搜索按来源完成顺序追加结果，保留选择；成功查询缓存最多 50 项、2 分钟。搜索和下载可分别取消，下载最多同时运行 2 项、等待 8 项；未知文件大小时显示已下载大小。
 - 显示本地 LRC 和缓存歌词；支持桌面端歌词锁定、字体缩放及纯歌词模式。
 - SQLite 保存曲库信息及歌词缓存；封面、歌词和播放兼容文件使用本地缓存。
 
@@ -200,7 +201,7 @@ Android 真机回归测试位于 `android-app/app/src/androidTest/`。构建测�
 
 ```powershell
 python scripts/android-signing.py package
-python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android-4.1.10.apk
+python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android-4.1.11.apk
 ```
 
 打包先执行共享测试、Release 构建和 lint，再用新旧密钥与轮换证明签名，逐个验证 API 28/31/32/33/35/36 的证书选择和二进制清单，生成 APK 旁的构建记录。测试 APK 仅用于本地验证，验证后卸载，不上传 Release。外部构建须同时提供新旧两组四个环境变量（`ZA_KEYSTORE`、`ZA_STORE_PASSWORD`、`ZA_KEY_ALIAS`、`ZA_KEY_PASSWORD`，旧组增加 `OLD_`：如 `ZA_OLD_KEYSTORE`）。直接 `assembleRelease` 得到的中间包不包含完整发布轮换流程。Windows EXE 尚未配置 Authenticode 签名。
@@ -213,7 +214,7 @@ python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android
 4. 设置已授权的 `GH_TOKEN` 或登录 `gh`，执行发布脚本；也可以先加 `-VerifyOnly` 校验。
 
 ```powershell
-.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.10.md'
+.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.11.md'
 ```
 
 脚本检查干净源码、附件构建提交、应用版本、包名/证书、散列、远端分支和对应提交的 CI。它先创建草稿并校验上传附件，再公开并检查 tag 与源码一致。不覆盖已有 Release；失败后检查保留的草稿再处理。构建记录是发布核对信息，不是第三方签发的供应链证明。

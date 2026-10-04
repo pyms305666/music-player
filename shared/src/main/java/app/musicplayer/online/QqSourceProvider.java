@@ -32,7 +32,6 @@ final class QqSourceProvider implements OnlineSourceProvider {
 
     @Override
     public List<OnlineTrackInfo> search(String query) {
-        List<OnlineTrackInfo> results = new ArrayList<>();
         try {
             String json = session.fetch(
                     "https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg?format=json&key="
@@ -40,27 +39,34 @@ final class QqSourceProvider implements OnlineSourceProvider {
                             + "&g_tk=5381&loginUin=0&hostUin=0&inCharset=utf8&outCharset=utf-8"
                             + "&notice=0&platform=yqq.json&needNewCode=0",
                     REFERER);
-            String songObject = JsonSupport.objectValue(json, "song");
-            String items = JsonSupport.arrayValue(songObject, "itemlist");
-            Set<String> seen = new HashSet<>();
-            for (String item : JsonSupport.splitTopLevelObjects(items)) {
-                String id = JsonSupport.stringValue(item, "mid");
-                String title = JsonSupport.stringValue(item, "name");
-                if (id == null || id.isBlank() || title == null || title.isBlank() || !seen.add(id)) {
-                    continue;
-                }
-                String artist = JsonSupport.stringValue(item, "singer");
-                if (artist == null || artist.isBlank()) {
-                    artist = "未知歌手";
-                }
-                results.add(new OnlineTrackInfo(SOURCE, title, artist, "", null, id, ""));
-                if (results.size() >= 10) {
-                    break;
-                }
-            }
+            return parseSearchResponse(json);
         } catch (Exception exception) {
             if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
             throw new IllegalStateException("来源搜索失败", exception);
+        }
+    }
+
+    static List<OnlineTrackInfo> parseSearchResponse(String json) {
+        SearchResponse.requireObject(json);
+        SearchResponse.requireSuccess(json, "code", "0");
+        List<OnlineTrackInfo> results = new ArrayList<>();
+        String songObject = JsonSupport.objectValue(json, "song");
+        String items = SearchResponse.array(songObject, "itemlist");
+        Set<String> seen = new HashSet<>();
+        for (String item : JsonSupport.splitTopLevelObjects(items)) {
+            String id = JsonSupport.stringValue(item, "mid");
+            String title = JsonSupport.stringValue(item, "name");
+            if (id == null || id.isBlank() || title == null || title.isBlank() || !seen.add(id)) {
+                continue;
+            }
+            String artist = JsonSupport.stringValue(item, "singer");
+            if (artist == null || artist.isBlank()) {
+                artist = "未知歌手";
+            }
+            results.add(new OnlineTrackInfo(SOURCE, title, artist, "", null, id, ""));
+            if (results.size() >= 10) {
+                break;
+            }
         }
         return results;
     }

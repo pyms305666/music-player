@@ -75,12 +75,11 @@ final class MiguSourceProvider implements OnlineSourceProvider {
 
     /** 抽离成包内可见便于离线测试。 */
     static List<OnlineTrackInfo> parseSearchResponse(String json) {
+        SearchResponse.requireObject(json);
         List<OnlineTrackInfo> results = new ArrayList<>();
-        if (json == null || json.isBlank()) {
-            return results;
-        }
+        SearchResponse.requireSuccess(json, "code", "000000");
         String payload = JsonSupport.objectValue(json, "songResultData");
-        String list = JsonSupport.arrayValue(payload == null ? json : payload, "result");
+        String list = SearchResponse.array(payload == null ? json : payload, "result");
         Set<String> seen = new HashSet<>();
         for (String item : JsonSupport.splitTopLevelObjects(list)) {
             String contentId = JsonSupport.stringValue(item, "contentId");

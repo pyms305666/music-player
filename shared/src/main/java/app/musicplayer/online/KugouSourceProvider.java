@@ -52,12 +52,12 @@ final class KugouSourceProvider implements OnlineSourceProvider {
 
     /** 结构化解析，抽离成包内可见便于离线测试。 */
     static List<OnlineTrackInfo> parseSearchResponse(String json) {
+        SearchResponse.requireObject(json);
         List<OnlineTrackInfo> results = new ArrayList<>();
-        if (json == null || json.isBlank()) {
-            return results;
-        }
+        SearchResponse.requireSuccess(json, "status", "1");
+        SearchResponse.requireSuccess(json, "error_code", "0");
         String data = JsonSupport.objectValue(json, "data");
-        String lists = JsonSupport.arrayValue(data == null ? json : data, "lists");
+        String lists = SearchResponse.array(data == null ? json : data, "lists");
         Set<String> seen = new HashSet<>();
         for (String item : JsonSupport.splitTopLevelObjects(lists)) {
             String hash = OnlineTextSupport.value(item, "FileHash", "Hash");

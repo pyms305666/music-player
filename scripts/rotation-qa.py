@@ -62,7 +62,8 @@ def exercise(args):
             raise RuntimeError("APK installation failed")
     policy = json.loads(Path(args.policy).read_text())
     def instrument(method, phase="", seed=False):
-        options = ["-e", "class", "app.musicplayer.android." + method]
+        test_class = method if method.startswith("app.musicplayer.") else "app.musicplayer.android." + method
+        options = ["-e", "class", test_class]
         if phase:
             options += ["-e", "migrationPhase", phase, "-e", "expectedOldSha", policy["oldSignerSha256"],
                         "-e", "expectedNewSha", policy["newSignerSha256"]]
@@ -89,6 +90,8 @@ def exercise(args):
         install(test)
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
         instrument("PlaybackServiceTest")
+        instrument("OnlineTrackAdapterTest")
+        instrument("app.musicplayer.online.AndroidOnlineTasksTest")
         command("shell", "am", "force-stop", "app.musicplayer.android")
         # Validate again after playing, then carry the original snapshot into the next upgrade.
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
@@ -114,6 +117,8 @@ def exercise(args):
         instrument("SigningMigrationTest#recordBeforeUpgrade", "record", True)
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
         instrument("PlaybackServiceTest")
+        instrument("OnlineTrackAdapterTest")
+        instrument("app.musicplayer.online.AndroidOnlineTasksTest")
         instrument("SigningMigrationTest#removeTemporarySnapshot", "cleanup")
         command("uninstall", "app.musicplayer.android.test")
         print("CLEAN INSTALL CHECKS PASSED:", serial)

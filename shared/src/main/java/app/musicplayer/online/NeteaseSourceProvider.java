@@ -35,7 +35,6 @@ final class NeteaseSourceProvider implements OnlineSourceProvider {
 
     @Override
     public List<OnlineTrackInfo> search(String query) {
-        List<OnlineTrackInfo> results = new ArrayList<>();
         try {
             String csrf = session.cookieValue("music.163.com", "__csrf");
             String json = session.fetch(
@@ -43,40 +42,51 @@ final class NeteaseSourceProvider implements OnlineSourceProvider {
                             + (csrf == null ? "" : csrf)
                             + "&type=1&offset=0&limit=8&s=" + JsonSupport.encode(query),
                     REFERER);
-            String songs = JsonSupport.arrayValue(json, "songs");
-            Set<String> seen = new HashSet<>();
-            for (String song : JsonSupport.splitTopLevelObjects(songs)) {
-                String id = JsonSupport.numberValue(song, "id");
-                String title = JsonSupport.stringValue(song, "name");
-                if (id == null || "0".equals(id) || title == null || title.isBlank() || !seen.add(id)) {
-                    continue;
-                }
-                String artist = "未知歌手";
-                String firstArtist = JsonSupport.firstObject(JsonSupport.arrayValue(song, "artists"));
-                String parsedArtist = JsonSupport.stringValue(firstArtist, "name");
-                if (parsedArtist != null && !parsedArtist.isBlank()) {
-                    artist = parsedArtist;
-                }
-
-                String album = "";
-                String cover = null;
-                String albumObject = JsonSupport.objectValue(song, "album");
-                if (albumObject != null) {
-                    String parsedAlbum = JsonSupport.stringValue(albumObject, "name");
-                    album = parsedAlbum == null ? "" : parsedAlbum;
-                    cover = JsonSupport.stringValue(albumObject, "picUrl");
-                }
-                results.add(new OnlineTrackInfo(SOURCE, title, artist, album, cover, id, null));
-                if (results.size() >= 8) {
-                    break;
-                }
-            }
-            if (results.isEmpty()) {
-                addRegexFallback(json, results);
-            }
+            return parseSearchResponse(json);
         } catch (Exception exception) {
             if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
             throw new IllegalStateException("来源搜索失败", exception);
+        }
+    }
+
+    static List<OnlineTrackInfo> parseSearchResponse(String json) {
+        SearchResponse.requireObject(json);
+        SearchResponse.requireSuccess(json, "code", "200");
+        List<OnlineTrackInfo> results = new ArrayList<>();
+        String result = JsonSupport.objectValue(json, "result");
+        String payload = result == null ? json : result;
+        String songs = JsonSupport.arrayValue(payload, "songs");
+        if (songs == null && "0".equals(JsonSupport.numberValue(payload, "songCount"))) return List.of();
+        if (songs == null) throw new IllegalStateException("Missing search results: songs");
+        Set<String> seen = new HashSet<>();
+        for (String song : JsonSupport.splitTopLevelObjects(songs)) {
+            String id = JsonSupport.numberValue(song, "id");
+            String title = JsonSupport.stringValue(song, "name");
+            if (id == null || "0".equals(id) || title == null || title.isBlank() || !seen.add(id)) {
+                continue;
+            }
+            String artist = "未知歌手";
+            String firstArtist = JsonSupport.firstObject(JsonSupport.arrayValue(song, "artists"));
+            String parsedArtist = JsonSupport.stringValue(firstArtist, "name");
+            if (parsedArtist != null && !parsedArtist.isBlank()) {
+                artist = parsedArtist;
+            }
+
+            String album = "";
+            String cover = null;
+            String albumObject = JsonSupport.objectValue(song, "album");
+            if (albumObject != null) {
+                String parsedAlbum = JsonSupport.stringValue(albumObject, "name");
+                album = parsedAlbum == null ? "" : parsedAlbum;
+                cover = JsonSupport.stringValue(albumObject, "picUrl");
+            }
+            results.add(new OnlineTrackInfo(SOURCE, title, artist, album, cover, id, null));
+            if (results.size() >= 8) {
+                break;
+            }
+        }
+        if (results.isEmpty()) {
+            addRegexFallback(json, results);
         }
         return results;
     }
@@ -132,7 +142,7 @@ final class NeteaseSourceProvider implements OnlineSourceProvider {
         return matcher.find() ? OnlineTextSupport.unescape(matcher.group(1)) : null;
     }
 
-    private void addRegexFallback(String json, List<OnlineTrackInfo> results) {
+    private static void addRegexFallback(String json, List<OnlineTrackInfo> results) {
         if (json == null || json.isBlank()) {
             return;
         }

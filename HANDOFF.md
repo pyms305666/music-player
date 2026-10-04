@@ -1,11 +1,11 @@
-# 项目交接：ZA音乐 4.1.10
+# 项目交接：ZA音乐 4.1.11
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版与原生 Android 版均为 `4.1.10`。
+- 版本：Windows 桌面版与原生 Android 版均为 `4.1.11`。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
 - 数据库 schema 保持兼容：`tracks`、`lyrics`。
 
@@ -15,7 +15,14 @@
 - Android `ui.LocalTrackList` / `TrackRow` / `TrackAdapter`：曲库变更时排序并建快照，搜索仅更新显示；DiffUtil 比较不可变字段，选择按歌曲标识保留。
 - `artwork.ArtworkPresenter` / `ArtworkDecoder` / `DecodedArtworkCache`：显示尺寸及 DPI 采样、切歌取消、8 张/16MiB 解码缓存。`ArtworkService` 按地址合并下载，最后一个消费者取消时中断工作。
 
-第一轮性能记录及限制见 `docs/performance-4.1.10.md`。后续优化逐轮测试、审查和发布，第一轮发布后再进入在线搜索与下载轮次。
+第一轮已公开发布，记录见 `docs/performance-4.1.10.md`。第二轮记录见 `docs/performance-4.1.11.md`；最终提交、CI 与附件来源以 Release 构建记录为准。
+
+- `online.OnlineSearchSnapshot` / `SearchCoordinator`：不可变来源状态及到达顺序结果；独立协调线程，最多每 100ms 推送一次界面，旧查询回调失效。
+- `SearchResultCache`：规范化关键词，LRU 50 项/2 分钟；仅所有来源正常完成的结果可入缓存，包括正常的空结果。
+- `RequestCancellation`：请求拥有连接/进程的取消注册；只取消本任务，服务整体关闭才断开全部连接。
+- `DownloadQueue`：2 个工作线程、8 个等待任务，同歌曲/规范化目标目录共享传输，各订阅独立取消，最后一个取消才中断传输。
+- `DownloadController`：两端共享下载与加入曲库的交接、去重、重试状态；界面组件 `DesktopOnlineTasks` / `AndroidOnlineTasks` 接入现有控件。业务判断使用枚举，不解析提示文字。
+- Android 在线结果使用不可变 `OnlineTrackInfo` 与 `ListAdapter`，按歌曲标识保留选择。正式 APK 继续沿用现有证书轮换和安装身份。
 
 - `config.AppPaths`：运行目录解析、缓存目录创建、旧数据库复制迁移。
 - `config.LegacyInstallMigration`：Windows 安装版首次启动时，将旧名称安装目录的 `downloads/` 复制到“ZA音乐”目录，并修正数据库中旧下载文件的路径。

@@ -8,9 +8,10 @@ public record OnlineTrackInfo(
         String artworkUrl,
         String primaryId,
         String secondaryId,
-        boolean downloadable,
+        Availability availability,
         String availabilityText
 ) {
+    public enum Availability { PENDING, TENTATIVE, AVAILABLE, UNAVAILABLE }
     public OnlineTrackInfo(
             String source,
             String title,
@@ -20,10 +21,10 @@ public record OnlineTrackInfo(
             String primaryId,
             String secondaryId
     ) {
-        this(source, title, artist, album, artworkUrl, primaryId, secondaryId, false, "待检测");
+        this(source, title, artist, album, artworkUrl, primaryId, secondaryId, Availability.PENDING, "待检测");
     }
 
-    public OnlineTrackInfo withAvailability(boolean downloadable, String availabilityText) {
+    public OnlineTrackInfo withAvailability(Availability availability, String availabilityText) {
         return new OnlineTrackInfo(
                 source,
                 title,
@@ -32,14 +33,18 @@ public record OnlineTrackInfo(
                 artworkUrl,
                 primaryId,
                 secondaryId,
-                downloadable,
+                availability,
                 availabilityText
         );
     }
 
     public boolean canAttemptDownload() {
-        return downloadable || "可尝试下载".equals(availabilityText);
+        return availability == Availability.AVAILABLE || availability == Availability.TENTATIVE;
     }
+
+    public boolean downloadable() { return availability == Availability.AVAILABLE; }
+
+    public String identity() { return (source == null ? "" : source) + "|" + (primaryId == null ? "" : primaryId); }
 
     public String subtitle() {
         String albumText = album == null || album.isBlank() ? "未知专辑" : album;

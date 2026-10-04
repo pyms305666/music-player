@@ -53,9 +53,9 @@ class MiguSourceProviderTest {
     }
 
     @Test
-    void handlesBlankJson() {
-        assertTrue(MiguSourceProvider.parseSearchResponse(null).isEmpty());
-        assertTrue(MiguSourceProvider.parseSearchResponse("").isEmpty());
+    void rejectsBlankJson() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> MiguSourceProvider.parseSearchResponse(null));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> MiguSourceProvider.parseSearchResponse(""));
     }
 
     @Test

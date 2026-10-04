@@ -82,6 +82,52 @@ public class DesktopSmoke {
             } finally { fx(() -> { presenter.close(); return null; }); }
         } finally { release.countDown(); server.stop(0); }
     }
+    static void checkOnlinePresentation(Path data) throws Exception {
+        try (var fixture = new app.musicplayer.online.OnlineSmokeFixtures()) {
+            var results = fx(() -> javafx.collections.FXCollections.<app.musicplayer.model.OnlineTrackInfo>observableArrayList());
+            var status = new java.util.concurrent.atomic.AtomicReference<String>("");
+            var published = new java.util.concurrent.atomic.AtomicInteger();
+            var prefs = java.util.prefs.Preferences.userRoot().node(System.getProperty("musicplayer.preferences-node"));
+            var drawer = fx(() -> new app.musicplayer.ui.OnlineDrawer(results, prefs, () -> { }, ignored -> { }, ignored -> { }));
+            var controller = fx(() -> new app.musicplayer.ui.DesktopOnlineTasks(fixture.service, drawer, results,
+                    new app.musicplayer.ui.DesktopOnlineTasks.Callbacks(status::set, () -> { }, ignored -> { })));
+            try {
+                fx(() -> { drawer.searchField().setText("song"); controller.search(); return null; });
+                await(() -> results.size() == 2, "Fast online source was not published before the slow source");
+                fx(() -> { drawer.resultsView().getSelectionModel().select(1); return null; });
+                var selected = fx(() -> drawer.resultsView().getSelectionModel().getSelectedItem());
+                fixture.releaseSource.countDown();
+                await(() -> results.size() == 3 && status.get().contains("搜索完成"), "Online search did not finish");
+                if (fx(() -> drawer.resultsView().getSelectionModel().getSelectedItem()) != selected)
+                    throw new AssertionError("Source append changed the selected online song");
+                fx(() -> {
+                    controller.download(selected, data.resolve("online-fixture"), path -> {
+                        published.incrementAndGet(); return CompletableFuture.completedFuture(path);
+                    }, ignored -> { }); return null;
+                });
+                if (!fixture.transferStarted.await(3, TimeUnit.SECONDS)) throw new AssertionError("UI transfer did not start");
+                await(() -> status.get().contains("2.0 KiB"), "Unknown-size transfer byte count was not shown");
+                if (status.get().contains("%")) throw new AssertionError("Unknown-size transfer displayed a fake percentage");
+                fx(() -> { if (!controller.cancelDownload(selected)) throw new AssertionError("Selected transfer was not cancellable"); return null; });
+                await(() -> status.get().contains("已取消下载"), "Cancellation was not shown");
+                if (published.get() != 0) throw new AssertionError("Cancelled transfer entered the library");
+                fx(() -> {
+                    controller.download(selected, data.resolve("online-fixture"), path -> {
+                        published.incrementAndGet(); return CompletableFuture.completedFuture(path);
+                    }, ignored -> { }); return null;
+                });
+                await(() -> status.get().contains("下载完成"), "Retry after cancellation did not complete");
+                if (published.get() != 1) throw new AssertionError("Retry published more than once");
+                int calls = fixture.sourceCalls.get();
+                fx(() -> { controller.search(); return null; });
+                await(() -> status.get().contains("缓存"), "Successful query cache was not shown");
+                if (fixture.sourceCalls.get() != calls) throw new AssertionError("Cached query contacted sources again");
+                try (var files = Files.list(data.resolve("online-fixture"))) {
+                    if (files.anyMatch(path -> path.toString().endsWith(".part"))) throw new AssertionError("Cancelled UI transfer left a temporary file");
+                }
+            } finally { fx(() -> { controller.close(); return null; }); }
+        }
+    }
     public static void main(String[] args)throws Exception {
         Path data=Path.of(System.getProperty("musicplayer.data-dir"));Files.createDirectories(data);
         List<Track> initial=new ArrayList<>();
@@ -133,7 +179,8 @@ public class DesktopSmoke {
             });
             await(() -> ((List<?>)field("filteredTracks")).size()==2, "Clearing filter did not restore library");
             checkArtworkPresentation(data);
-            System.out.println("DESKTOP SMOKE PASSED: async restore, responsive slow I/O, latest selection, natural queue loop while minimized, pause/resume, latest local filter without changing playback");
+            checkOnlinePresentation(data);
+        System.out.println("DESKTOP SMOKE PASSED: async restore, responsive slow I/O, latest selection, natural queue loop while minimized, pause/resume, local filter without changing playback, incremental online selection, download progress/cancel/retry and search cache");
         }finally{
             fx(()->{if(app!=null)app.stop();if(stage!=null)stage.close();return null;});Platform.exit();
             String preferences = System.getProperty("musicplayer.preferences-node");

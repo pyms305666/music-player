@@ -23,6 +23,8 @@ import app.musicplayer.playback.AudioFileInspector;
 import app.musicplayer.playback.AudioFormat;
 import app.musicplayer.playback.PlaybackFileResolver;
 import app.musicplayer.ui.OnlineDrawer;
+import app.musicplayer.ui.DesktopOnlineTasks;
+import app.musicplayer.online.DownloadEvent;
 import app.musicplayer.ui.MobileViewSwitcher;
 import app.musicplayer.ui.MobileWindowSizer;
 import app.musicplayer.ui.PlaybackControls;
@@ -116,13 +118,13 @@ public final class MusicPlayerApp extends Application {
     private OnlineMusicSearchService onlineMusicSearchService;
     private PlaylistPane playlistPane;
     private OnlineDrawer onlineDrawer;
+    private DesktopOnlineTasks onlineTasks;
     private MobileViewSwitcher mobileViews;
     private PlaybackControls playbackControls;
     private ListView<Track> playlistView;
     private ListView<String> lyricsView;
     private ListView<OnlineTrackInfo> onlineResultsView;
     private TextField searchField;
-    private TextField onlineSearchField;
     private ComboBox<PlaylistSort> sortTypeBox;
     private ComboBox<SortDirection> sortOrderBox;
     private Label titleLabel;
@@ -135,7 +137,6 @@ public final class MusicPlayerApp extends Application {
     private Slider volumeSlider;
     private ComboBox<PlayMode> playModeBox;
     private ProgressIndicator loadingLyrics;
-    private ProgressIndicator loadingOnlineSearch;
     private ImageView artworkImageView;
     private ArtworkPresenter artworkPresenter;
     private Region artworkDimmer;
@@ -159,7 +160,6 @@ public final class MusicPlayerApp extends Application {
     private boolean previewingOnlineResult;
     private long lyricsRequestId;
     private long playbackRequestId;
-    private long onlineSearchRequestId;
     private long onlinePreviewRequestId;
     private ScheduledFuture<?> lyricRetryTask;
     private int lyricRetryAttempt;
@@ -272,6 +272,7 @@ public final class MusicPlayerApp extends Application {
         if (artworkPresenter != null) artworkPresenter.close();
         artworkService.close();
         if (lyricsService != null) { lyricsService.close(); }
+        if (onlineTasks != null) onlineTasks.close();
         if (onlineMusicSearchService != null) { onlineMusicSearchService.close(); }
         if (mediaPlayer != null) { mediaPlayer.dispose(); }
         if (database != null) libraryExecutor.execute(database::close);
@@ -461,9 +462,14 @@ public final class MusicPlayerApp extends Application {
                 this::previewOnlineTrack,
                 this::downloadAndPlayOnlineTrack);
         onlineDrawer.setOnExpandedChanged(expanded -> updateOnlineToggleButton());
-        onlineSearchField = onlineDrawer.searchField();
         onlineResultsView = onlineDrawer.resultsView();
-        loadingOnlineSearch = onlineDrawer.loadingIndicator();
+        onlineTasks = new DesktopOnlineTasks(onlineMusicSearchService, onlineDrawer, onlineResults,
+                new DesktopOnlineTasks.Callbacks(text -> statusLabel.setText(text), () -> onlinePreviewRequestId++, notice -> {
+                    OnlineTrackInfo selected = onlineResultsView.getSelectionModel().getSelectedItem();
+                    if (!previewingOnlineResult || selected == null || !selected.identity().equals(notice.track().identity())) return;
+                    if (notice.event().stage() == DownloadEvent.Stage.FAILED) showLyrics(Lyrics.empty("下载失败，可点击重试"));
+                    else if (notice.event().stage() == DownloadEvent.Stage.CANCELLED) showLyrics(Lyrics.empty("下载已取消"));
+                }));
     }
 
     private StackPane createNowPlaying() {
@@ -813,6 +819,7 @@ public final class MusicPlayerApp extends Application {
 
     private void downloadAndPlayOnlineTrack(OnlineTrackInfo info) {
         if (info == null) return;
+        if (onlineTasks.cancelDownload(info)) return;
         disposePlayer(); cancelLyricRetry();
         playbackControls.setPlaying(false);
 
@@ -828,18 +835,12 @@ public final class MusicPlayerApp extends Application {
 
         long reqId = ++onlinePreviewRequestId;
 
-        onlineMusicSearchService.downloadAsync(info, DOWNLOAD_DIR).thenApplyAsync(path -> {
+        onlineTasks.download(info, DOWNLOAD_DIR, path -> CompletableFuture.supplyAsync(() -> {
             Track downloaded = new Track(path); database.saveTracks(List.of(downloaded));
             trackLibrary.primeCreationTimes(List.of(downloaded)); return path;
-        }, libraryExecutor).whenComplete((downloadedPath, err) -> Platform.runLater(() -> {
+        }, libraryExecutor), downloadedPath -> {
             if (closing) return;
             boolean autoPlay = reqId == onlinePreviewRequestId;
-            if (err != null || downloadedPath == null) {
-                showLyrics(Lyrics.empty("爬取下载失败"));
-                statusLabel.setText("下载失败：" + (err != null ? err.getMessage() : "未知错误"));
-                return;
-            }
-
             Track newTrack = new Track(downloadedPath);
             TrackLibraryService.ImportResult result = trackLibrary.mergeUnique(tracks, List.of(newTrack));
             if (result.addedTracks().isEmpty()) {
@@ -855,7 +856,7 @@ public final class MusicPlayerApp extends Application {
             else applyTrackFilter("");
             statusLabel.setText("爬取下载完成：" + info.title());
             if (autoPlay) playTrack(newTrack);
-        }));
+        });
     }
 // ========== 共享播放控制 ==========
 
@@ -1053,21 +1054,7 @@ public final class MusicPlayerApp extends Application {
     // ========== 在线搜索与预览 ==========
 
     private void searchOnlineTracks() {
-        String q = onlineSearchField == null ? "" : onlineSearchField.getText();
-        if (q == null || q.isBlank()) { onlineResults.clear(); statusLabel.setText("请输入在线搜索关键词"); return; }
-        long reqId = ++onlineSearchRequestId; loadingOnlineSearch.setVisible(true); loadingOnlineSearch.setManaged(true);
-        statusLabel.setText("正在在线搜索：" + q.trim());
-        onlineMusicSearchService.searchAsync(q).whenComplete((results, err) -> Platform.runLater(() -> {
-            if (closing || reqId != onlineSearchRequestId) return;
-            loadingOnlineSearch.setVisible(false); loadingOnlineSearch.setManaged(false);
-            if (err != null) { onlineResults.clear(); statusLabel.setText("在线搜索失败"); return; }
-            onlineResults.setAll(results);
-            long downloadableCount = results.stream().filter(OnlineTrackInfo::canAttemptDownload).count();
-            statusLabel.setText(results.isEmpty()
-                    ? "没有找到在线结果"
-                    : "在线搜索完成，共 " + results.size() + " 条结果，可尝试下载 " + downloadableCount + " 条");
-            if (!results.isEmpty()) onlineResultsView.getSelectionModel().select(0);
-        }));
+        onlineTasks.search();
     }
 
     private void previewOnlineTrack(OnlineTrackInfo info) {
@@ -1077,7 +1064,7 @@ public final class MusicPlayerApp extends Application {
         titleLabel.setText(info.title()); artistLabel.setText(info.subtitle());
         showArtwork(info.artworkUrl()); showLyrics(Lyrics.empty("正在加载在线预览歌词..."));
         statusLabel.setText("预览：" + info.title() + "（双击下载到本地播放）");
-        onlineMusicSearchService.loadPreviewAsync(info).whenComplete((r, err) -> Platform.runLater(() -> {
+        onlineMusicSearchService.preview(info).result().whenComplete((r, err) -> Platform.runLater(() -> {
             if (closing || reqId != onlinePreviewRequestId || onlineResultsView.getSelectionModel().getSelectedItem() != info) return;
             previewingOnlineResult = true;
             if (err != null) { showLyrics(Lyrics.empty("在线预览加载失败")); return; }

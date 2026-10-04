@@ -7,7 +7,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KuwoSourceProviderTest {
     /** 基于 2026-09 实测 r.s 响应裁剪的单引号伪 JSON（条目内含嵌套花括号对象）。 */
@@ -54,9 +53,9 @@ class KuwoSourceProviderTest {
     }
 
     @Test
-    void handlesBlankBody() {
-        assertTrue(KuwoSourceProvider.parseSearchResponse(null).isEmpty());
-        assertTrue(KuwoSourceProvider.parseSearchResponse("  ").isEmpty());
+    void rejectsBlankBody() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse(null));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse("  "));
     }
 
     @Test

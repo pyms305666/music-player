@@ -38,6 +38,7 @@ public final class OnlineDrawer extends HBox {
     private final ProgressIndicator loadingIndicator = new ProgressIndicator();
     private final VBox content;
     private final Button closeButton = new Button("关闭");
+    private final Button searchButton = new Button("搜索");
     private final Button mobileDownloadButton = new Button("下载并播放");
     private final Label hintLabel = new Label("单击预览 · 双击下载到本地播放");
     private final Label placeholderLabel = new Label("搜索 酷狗 / 酷我 / 咪咕 / QQ / 网易云，双击下载到本地");
@@ -70,7 +71,6 @@ public final class OnlineDrawer extends HBox {
         searchField.setPromptText("搜索歌曲名 / 歌手名");
         searchField.getStyleClass().add("search-field");
         searchField.setOnAction(event -> searchAction.run());
-        Button searchButton = new Button("搜索");
         searchButton.getStyleClass().add("primary-button");
         searchButton.setOnAction(event -> searchAction.run());
 
@@ -103,6 +103,7 @@ public final class OnlineDrawer extends HBox {
 
         hintLabel.setText("选择结果可预览，点击按钮下载并播放");
         hintLabel.getStyleClass().add("muted-label");
+        hintLabel.setWrapText(true);
         mobileDownloadButton.getStyleClass().add("primary-button");
         mobileDownloadButton.setMaxWidth(Double.MAX_VALUE);
         mobileDownloadButton.disableProperty().bind(resultsView.getSelectionModel().selectedItemProperty().isNull());
@@ -168,6 +169,19 @@ public final class OnlineDrawer extends HBox {
     public ProgressIndicator loadingIndicator() {
         return loadingIndicator;
     }
+    public void setSearchActions(Runnable submit, Runnable toggle) {
+        searchField.setOnAction(event -> submit.run());
+        searchButton.setOnAction(event -> toggle.run());
+    }
+    public void setSearchState(boolean searching, boolean retry) {
+        searchButton.setText(searching ? "取消搜索" : retry ? "重试搜索" : "搜索");
+        loadingIndicator.setVisible(searching); loadingIndicator.setManaged(searching);
+    }
+    public void setDownloadState(String label, boolean disabled) {
+        mobileDownloadButton.disableProperty().unbind();
+        mobileDownloadButton.setText(label); mobileDownloadButton.setDisable(disabled);
+    }
+    public void setTaskHint(String message) { hintLabel.setText(message); }
 
     public boolean isExpanded() {
         return expanded;
@@ -188,7 +202,6 @@ public final class OnlineDrawer extends HBox {
         content.getChildren().set(0, mobileHeader);
         resultsView.setCellFactory(ignored -> new OnlineResultCell(true));
         mobileDownloadButton.disableProperty().unbind();
-        mobileDownloadButton.setDisable(false);
         closeButton.setVisible(false);
         closeButton.setManaged(false);
         content.setVisible(true);

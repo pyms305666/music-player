@@ -6,9 +6,7 @@ import app.musicplayer.model.LyricsLookupResult;
 import app.musicplayer.model.OnlineTrackInfo;
 import app.musicplayer.util.JsonSupport;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -17,46 +15,66 @@ import java.util.concurrent.Executors;
 /**
  * Online music search service — delegates scraping to MusicCrawler,
  * delegates lyrics fetching to site-specific providers,
- * and reuses the crawler's shared HttpClient + CookieManager
+ * and reuses the crawler's HTTP and Cookie session
  * so all requests carry the same session.
  */
 public final class OnlineMusicSearchService implements AutoCloseable {
-    private final app.musicplayer.util.LatestRequest<List<OnlineTrackInfo>> searches = new app.musicplayer.util.LatestRequest<>();
     private final app.musicplayer.util.LatestRequest<LyricsLookupResult> previews = new app.musicplayer.util.LatestRequest<>();
 
-    private final MusicCrawler crawler = new MusicCrawler();
-    private final ExecutorService executor = Executors.newFixedThreadPool(3, runnable -> {
-        Thread thread = new Thread(runnable, "online-music");
+    private final MusicCrawler crawler;
+    private final SearchCoordinator searches;
+    private final DownloadQueue downloads;
+    private RequestCancellation previewCancellation;
+    private boolean closed;
+    private final ExecutorService previewExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "online-preview");
         thread.setDaemon(true);
         return thread;
     });
 
-    // ---- search / download (delegated to crawler) ----
+    public OnlineMusicSearchService() { this(new MusicCrawler(), System::nanoTime); }
 
-    public CompletableFuture<List<OnlineTrackInfo>> searchAsync(String query) {
-        return searches.submit(executor, () -> crawler.search(query));
+    OnlineMusicSearchService(MusicCrawler crawler, java.util.function.LongSupplier clock) {
+        this(crawler, clock, crawler::download);
     }
 
-    public CompletableFuture<String> resolveDownloadUrlAsync(OnlineTrackInfo info) {
-        return CompletableFuture.supplyAsync(() -> crawler.resolveDownloadUrl(info), executor);
+    OnlineMusicSearchService(MusicCrawler crawler, java.util.function.LongSupplier clock, DownloadQueue.Transfer transfer) {
+        this.crawler = crawler;
+        searches = new SearchCoordinator(crawler, clock);
+        downloads = new DownloadQueue(transfer);
     }
 
-    public CompletableFuture<Path> downloadAsync(OnlineTrackInfo info, Path targetDir) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return crawler.download(info, targetDir);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, executor);
+    public CancellableTask<OnlineSearchSnapshot> search(String query, java.util.concurrent.Executor ui,
+            java.util.function.Consumer<OnlineSearchSnapshot> progress) {
+        return searches.search(query, ui, progress);
+    }
+
+    public CancellableTask<Path> download(OnlineTrackInfo info, Path targetDir, java.util.concurrent.Executor ui,
+            java.util.function.Consumer<DownloadEvent> progress) {
+        return downloads.submit(info, targetDir, ui, progress);
     }
 
     // ---- lyrics preview (reuses crawler's HTTP session) ----
 
-    public CompletableFuture<LyricsLookupResult> loadPreviewAsync(OnlineTrackInfo trackInfo) {
-        return previews.submit(executor, () ->
-            loadPreview(trackInfo).orElseGet(() ->
-                LyricsLookupResult.lyricsOnly(Lyrics.empty("在线结果暂无歌词"))));
+    public synchronized CancellableTask<LyricsLookupResult> preview(OnlineTrackInfo trackInfo) {
+        if (closed) throw new IllegalStateException("Online service is closed");
+        cancelPreview();
+        RequestCancellation token = new RequestCancellation();
+        previewCancellation = token;
+        var result = previews.submit(previewExecutor, () -> crawler.withinCancellation(token, () ->
+                loadPreview(trackInfo).orElseGet(() ->
+                        LyricsLookupResult.lyricsOnly(Lyrics.empty("在线结果暂无歌词")))));
+        return new CancellableTask<>(result, () -> {
+            synchronized (OnlineMusicSearchService.this) {
+                token.close();
+                if (previewCancellation == token) previews.close();
+            }
+        });
+    }
+
+    public synchronized void cancelPreview() {
+        if (previewCancellation != null) { previewCancellation.close(); previewCancellation = null; }
+        previews.close();
     }
 
     private Optional<LyricsLookupResult> loadPreview(OnlineTrackInfo info) {
@@ -152,9 +170,7 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     // ---- shared HTTP helper (reuses crawler's session) ----
 
     private String fetch(String url, String referer) throws Exception {
-        // Delegates to crawler's fetch which uses the shared HttpClient + CookieManager.
-        // This ensures lyrics preview requests carry the same session cookies
-        // as search/download requests, reducing anti-crawling blocks.
+        // Preview requests reuse search/download cookies and own a separate cancellation scope.
         return crawler.fetch(url, referer);
     }
 
@@ -193,10 +209,12 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        closed = true;
         searches.close();
-        previews.close();
-        executor.shutdownNow();
+        cancelPreview();
+        downloads.close();
+        previewExecutor.shutdownNow();
         crawler.close();
     }
 }

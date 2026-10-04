@@ -178,6 +178,13 @@ public final class JsonSupport {
         return enclosedValue(objectJson, start, '{', '}');
     }
 
+    /** Checks a complete top-level object using JSON or a provider's single-quoted variant. */
+    public static boolean isCompleteObject(String json, char quotationMark) {
+        if (json == null) return false;
+        String text = json.strip();
+        return !text.isEmpty() && text.equals(enclosedValue(text, 0, '{', '}', quotationMark));
+    }
+
     public static String firstObject(String arrayJson) {
         List<String> objects = splitTopLevelObjects(arrayJson);
         return objects.isEmpty() ? null : objects.get(0);
@@ -243,6 +250,10 @@ public final class JsonSupport {
     }
 
     private static String enclosedValue(String json, int start, char open, char close) {
+        return enclosedValue(json, start, open, close, '"');
+    }
+
+    private static String enclosedValue(String json, int start, char open, char close, char quotationMark) {
         if (json == null || start >= json.length() || json.charAt(start) != open) {
             return null;
         }
@@ -260,7 +271,7 @@ public final class JsonSupport {
                 escaped = true;
                 continue;
             }
-            if (c == '"') {
+            if (c == quotationMark) {
                 inString = !inString;
                 continue;
             }

@@ -59,23 +59,25 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
 
     /** r.s 返回带嵌套花括号的单引号伪 JSON，需按深度扫描条目；抽离成包内可见便于离线测试。 */
     static List<OnlineTrackInfo> parseSearchResponse(String body) {
+        SearchResponse.requireObject(body, '\'');
         List<OnlineTrackInfo> results = new ArrayList<>();
-        if (body == null || body.isBlank()) {
-            return results;
-        }
         int arrayStart = body.indexOf("'abslist'");
         if (arrayStart < 0) {
-            return results;
+            throw new IllegalStateException("Missing search results: abslist");
         }
-        int cursor = body.indexOf('[', arrayStart);
-        if (cursor < 0) {
-            return results;
+        int colon = body.indexOf(':', arrayStart + "'abslist'".length());
+        int cursor = colon + 1;
+        while (cursor < body.length() && Character.isWhitespace(body.charAt(cursor))) cursor++;
+        if (colon < 0 || cursor >= body.length() || body.charAt(cursor) != '[') {
+            throw new IllegalStateException("Missing search array: abslist");
         }
         cursor++;
+        boolean closed = false;
         Set<String> seen = new HashSet<>();
         while (cursor < body.length() && results.size() < 10) {
             char c = body.charAt(cursor);
             if (c == ']') {
+                closed = true;
                 break;
             }
             if (c != '{') {
@@ -84,7 +86,7 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
             }
             int objectEnd = pseudoJsonObjectEnd(body, cursor);
             if (objectEnd < 0) {
-                break;
+                throw new IllegalStateException("Incomplete search item");
             }
             OnlineTrackInfo track = parseItem(body.substring(cursor, objectEnd + 1));
             if (track != null && seen.add(track.primaryId())) {
@@ -92,6 +94,7 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
             }
             cursor = objectEnd + 1;
         }
+        if (!closed && results.size() < 10) throw new IllegalStateException("Incomplete search array");
         return results;
     }
 

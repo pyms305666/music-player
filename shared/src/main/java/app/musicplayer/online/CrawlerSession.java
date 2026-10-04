@@ -30,11 +30,27 @@ public final class CrawlerSession implements AutoCloseable {
     private final CookieManager cookieManager = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
     private boolean primed;
     private final ThreadLocal<Long> deadline = new ThreadLocal<>();
+    private final ThreadLocal<RequestCancellation> cancellation = new ThreadLocal<>();
     private final java.util.Set<HttpURLConnection> active = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private volatile boolean closed;
 
     void setDeadline(long nanos) { deadline.set(nanos); }
     void clearDeadline() { deadline.remove(); }
+    RequestCancellation.Registration cancellationScope(RequestCancellation token) {
+        RequestCancellation previous = cancellation.get();
+        cancellation.set(token);
+        return () -> { if (previous == null) cancellation.remove(); else cancellation.set(previous); };
+    }
+    RequestCancellation currentCancellation() { return cancellation.get(); }
+    void checkCancellation() {
+        RequestCancellation token = cancellation.get();
+        if (token != null) token.check();
+        else if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("Task cancelled");
+    }
+    RequestCancellation.Registration onCancellation(Runnable listener) {
+        RequestCancellation token = cancellation.get();
+        return token == null ? () -> { } : token.onCancel(listener);
+    }
     public <T> T withinTimeout(long milliseconds, java.util.function.Supplier<T> work) {
         Long previous = deadline.get();
         long limit = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(milliseconds);
@@ -44,6 +60,8 @@ public final class CrawlerSession implements AutoCloseable {
     }
     private int timeout(int maximum) throws InterruptedException {
         Long limit = deadline.get();
+        RequestCancellation token = cancellation.get();
+        if (token != null) token.check();
         if (closed || Thread.currentThread().isInterrupted()) throw new InterruptedException("Request cancelled");
         if (limit == null) return maximum;
         long remaining = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(limit - System.nanoTime());
@@ -176,6 +194,9 @@ public final class CrawlerSession implements AutoCloseable {
         headers.forEach(connection::setRequestProperty);
 
         active.add(connection);
+        RequestCancellation token = cancellation.get();
+        RequestCancellation.Registration detach = token == null ? () -> { }
+                : token.onCancel(connection::disconnect);
         try {
         if (closed) throw new IOException("Session closed");
         if (body != null) {
@@ -198,10 +219,11 @@ public final class CrawlerSession implements AutoCloseable {
         if (source == null) {
             source = new ByteArrayInputStream(new byte[0]);
         }
-        InputStream bodyStream = new DisconnectingInputStream(source, connection);
+        InputStream bodyStream = new DisconnectingInputStream(source, connection, detach);
         return new DownloadResponse(statusCode, responseHeaders, bodyStream);
         } catch (IOException | RuntimeException | InterruptedException error) {
             active.remove(connection);
+            detach.close();
             connection.disconnect();
             throw error;
         }
@@ -263,10 +285,13 @@ public final class CrawlerSession implements AutoCloseable {
 
     private final class DisconnectingInputStream extends FilterInputStream {
         private final HttpURLConnection connection;
+        private final RequestCancellation.Registration detach;
 
-        private DisconnectingInputStream(InputStream input, HttpURLConnection connection) {
+        private DisconnectingInputStream(InputStream input, HttpURLConnection connection,
+                                         RequestCancellation.Registration detach) {
             super(input);
             this.connection = connection;
+            this.detach = detach;
         }
 
         private void checkDeadline() throws IOException {
@@ -288,6 +313,7 @@ public final class CrawlerSession implements AutoCloseable {
                 super.close();
             } finally {
                 active.remove(connection);
+                detach.close();
                 connection.disconnect();
             }
         }

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KugouSourceProviderTest {
     /** 基于 2026-09 实测 song_search_v2 响应裁剪。 */
@@ -44,8 +43,8 @@ class KugouSourceProviderTest {
     }
 
     @Test
-    void handlesBlankJson() {
-        assertTrue(KugouSourceProvider.parseSearchResponse(null).isEmpty());
-        assertTrue(KugouSourceProvider.parseSearchResponse("").isEmpty());
+    void rejectsBlankJson() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KugouSourceProvider.parseSearchResponse(null));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KugouSourceProvider.parseSearchResponse(""));
     }
 }

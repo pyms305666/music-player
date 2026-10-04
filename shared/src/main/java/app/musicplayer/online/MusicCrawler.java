@@ -21,13 +21,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * 协调多个在线来源，并负责统一的下载、校验和跨来源回退。
@@ -72,44 +70,96 @@ public final class MusicCrawler implements AutoCloseable {
     private static boolean curlChecked;
 
     public List<OnlineTrackInfo> search(String query) {
+        return searchIncrementally(query, ignored -> { }).tracks();
+    }
+
+    public OnlineSearchSnapshot searchIncrementally(String query,
+            java.util.function.Consumer<OnlineSearchSnapshot> progress) {
+        RequestCancellation token = session.currentCancellation();
+        return searchIncrementally(query, progress, token == null ? new RequestCancellation() : token);
+    }
+
+    OnlineSearchSnapshot searchIncrementally(String query,
+            java.util.function.Consumer<OnlineSearchSnapshot> progress, RequestCancellation cancellation) {
         String normalizedQuery = query == null ? "" : query.trim();
         if (normalizedQuery.isBlank()) {
-            return List.of();
+            var empty = new OnlineSearchSnapshot(normalizedQuery, List.of(), List.of(), OnlineSearchSnapshot.State.EMPTY, false);
+            progress.accept(empty);
+            return empty;
         }
 
         session.ensurePrimed();
         long deadline = System.nanoTime() + searchBudgetNanos;
-        var completions = new java.util.concurrent.ExecutorCompletionService<List<OnlineTrackInfo>>(searchExecutor);
-        List<java.util.concurrent.Future<List<OnlineTrackInfo>>> futures = new ArrayList<>();
+        var completions = new java.util.concurrent.ExecutorCompletionService<SourceResult>(searchExecutor);
+        Map<java.util.concurrent.Future<SourceResult>, String> futures = new HashMap<>();
+        Map<String, OnlineSearchSnapshot.Outcome> outcomes = new java.util.LinkedHashMap<>();
         for (OnlineSourceProvider provider : providers) {
-            if (isSuspended(provider.sourceName())) continue;
-            futures.add(completions.submit(() -> {
+            String name = provider.sourceName();
+            if (isSuspended(name)) { outcomes.put(name, OnlineSearchSnapshot.Outcome.SUSPENDED); continue; }
+            outcomes.put(name, OnlineSearchSnapshot.Outcome.PENDING);
+            var future = completions.submit(() -> {
                 session.setDeadline(deadline);
-                try {
+                try (var scope = session.cancellationScope(cancellation)) {
+                    cancellation.check();
                     List<OnlineTrackInfo> results = provider.search(normalizedQuery);
-                    if (!Thread.currentThread().isInterrupted()) recordSuccess(provider.sourceName());
-                    return results;
+                    cancellation.check();
+                    recordSuccess(name);
+                    return new SourceResult(name, results, OnlineSearchSnapshot.Outcome.COMPLETE);
                 } catch (RuntimeException error) {
-                    if (!Thread.currentThread().isInterrupted()) recordFailure(provider.sourceName());
-                    return List.of();
+                    boolean expired = System.nanoTime() >= deadline || Thread.currentThread().isInterrupted();
+                    if (!cancellation.isCancelled() && !expired) recordFailure(name);
+                    return new SourceResult(name, List.of(), cancellation.isCancelled()
+                            ? OnlineSearchSnapshot.Outcome.CANCELLED : expired
+                            ? OnlineSearchSnapshot.Outcome.TIMED_OUT : OnlineSearchSnapshot.Outcome.FAILED);
                 } finally { session.clearDeadline(); }
-            }));
+            });
+            futures.put(future, name);
         }
         List<OnlineTrackInfo> results = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
         try {
+            progress.accept(searchSnapshot(normalizedQuery, results, outcomes, false, false));
             for (int received = 0; received < futures.size(); received++) {
+                cancellation.check();
                 long left = Math.max(0, deadline - System.nanoTime());
                 var completed = completions.poll(left, TimeUnit.NANOSECONDS);
                 if (completed == null) break;
-                try { results.addAll(completed.get()); }
-                catch (ExecutionException | CancellationException ignored) { }
+                try {
+                    SourceResult batch = completed.get();
+                    outcomes.put(batch.name(), batch.outcome());
+                    for (OnlineTrackInfo track : batch.tracks()) {
+                        if (seen.add(downloadKey(track))) results.add(track.withAvailability(
+                                OnlineTrackInfo.Availability.TENTATIVE, "可尝试下载"));
+                    }
+                } catch (ExecutionException | CancellationException failed) {
+                    outcomes.put(futures.get(completed), OnlineSearchSnapshot.Outcome.FAILED);
+                }
+                progress.accept(searchSnapshot(normalizedQuery, results, outcomes, false, false));
             }
         } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
-        finally { for (var future : futures) if (!future.isDone()) future.cancel(true); }
-        // Address resolution happens only when the user requests a download.
-        return deduplicate(results).stream()
-                .map(track -> track.withAvailability(false, "可尝试下载"))
-                .sorted(Comparator.comparingInt(this::sourcePriority)).toList();
+        catch (CancellationException cancelled) { /* The final snapshot records cancellation explicitly. */ }
+        finally { for (var future : futures.keySet()) if (!future.isDone()) future.cancel(true); }
+        boolean cancelled = cancellation.isCancelled() || Thread.currentThread().isInterrupted();
+        outcomes.replaceAll((source, outcome) -> outcome != OnlineSearchSnapshot.Outcome.PENDING ? outcome
+                : cancelled ? OnlineSearchSnapshot.Outcome.CANCELLED : OnlineSearchSnapshot.Outcome.TIMED_OUT);
+        var complete = searchSnapshot(normalizedQuery, results, outcomes, true, cancelled);
+        progress.accept(complete);
+        return complete;
+    }
+
+    private record SourceResult(String name, List<OnlineTrackInfo> tracks, OnlineSearchSnapshot.Outcome outcome) { }
+
+    private static OnlineSearchSnapshot searchSnapshot(String query, List<OnlineTrackInfo> tracks,
+            Map<String, OnlineSearchSnapshot.Outcome> outcomes, boolean finished, boolean cancelled) {
+        var sources = outcomes.entrySet().stream().map(entry ->
+                new OnlineSearchSnapshot.Source(entry.getKey(), entry.getValue())).toList();
+        boolean failed = outcomes.values().stream().anyMatch(outcome -> outcome == OnlineSearchSnapshot.Outcome.FAILED
+                || outcome == OnlineSearchSnapshot.Outcome.TIMED_OUT || outcome == OnlineSearchSnapshot.Outcome.SUSPENDED);
+        var state = !finished ? OnlineSearchSnapshot.State.SEARCHING
+                : cancelled ? OnlineSearchSnapshot.State.CANCELLED
+                : failed ? tracks.isEmpty() ? OnlineSearchSnapshot.State.FAILED : OnlineSearchSnapshot.State.PARTIAL_FAILURE
+                : tracks.isEmpty() ? OnlineSearchSnapshot.State.EMPTY : OnlineSearchSnapshot.State.COMPLETE;
+        return new OnlineSearchSnapshot(query, tracks, sources, state, false);
     }
 
     public String resolveDownloadUrl(OnlineTrackInfo track) {
@@ -119,6 +169,23 @@ public final class MusicCrawler implements AutoCloseable {
 
     public Path download(OnlineTrackInfo track, Path targetDir)
             throws IOException, InterruptedException {
+        return download(track, targetDir, new RequestCancellation(), ignored -> { });
+    }
+
+    Path download(OnlineTrackInfo track, Path targetDir, RequestCancellation cancellation,
+                  java.util.function.Consumer<DownloadEvent> progress) throws IOException, InterruptedException {
+        try (var scope = session.cancellationScope(cancellation)) {
+            cancellation.check();
+            return downloadInternal(track, targetDir, progress);
+        }
+    }
+
+    <T> T withinCancellation(RequestCancellation cancellation, java.util.function.Supplier<T> work) {
+        try (var scope = session.cancellationScope(cancellation)) { cancellation.check(); return work.get(); }
+    }
+
+    private Path downloadInternal(OnlineTrackInfo track, Path targetDir,
+            java.util.function.Consumer<DownloadEvent> progress) throws IOException, InterruptedException {
         if (track == null || track.source() == null) {
             throw new IOException("invalid track info");
         }
@@ -137,12 +204,13 @@ public final class MusicCrawler implements AutoCloseable {
 
         for (int round = 0; round < 2; round++) {
             for (OnlineTrackInfo candidate : candidates) {
+                session.checkCancellation();
                 String key = downloadKey(candidate);
                 if (failedDownloadKeys.contains(key)) {
                     continue;
                 }
                 try {
-                    return tryDownloadCandidate(candidate, targetDir);
+                    return tryDownloadCandidate(candidate, targetDir, progress);
                 } catch (IOException exception) {
                     failedDownloadKeys.add(key);
                     lastError = exception;
@@ -165,8 +233,11 @@ public final class MusicCrawler implements AutoCloseable {
         return session.fetch(url, referer);
     }
 
-    private Path tryDownloadCandidate(OnlineTrackInfo track, Path targetDir)
+    private Path tryDownloadCandidate(OnlineTrackInfo track, Path targetDir,
+            java.util.function.Consumer<DownloadEvent> progress)
             throws IOException, InterruptedException {
+        progress.accept(DownloadEvent.of(DownloadEvent.Stage.RESOLVING));
+        session.checkCancellation();
         String url = resolveDownloadUrl(track);
         if (url == null || url.isBlank()) {
             throw new IOException(track.source() + ": cannot resolve URL");
@@ -176,15 +247,18 @@ public final class MusicCrawler implements AutoCloseable {
         String artist = track.artist() == null ? "Unknown" : track.artist();
         Path temporary = Files.createTempFile(targetDir, ".za-download-", ".part");
         try {
-            boolean ready = curlAvailable() && downloadViaCurl(url, temporary, track.source())
+            boolean ready = curlAvailable() && downloadViaCurl(url, temporary, track.source(), progress)
                     && validateFile(temporary);
-            if (!ready) downloadViaJava(url, temporary, track.source());
+            session.checkCancellation();
+            if (!ready) downloadViaJava(url, temporary, track.source(), progress);
+            progress.accept(new DownloadEvent(DownloadEvent.Stage.VALIDATING, Files.size(temporary), java.util.OptionalLong.empty()));
             if (!validateFile(temporary)) throw new IOException(track.source() + ": unusable file");
             extension = DownloadFiles.detectedExtension(temporary, extension);
             if (Boolean.getBoolean("musicplayer.desktop")
                     && (extension.equals(".flac") || extension.equals(".ogg") || extension.equals(".aac"))) {
                 throw new IOException("桌面播放器不支持此来源的音频编码，将尝试其他来源");
             }
+            session.checkCancellation();
             return DownloadFiles.publish(temporary, targetDir, sanitize(artist + " - " + track.title()), extension);
         } finally {
             Files.deleteIfExists(temporary);
@@ -236,20 +310,6 @@ public final class MusicCrawler implements AutoCloseable {
         return unique;
     }
 
-    private OnlineTrackInfo annotateAvailability(OnlineTrackInfo track) {
-        OnlineSourceProvider provider = providerFor(track);
-        if (provider == null) {
-            return track.withAvailability(false, "未知来源");
-        }
-        String url = resolveCached(provider, track);
-        if (url == null || url.isBlank()) {
-            return track.withAvailability(false, provider.unavailableText());
-        }
-        return provider.isTentativeUrl(url)
-                ? track.withAvailability(false, "可尝试下载")
-                : track.withAvailability(true, "可下载");
-    }
-
     /** 解析结果按 source|id 缓存：直链带签名有时效，避免搜索阶段重复请求触发风控。 */
     private String resolveCached(OnlineSourceProvider provider, OnlineTrackInfo track) {
         String key = downloadKey(track);
@@ -261,8 +321,12 @@ public final class MusicCrawler implements AutoCloseable {
         String url;
         try {
             url = provider.resolve(track);
+            session.checkCancellation();
             recordSuccess(provider.sourceName());
+        } catch (CancellationException cancelled) {
+            throw cancelled;
         } catch (Exception exception) {
+            session.checkCancellation();
             recordFailure(provider.sourceName());
             System.out.println("[crawler][" + provider.sourceName() + "] resolve err: "
                     + exception.getMessage());
@@ -318,7 +382,8 @@ public final class MusicCrawler implements AutoCloseable {
         return provider == null ? "https://music.163.com/" : provider.referer();
     }
 
-    private boolean downloadViaCurl(String url, Path target, String source) {
+    private boolean downloadViaCurl(String url, Path target, String source,
+            java.util.function.Consumer<DownloadEvent> progress) throws InterruptedException {
         try {
             List<String> command = new ArrayList<>(List.of(
                     curlPath.toString(), "-L", "-f", "--silent", "--show-error",
@@ -342,18 +407,31 @@ public final class MusicCrawler implements AutoCloseable {
             Process process = new ProcessBuilder(command)
                     .redirectErrorStream(true)
                     .start();
-            try {
-                return process.waitFor(65, TimeUnit.SECONDS) && process.exitValue() == 0;
+            try (var detach = session.onCancellation(process::destroyForcibly)) {
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(65);
+                while (!process.waitFor(100, TimeUnit.MILLISECONDS)) {
+                    session.checkCancellation();
+                    progress.accept(new DownloadEvent(DownloadEvent.Stage.TRANSFERRING, Files.size(target), java.util.OptionalLong.empty()));
+                    if (System.nanoTime() >= deadline) return false;
+                }
+                progress.accept(new DownloadEvent(DownloadEvent.Stage.TRANSFERRING, Files.size(target), java.util.OptionalLong.empty()));
+                return process.exitValue() == 0;
             } finally {
                 if (process.isAlive()) process.destroyForcibly();
             }
+        } catch (InterruptedException cancelled) {
+            Thread.currentThread().interrupt();
+            throw cancelled;
+        } catch (CancellationException cancelled) {
+            throw cancelled;
         } catch (Exception exception) {
             System.out.println("[crawler] curl err: " + exception.getMessage());
             return false;
         }
     }
 
-    private void downloadViaJava(String url, Path target, String source)
+    private void downloadViaJava(String url, Path target, String source,
+            java.util.function.Consumer<DownloadEvent> progress)
             throws IOException, InterruptedException {
         try (CrawlerSession.DownloadResponse response = session.download(url, refererFor(source));
              InputStream input = response.body();
@@ -363,6 +441,9 @@ public final class MusicCrawler implements AutoCloseable {
                 throw new IOException("HTTP " + response.statusCode());
             }
             String contentType = response.firstHeader("Content-Type").toLowerCase(Locale.ROOT);
+            java.util.OptionalLong total = contentLength(response.firstHeader("Content-Length"));
+            long prefixLength = 0;
+            progress.accept(new DownloadEvent(DownloadEvent.Stage.TRANSFERRING, 0, total));
             if (contentType.contains("text/html")) {
                 byte[] firstBytes = readPrefix(input, 512);
                 String text = new String(firstBytes, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
@@ -370,8 +451,9 @@ public final class MusicCrawler implements AutoCloseable {
                     throw new IOException("server returned HTML");
                 }
                 output.write(firstBytes);
+                prefixLength = firstBytes.length;
             }
-            copy(input, output);
+            copy(input, output, progress, total, prefixLength);
             output.flush();
             String expected = response.firstHeader("Content-Length");
             if (!expected.isBlank()) {
@@ -382,6 +464,14 @@ public final class MusicCrawler implements AutoCloseable {
         }
     }
 
+    private static java.util.OptionalLong contentLength(String value) throws IOException {
+        if (value.isBlank()) return java.util.OptionalLong.empty();
+        try {
+            long length = Long.parseLong(value);
+            return length > 0 ? java.util.OptionalLong.of(length) : java.util.OptionalLong.empty();
+        } catch (NumberFormatException invalid) { throw new IOException("无效文件长度", invalid); }
+    }
+
     private static Map<String, OnlineSourceProvider> indexProviders(List<OnlineSourceProvider> providers) {
         Map<String, OnlineSourceProvider> result = new HashMap<>();
         for (OnlineSourceProvider provider : providers) {
@@ -390,16 +480,8 @@ public final class MusicCrawler implements AutoCloseable {
         return Map.copyOf(result);
     }
 
-    private static int availabilityPriority(OnlineTrackInfo track) {
-        if (track.downloadable()) {
-            return 0;
-        }
-        return "可尝试下载".equals(track.availabilityText()) ? 1 : 2;
-    }
-
     static String downloadKey(OnlineTrackInfo track) {
-        return (track.source() == null ? "" : track.source())
-                + "|" + (track.primaryId() == null ? "" : track.primaryId());
+        return track.identity();
     }
 
     private static boolean sameOnlineTrack(OnlineTrackInfo first, OnlineTrackInfo second) {
@@ -491,24 +573,8 @@ public final class MusicCrawler implements AutoCloseable {
         return character >= '\u4e00' && character <= '\u9fff';
     }
 
-    private static Path uniqueTarget(Path targetDir, String name, String extension) {
-        Path target = targetDir.resolve(name + extension);
-        int counter = 2;
-        while (Files.exists(target)) {
-            target = targetDir.resolve(name + " (" + counter++ + ")" + extension);
-        }
-        return target;
-    }
-
     private static String sanitize(String name) {
         return name.replaceAll("[\\\\/:*?\"<>|]", "_").replaceAll("\\s+", " ").trim();
-    }
-
-    private static void safeDelete(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException ignored) {
-        }
     }
 
     private static boolean validateFile(Path path) {
@@ -578,12 +644,15 @@ public final class MusicCrawler implements AutoCloseable {
         return output.toByteArray();
     }
 
-    private static void copy(InputStream input, OutputStream output) throws IOException {
+    private static void copy(InputStream input, OutputStream output,
+            java.util.function.Consumer<DownloadEvent> progress, java.util.OptionalLong total, long transferred) throws IOException {
         byte[] buffer = new byte[16_384];
         int length;
         while ((length = input.read(buffer)) >= 0) {
             if (Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException("下载已取消");
             output.write(buffer, 0, length);
+            transferred += length;
+            progress.accept(new DownloadEvent(DownloadEvent.Stage.TRANSFERRING, transferred, total));
         }
     }
 

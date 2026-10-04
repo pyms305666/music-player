@@ -68,6 +68,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import app.musicplayer.android.data.AndroidMusicDatabase;
 import app.musicplayer.android.data.TrackEntry;
 import app.musicplayer.android.ui.OnlineTrackAdapter;
+import app.musicplayer.android.ui.AndroidOnlineTasks;
 import app.musicplayer.android.ui.TrackAdapter;
 import app.musicplayer.android.ui.LocalTrackList;
 import app.musicplayer.android.ui.VerticalVolumeView;
@@ -126,6 +127,7 @@ public final class MainActivity extends AppCompatActivity {
     private TrackAdapter trackAdapter;
     private LocalTrackList localTrackList;
     private OnlineTrackAdapter onlineAdapter;
+    private AndroidOnlineTasks onlineTasks;
     private TrackEntry currentTrack;
     private Lyrics currentLyrics = Lyrics.empty("导入歌曲后开始播放");
     private PlayMode playMode = PlayMode.ORDER;
@@ -156,8 +158,6 @@ public final class MainActivity extends AppCompatActivity {
     private ImageButton refreshButton;
     private ObjectAnimator refreshSpin;
     private int lyricsRequestId;
-    private boolean downloadInProgress;
-    private int searchRequestId;
     private int previewRequestId;
     private int playbackRequestId;
     private Button removeButton;
@@ -265,8 +265,11 @@ public final class MainActivity extends AppCompatActivity {
 
         RecyclerView onlineResults = findViewById(R.id.onlineResults);
         onlineResults.setLayoutManager(new LinearLayoutManager(this));
-        onlineAdapter = new OnlineTrackAdapter(this::previewOnlineTrack);
+        onlineAdapter = new OnlineTrackAdapter(info -> { onlineTasks.selectionChanged(); previewOnlineTrack(info); });
         onlineResults.setAdapter(onlineAdapter);
+        onlineTasks = new AndroidOnlineTasks(onlineService, this::runOnUiThread,
+                new AndroidOnlineTasks.Controls(onlineSearch, findViewById(R.id.onlineSearchButton),
+                        findViewById(R.id.downloadButton), onlineAdapter), this::showStatus, () -> previewRequestId++);
 
         ArrayAdapter<PlaylistSort> sortAdapter = new ArrayAdapter<>(this, R.layout.item_spinner, PlaylistSort.values());
         sortAdapter.setDropDownViewResource(R.layout.item_spinner_dropdown);
@@ -290,7 +293,7 @@ public final class MainActivity extends AppCompatActivity {
         });
         findViewById(R.id.importButton).setOnClickListener(view -> importLauncher.launch(new String[]{"audio/*"}));
         removeButton.setOnClickListener(view -> confirmSelectedTrackRemoval());
-        findViewById(R.id.onlineSearchButton).setOnClickListener(view -> searchOnline());
+        findViewById(R.id.onlineSearchButton).setOnClickListener(view -> onlineTasks.toggleSearch());
         findViewById(R.id.downloadButton).setOnClickListener(view -> downloadSelectedOnlineTrack());
         playButton.setOnClickListener(view -> togglePlayback());
         findViewById(R.id.previousButton).setOnClickListener(view -> playRelative(-1));
@@ -738,21 +741,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void searchOnline() {
-        int request = ++searchRequestId;
-        previewRequestId++;
-        String query = onlineSearch.getText().toString().trim();
-        if (query.isBlank()) return;
-        showStatus("正在搜索：" + query);
-        onlineAdapter.submit(List.of());
-        onlineService.searchAsync(query).whenComplete((results, error) -> runOnUiThread(() -> {
-            if (isDestroyed() || request != searchRequestId) return;
-            if (error != null) {
-                showStatus("在线搜索失败：" + rootMessage(error));
-                return;
-            }
-            onlineAdapter.submit(results);
-            showStatus("找到 " + results.size() + " 个结果");
-        }));
+        onlineTasks.search();
     }
 
     private void previewOnlineTrack(OnlineTrackInfo info) {
@@ -763,7 +752,7 @@ public final class MainActivity extends AppCompatActivity {
         artistText.setText(info.artist());
         if (!TextUtils.isEmpty(info.artworkUrl())) loadArtwork(info.artworkUrl());
         else showArtworkPlaceholder();
-        onlineService.loadPreviewAsync(info).whenComplete((lookup, error) -> runOnUiThread(() -> {
+        onlineService.preview(info).result().whenComplete((lookup, error) -> runOnUiThread(() -> {
             if (isDestroyed() || request != previewRequestId) return;
             currentLyrics = lookup == null || error != null ? Lyrics.empty("在线结果暂无歌词") : lookup.lyrics();
             renderLyrics(-1);
@@ -771,6 +760,7 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void downloadSelectedOnlineTrack() {
+        if (onlineTasks.cancelSelectedDownload()) return;
         OnlineTrackInfo selected = onlineAdapter.selected();
         if (selected == null) {
             showStatus("请先选择在线歌曲");
@@ -793,34 +783,24 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private void beginOnlineDownload(OnlineTrackInfo selected, boolean useRootDirectory) {
-        if (downloadInProgress) { showStatus("请等待当前下载完成"); return; }
-        downloadInProgress = true;
         int request = ++playbackRequestId;
-        showStatus("正在下载：" + selected.title());
-        onlineService.downloadAsync(selected, onlineTempDir.toPath())
-                .thenApplyAsync(path -> {
+        onlineTasks.download(selected, onlineTempDir.toPath().resolve(useRootDirectory ? "public" : "media"),
+                path -> CompletableFuture.supplyAsync(() -> {
                     try {
                         TrackEntry entry = publishDownloadedTrack(path.toFile(), selected, useRootDirectory);
                         database.saveTrack(entry);
                         return entry;
                     } catch (IOException error) {
                         throw new CompletionException(error);
+                    } finally {
+                        try { Files.deleteIfExists(path); } catch (IOException ignored) { }
                     }
-                }, libraryExecutor)
-                .whenComplete((entry, error) -> runOnUiThread(() -> {
-            downloadInProgress = false;
-            if (isDestroyed()) return;
-            if (error != null || entry == null) {
-                showStatus("下载失败：" + rootMessage(error));
-                return;
-            }
-            reloadTracks(() -> {
+                }, libraryExecutor), entry -> reloadTracks(() -> {
                 if (request == playbackRequestId) {
                     playTrack(entry);
                     showStatus("下载完成并开始播放");
                 } else showStatus("下载完成，已加入曲库");
-            });
-        }));
+            }));
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -1216,6 +1196,7 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (onlineTasks != null) onlineTasks.close();
         if (localTrackList != null) localTrackList.close();
         progressHandler.removeCallbacksAndMessages(null);
         if (controllerFuture != null) MediaController.releaseFuture(controllerFuture);

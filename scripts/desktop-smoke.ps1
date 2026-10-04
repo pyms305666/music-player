@@ -6,7 +6,7 @@ if (-not $jdk) { throw 'JAVA_HOME must point to JDK 25' }
 $work = Join-Path $root ('.tools/smoke-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
 $libs = Join-Path $root 'build/install/simple-music-player/lib/*'
-& (Join-Path $jdk 'bin/javac.exe') -cp $libs -d $work (Join-Path $PSScriptRoot 'DesktopSmoke.java')
+& (Join-Path $jdk 'bin/javac.exe') -cp $libs -d $work (Join-Path $PSScriptRoot 'DesktopSmoke.java') (Join-Path $PSScriptRoot 'OnlineSmokeFixtures.java')
 if ($LASTEXITCODE) { throw 'Smoke harness compilation failed' }
 $qaPreferences = '/app/musicplayer/qa/' + (Split-Path -Leaf $work)
 & (Join-Path $jdk 'bin/java.exe') '--enable-native-access=ALL-UNNAMED' "-Dmusicplayer.data-dir=$work/data" "-Dmusicplayer.preferences-node=$qaPreferences" -cp "$libs;$work" DesktopSmoke
