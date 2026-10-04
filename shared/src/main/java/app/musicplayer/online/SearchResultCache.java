@@ -14,7 +14,22 @@ final class SearchResultCache {
     private final LongSupplier clock;
     SearchResultCache(LongSupplier clock) { this.clock = clock; }
     static String key(String query) {
-        return query == null ? "" : query.strip().replaceAll("(?U)\\s+", " ").toLowerCase(Locale.ROOT);
+        if (query == null) return "";
+        StringBuilder normalized = new StringBuilder(query.length());
+        boolean space = false;
+        for (int offset = 0; offset < query.length();) {
+            int codePoint = query.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            // Android uses ICU regex and does not support Java's (?U) flag.
+            if (Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint) || codePoint == 0x85) {
+                space = normalized.length() > 0;
+            } else {
+                if (space) normalized.append(' ');
+                normalized.appendCodePoint(codePoint);
+                space = false;
+            }
+        }
+        return normalized.toString().toLowerCase(Locale.ROOT);
     }
     synchronized OnlineSearchSnapshot get(String query) {
         purge();

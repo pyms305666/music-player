@@ -92,6 +92,7 @@ def exercise(args):
         instrument("PlaybackServiceTest")
         instrument("OnlineTrackAdapterTest")
         instrument("app.musicplayer.online.AndroidOnlineTasksTest")
+        instrument("app.musicplayer.online.AndroidTransportTest")
         command("shell", "am", "force-stop", "app.musicplayer.android")
         # Validate again after playing, then carry the original snapshot into the next upgrade.
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
@@ -119,6 +120,7 @@ def exercise(args):
         instrument("PlaybackServiceTest")
         instrument("OnlineTrackAdapterTest")
         instrument("app.musicplayer.online.AndroidOnlineTasksTest")
+        instrument("app.musicplayer.online.AndroidTransportTest")
         instrument("SigningMigrationTest#removeTemporarySnapshot", "cleanup")
         command("uninstall", "app.musicplayer.android.test")
         print("CLEAN INSTALL CHECKS PASSED:", serial)

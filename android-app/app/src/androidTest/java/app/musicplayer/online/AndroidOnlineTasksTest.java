@@ -102,7 +102,8 @@ public class AndroidOnlineTasksTest {
             main(() -> {
                 var themed = new androidx.appcompat.view.ContextThemeWrapper(context, R.style.Theme_SimpleMusicPlayer);
                 View layout = LayoutInflater.from(themed).inflate(R.layout.activity_main, null);
-                query.set(layout.findViewById(R.id.onlineSearch)); query.get().setText("夜曲");
+                query.set(layout.findViewById(R.id.onlineSearch)); query.get().setText("\u00a0 ARTIST　夜曲\u0085 ");
+                assertEquals("artist 夜曲", SearchResultCache.key(query.get().getText().toString()));
                 search.set(layout.findViewById(R.id.onlineSearchButton)); download.set(layout.findViewById(R.id.downloadButton));
                 adapter.set(new OnlineTrackAdapter(info -> tasks.get().selectionChanged()));
                 recycler.set(layout.findViewById(R.id.onlineResults)); recycler.get().setLayoutManager(new LinearLayoutManager(context));

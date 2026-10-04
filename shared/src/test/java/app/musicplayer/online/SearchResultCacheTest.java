@@ -6,6 +6,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SearchResultCacheTest {
+    @Test void normalizesUnicodeWhitespaceWithoutPlatformSpecificRegexFlags() {
+        assertEquals("", SearchResultCache.key(null));
+        assertEquals("", SearchResultCache.key(" \t\n\u00a0\u0085\u3000"));
+        assertEquals("artist 夜曲", SearchResultCache.key("\u00a0 ARTIST\u3000\t夜曲\u0085 "));
+        assertEquals("歌手 夜曲", SearchResultCache.key("歌手\u2007\u202f夜曲"));
+        assertEquals("🎵music 𠀀", SearchResultCache.key(" 🎵MUSIC\n𠀀 "));
+    }
     private OnlineSearchSnapshot result(String query, OnlineSearchSnapshot.Outcome outcome) {
         return new OnlineSearchSnapshot(query, List.of(), List.of(new OnlineSearchSnapshot.Source("source", outcome)),
                 outcome == OnlineSearchSnapshot.Outcome.COMPLETE ? OnlineSearchSnapshot.State.EMPTY : OnlineSearchSnapshot.State.FAILED, false);
