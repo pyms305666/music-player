@@ -29,6 +29,8 @@ import static org.junit.Assert.*;
 
 /** Uses disposable cache audio only. Never resets or imports into the personal library. */
 @RunWith(AndroidJUnit4.class)
+// Cover a cold paused notification before this suite starts any playback.
+@FixMethodOrder(org.junit.runners.MethodSorters.NAME_ASCENDING)
 public class PlaybackServiceTest {
     private MainActivity activity;
     private MediaController controller;
@@ -262,13 +264,29 @@ public class PlaybackServiceTest {
     }
 
     @Test public void clearedQueueNotificationCannotDismissRestartedPlayback() throws Exception {
+        var pausedFirst = audio("paused-notify-first", 20);
+        var pausedSecond = audio("paused-notify-second", 20);
+        main(() -> {
+            controller.stop(); controller.setPlayWhenReady(false);
+            controller.clearMediaItems(); controller.setMediaItem(pausedFirst); controller.prepare();
+        });
+        var pausedNotification = awaitMediaNotification(-1);
+        assertEquals("Paused fixture must exercise the notification outside foreground service", 0,
+                pausedNotification.getNotification().flags & android.app.Notification.FLAG_FOREGROUND_SERVICE);
+        // Intentionally give Media3 a chance to coalesce the intermediate empty queue.
+        main(() -> { controller.clearMediaItems(); controller.setMediaItem(pausedSecond); controller.prepare(); });
+        awaitMediaNotification(pausedNotification.getId());
+        main(() -> {
+            assertFalse(controller.isPlaying());
+            assertEquals("paused-notify-second", controller.getCurrentMediaItem().mediaId);
+            controller.clearMediaItems();
+        });
+        awaitNoMediaNotifications();
+
         start(List.of(audio("notify-first", 20)), Player.REPEAT_MODE_ALL);
         android.service.notification.StatusBarNotification oldNotification = awaitMediaNotification(-1);
         main(() -> { controller.stop(); controller.clearMediaItems(); });
-        long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
-        while (!mediaNotifications().isEmpty() && android.os.SystemClock.elapsedRealtime() < deadline)
-            Thread.sleep(50);
-        assertTrue("Cleared queue retained a media notification", mediaNotifications().isEmpty());
+        awaitNoMediaNotifications();
 
         start(List.of(audio("notify-second", 20)), Player.REPEAT_MODE_ALL);
         var current = awaitMediaNotification(oldNotification.getId());
@@ -287,7 +305,7 @@ public class PlaybackServiceTest {
         // A dismissal of the current notification must still stop playback normally.
         assertNotNull(current.getNotification().deleteIntent);
         current.getNotification().deleteIntent.send();
-        deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
+        long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
         boolean stopped = false;
         while (android.os.SystemClock.elapsedRealtime() < deadline) {
             AtomicReference<Boolean> value = new AtomicReference<>(false);
@@ -296,6 +314,13 @@ public class PlaybackServiceTest {
             Thread.sleep(50);
         }
         assertTrue("Current notification dismissal did not stop playback; " + playbackDiagnostics(), stopped);
+    }
+
+    private void awaitNoMediaNotifications() throws Exception {
+        long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
+        while (!mediaNotifications().isEmpty() && android.os.SystemClock.elapsedRealtime() < deadline)
+            Thread.sleep(50);
+        assertTrue("Cleared queue retained a media notification", mediaNotifications().isEmpty());
     }
 
     private List<android.service.notification.StatusBarNotification> mediaNotifications() {

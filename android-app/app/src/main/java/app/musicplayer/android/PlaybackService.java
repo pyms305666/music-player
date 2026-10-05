@@ -37,6 +37,9 @@ public final class PlaybackService extends MediaSessionService {
                     // Android 13 SystemUI may process an old removal after a new notification
                     // has appeared. Give each new nonempty queue lifecycle a different key.
                     if (notificationCycleEnded && mediaSession.getPlayer().getMediaItemCount() > 0) {
+                        // A paused notification may never have belonged to a foreground
+                        // service, so changing startForeground's ID cannot remove it.
+                        getSystemService(android.app.NotificationManager.class).cancel(notificationId);
                         notificationId = notificationId == Integer.MAX_VALUE ? 1 : notificationId + 1;
                         notificationCycleEnded = false;
                     }
