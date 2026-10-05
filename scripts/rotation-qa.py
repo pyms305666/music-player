@@ -94,7 +94,7 @@ def exercise(args):
                 logs = command("logcat", "-d", "-v", "threadtime", "ExoPlayerImpl:V",
                                "MediaSessionService:V", "AudioTrack:V", "AudioManager:V",
                                "MSessionService:V", "MNotificationManager:V", "MSessionImpl:V",
-                               "ExoPlayerImplInternal:V", "ActivityManager:I", "ZaPlaybackTrace:V",
+                               "ExoPlayerImplInternal:V", "ActivityManager:I",
                                "NotificationService:V", "NotificationMediaManager:V", "MediaDataManager:V",
                                "MediaSessionBasedFilter:V", "NotifCollection:V",
                                "TestRunner:V", "AndroidRuntime:E", "*:S")

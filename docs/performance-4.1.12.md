@@ -108,3 +108,14 @@ API 28/31/32/33 签名升级矩阵增加新导入、歌词与文件组件测试�
 真机首次暴露测试 APK 中的模拟 ContentProvider 未启动/不可发现，导致目标应用读取失败，不能将这次失败记为通过。修复仅在测试边界：API 30+ 将测试 APK 以 --force-queryable 安装并重新启动目标进程，实际 provider 测试通过 UiAutomation 激活自有合成 URI 后再调用原生产导入路径。生产包没有添加测试 provider 或查询权限。正式签名测试 APK 会在最终验证后卸载，保留主应用；数据库备份不进入源码或 Release。
 
 独立 check-work 重新执行桌面 42 项（Windows 41 通过、1 跳过）、共享 Java 17/25 各 93 项、Android 构建/lint（0 错误、26 警告）、桌面真实播放与歌词拖动烟测及 PowerShell 5.1/7 发布状态夹具。正式发布继续强制对应源码提交的全部 CI、干净构建记录、APK 二进制签名/版本/包名/关闭调试校验，以及最终附件真机回归和数据保留检查；CI URL、源码提交与附件散列以 Release build-info.json 为准。
+
+
+## 发布前发现的 Android 13 通知竞态
+
+API 33 升级矩阵在页面销毁和息屏回归中真实失败，原失败没有计为通过，也没有通过反复重跑绕过。临时诊断证实：播放器已进入 READY 并开始推进，随后收到携带 Media3 通知删除标记的 MEDIA_BUTTON / STOP，进入 IDLE，队列仍在，没有播放错误。原失败提交及诊断记录保留在 Actions 中。
+
+Android 13 SystemUI 的媒体通知删除处理异步跨线程，并可能按相同通知 key 查找当前通知后将其撤销；这是旧通知事件影响新通知的可行路径，原始日志没有完整记录 SystemUI 内部事件来源，不能声称已经逐步观测到该系统路径。参考 [AOSP NotificationMediaManager](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-13.0.0_r1/packages/SystemUI/src/com/android/systemui/statusbar/NotificationMediaManager.java) 和 [MediaSessionBasedFilter](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-13.0.0_r1/packages/SystemUI/src/com/android/systemui/media/MediaSessionBasedFilter.kt)。
+
+修复在队列清空后为下一次非空队列分配不同通知 ID，并先撤销旧 ID；同一队列的切歌、暂停和元数据更新仍使用稳定 ID。默认 Media3 样式、前台服务管理和当前通知删除触发 STOP 均保留。新增第 7 项播放测试：冷启动的非前台暂停通知在同一主线程回调内清空并重建队列，只留下一个新通知；旧 ID 撤销不停止新播放，当前通知的 deleteIntent 仍停止播放。最终真机功能集合由 24 项扩为 25 项，必须对最终 APK 全部通过，并再次核对个人数据。临时 ForwardingPlayer 与生命周期诊断日志在发布源码中移除。
+
+上述三对性能数据针对缓存、歌词和导入实现；补充通知修复后没有重新采集这组性能数据。最终提交的全部 CI、正式附件散列与验证来源统一见 Release build-info.json；发布脚本仍拒绝任一门禁未完成的提交。
