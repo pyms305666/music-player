@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -36,8 +35,6 @@ import java.util.concurrent.TimeUnit;
  */
 public final class MusicCrawler implements AutoCloseable {
     private static final int SEARCH_TIMEOUT_SECONDS = 10;
-    private static final long RESOLVE_CACHE_TTL_MS = 4 * 60 * 1000;
-    private static final long FAILED_RESOLVE_TTL_MS = 45 * 1000;
     /** 连续失败达到 3 次后按此序列熔断，成功后复位。 */
     private static final long[] SUSPEND_DELAYS_MS = {60_000, 5 * 60_000, 15 * 60_000};
 
@@ -59,12 +56,13 @@ public final class MusicCrawler implements AutoCloseable {
         this.searchBudgetNanos = TimeUnit.MILLISECONDS.toNanos(budgetMillis);
     }
 
-    private final ExecutorService searchExecutor = Executors.newFixedThreadPool(5, runnable -> {
+    private final java.util.concurrent.ScheduledExecutorService searchExecutor = Executors.newScheduledThreadPool(5, runnable -> {
         Thread thread = new Thread(runnable, "crawler-search");
         thread.setDaemon(true);
         return thread;
     });
-    private final Map<String, CachedResolution> resolutionCache = new ConcurrentHashMap<>();
+    private final ResolutionCache resolutionCache = new ResolutionCache(System::nanoTime);
+    private final java.util.concurrent.atomic.AtomicBoolean resolutionMaintenanceStarted = new java.util.concurrent.atomic.AtomicBoolean();
     private final Map<String, ProviderHealth> healthBySource = new ConcurrentHashMap<>();
     private static Path curlPath;
     private static boolean curlChecked;
@@ -313,9 +311,8 @@ public final class MusicCrawler implements AutoCloseable {
     /** 解析结果按 source|id 缓存：直链带签名有时效，避免搜索阶段重复请求触发风控。 */
     private String resolveCached(OnlineSourceProvider provider, OnlineTrackInfo track) {
         String key = downloadKey(track);
-        long now = System.currentTimeMillis();
-        CachedResolution cached = resolutionCache.get(key);
-        if (cached != null && cached.expiresAt() > now) {
+        ResolutionCache.Result cached = resolutionCache.get(key);
+        if (cached != null) {
             return cached.url();
         }
         String url;
@@ -332,8 +329,12 @@ public final class MusicCrawler implements AutoCloseable {
                     + exception.getMessage());
             url = null;
         }
-        long ttl = url == null || url.isBlank() ? FAILED_RESOLVE_TTL_MS : RESOLVE_CACHE_TTL_MS;
-        resolutionCache.put(key, new CachedResolution(url, now + ttl));
+        resolutionCache.put(key, url);
+        if (resolutionMaintenanceStarted.compareAndSet(false, true)) {
+            // Reuse the owned source pool, without creating another maintenance thread.
+            try { searchExecutor.scheduleWithFixedDelay(resolutionCache::purge, 1, 1, TimeUnit.MINUTES); }
+            catch (java.util.concurrent.RejectedExecutionException closing) { resolutionCache.close(); }
+        }
         return url;
     }
 
@@ -659,11 +660,9 @@ public final class MusicCrawler implements AutoCloseable {
     @Override public void close() {
         searchExecutor.shutdownNow();
         session.close();
-        resolutionCache.clear();
+        resolutionCache.close();
     }
 
-    private record CachedResolution(String url, long expiresAt) {
-    }
 
     private static final class ProviderHealth {
         private volatile int consecutiveFailures;

@@ -11,6 +11,7 @@ import java.util.List;
  * rawText: 原始歌词文本，用于写入数据库缓存，避免保存后丢失时间标签。
  */
 public record Lyrics(String source, List<LyricLine> lines, boolean timed, String rawText) {
+    public Lyrics { lines = List.copyOf(lines); }
     public static Lyrics empty(String message) {
         return new Lyrics(message, List.of(new LyricLine(null, message)), false, message);
     }

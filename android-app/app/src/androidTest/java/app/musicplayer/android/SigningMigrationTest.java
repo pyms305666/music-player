@@ -93,6 +93,16 @@ public class SigningMigrationTest {
         Assume.assumeTrue(argument("migrationPhase").equals("record"));
         if (argument("seedFixture").equals("true")) seed();
         Files.write(snapshot().toPath(), state().toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        if (argument("backupDatabase").equals("true")) {
+            // Explicit local-phone opt-in; never export the backup as a CI artifact.
+            assertTrue("VACUUM INTO backup requires Android 11+", Build.VERSION.SDK_INT >= 30);
+            File backup = new File(context().getExternalFilesDir(null), "qa-upgrade-database-backup.db");
+            assertTrue(!backup.exists() || backup.delete());
+            try (AndroidMusicDatabase helper = new AndroidMusicDatabase(context())) {
+                helper.getReadableDatabase().execSQL("VACUUM INTO ?", new Object[]{backup.getAbsolutePath()});
+            }
+            assertTrue(backup.isFile());
+        }
     }
     @Test public void verifyAfterUpgrade() throws Exception {
         Assume.assumeTrue(argument("migrationPhase").equals("verify"));
@@ -113,5 +123,7 @@ public class SigningMigrationTest {
     @Test public void removeTemporarySnapshot() {
         Assume.assumeTrue(argument("migrationPhase").equals("cleanup"));
         assertTrue(!snapshot().exists() || snapshot().delete());
+        File backup = new File(context().getExternalFilesDir(null), "qa-upgrade-database-backup.db");
+        assertTrue(!backup.exists() || backup.delete());
     }
 }

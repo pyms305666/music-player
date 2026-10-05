@@ -1,0 +1,454 @@
+{
+  "baselineCommit": "9bb36411b0ebe061a4b82cbbbd50d557e68b24cd",
+  "jdk": "25.0.2",
+  "library": {
+    "before": [
+      {
+        "tracks": 100,
+        "batch": 1,
+        "startupMs": 4.805,
+        "queryMs": 0.0052,
+        "peakHeapBytes": 7029608,
+        "stableHeapBytes": 3999672
+      },
+      {
+        "tracks": 100,
+        "batch": 2,
+        "startupMs": 9.556,
+        "queryMs": 0.0035,
+        "peakHeapBytes": 6022120,
+        "stableHeapBytes": 4001672
+      },
+      {
+        "tracks": 100,
+        "batch": 3,
+        "startupMs": 5.384,
+        "queryMs": 0.0067,
+        "peakHeapBytes": 4973592,
+        "stableHeapBytes": 4001672
+      },
+      {
+        "tracks": 1000,
+        "batch": 1,
+        "startupMs": 20.069,
+        "queryMs": 0.0202,
+        "peakHeapBytes": 19660080,
+        "stableHeapBytes": 4706680
+      },
+      {
+        "tracks": 1000,
+        "batch": 2,
+        "startupMs": 21.597,
+        "queryMs": 0.0224,
+        "peakHeapBytes": 19660224,
+        "stableHeapBytes": 4708768
+      },
+      {
+        "tracks": 1000,
+        "batch": 3,
+        "startupMs": 20.833,
+        "queryMs": 0.0199,
+        "peakHeapBytes": 19662312,
+        "stableHeapBytes": 4708768
+      },
+      {
+        "tracks": 10000,
+        "batch": 1,
+        "startupMs": 267.904,
+        "queryMs": 0.3656,
+        "peakHeapBytes": 71840904,
+        "stableHeapBytes": 11805800
+      },
+      {
+        "tracks": 10000,
+        "batch": 2,
+        "startupMs": 263.238,
+        "queryMs": 0.3484,
+        "peakHeapBytes": 57829560,
+        "stableHeapBytes": 11805944
+      },
+      {
+        "tracks": 10000,
+        "batch": 3,
+        "startupMs": 259.66,
+        "queryMs": 0.3657,
+        "peakHeapBytes": 95782952,
+        "stableHeapBytes": 11848336
+      }
+    ],
+    "after": [
+      {
+        "tracks": 100,
+        "batch": 1,
+        "startupMs": 5.704,
+        "queryMs": 0.0045,
+        "peakHeapBytes": 5980000,
+        "stableHeapBytes": 3997752
+      },
+      {
+        "tracks": 100,
+        "batch": 2,
+        "startupMs": 4.662,
+        "queryMs": 0.004,
+        "peakHeapBytes": 6020200,
+        "stableHeapBytes": 3999752
+      },
+      {
+        "tracks": 100,
+        "batch": 3,
+        "startupMs": 4.125,
+        "queryMs": 0.0027,
+        "peakHeapBytes": 4971672,
+        "stableHeapBytes": 3999752
+      },
+      {
+        "tracks": 1000,
+        "batch": 1,
+        "startupMs": 21.733,
+        "queryMs": 0.0147,
+        "peakHeapBytes": 19658632,
+        "stableHeapBytes": 4707000
+      },
+      {
+        "tracks": 1000,
+        "batch": 2,
+        "startupMs": 19.475,
+        "queryMs": 0.0213,
+        "peakHeapBytes": 19660544,
+        "stableHeapBytes": 4707320
+      },
+      {
+        "tracks": 1000,
+        "batch": 3,
+        "startupMs": 20.55,
+        "queryMs": 0.015,
+        "peakHeapBytes": 19660864,
+        "stableHeapBytes": 4707320
+      },
+      {
+        "tracks": 10000,
+        "batch": 1,
+        "startupMs": 270.246,
+        "queryMs": 0.3707,
+        "peakHeapBytes": 72141072,
+        "stableHeapBytes": 11803768
+      },
+      {
+        "tracks": 10000,
+        "batch": 2,
+        "startupMs": 265.549,
+        "queryMs": 0.3262,
+        "peakHeapBytes": 57461008,
+        "stableHeapBytes": 11803880
+      },
+      {
+        "tracks": 10000,
+        "batch": 3,
+        "startupMs": 240.412,
+        "queryMs": 0.3589,
+        "peakHeapBytes": 95140272,
+        "stableHeapBytes": 11827696
+      }
+    ]
+  },
+  "lyricsLookup": {
+    "before": [
+      {
+        "mode": "linear",
+        "lines": 100,
+        "batch": 1,
+        "lookupMs": 0.000144,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 3560552,
+        "stableHeapBytes": 2576296
+      },
+      {
+        "mode": "linear",
+        "lines": 100,
+        "batch": 2,
+        "lookupMs": 0.000127,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2725192,
+        "stableHeapBytes": 2725248
+      },
+      {
+        "mode": "linear",
+        "lines": 100,
+        "batch": 3,
+        "lookupMs": 0.000108,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2725192,
+        "stableHeapBytes": 2725248
+      },
+      {
+        "mode": "linear",
+        "lines": 1000,
+        "batch": 1,
+        "lookupMs": 0.00072,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2826888,
+        "stableHeapBytes": 2826944
+      },
+      {
+        "mode": "linear",
+        "lines": 1000,
+        "batch": 2,
+        "lookupMs": 0.00079,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2826888,
+        "stableHeapBytes": 2826944
+      },
+      {
+        "mode": "linear",
+        "lines": 1000,
+        "batch": 3,
+        "lookupMs": 0.000835,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2826888,
+        "stableHeapBytes": 2826944
+      },
+      {
+        "mode": "linear",
+        "lines": 10000,
+        "batch": 1,
+        "lookupMs": 0.008792,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 3850224,
+        "stableHeapBytes": 3850280
+      },
+      {
+        "mode": "linear",
+        "lines": 10000,
+        "batch": 2,
+        "lookupMs": 0.008492,
+        "allocatedBytes": 24,
+        "peakHeapBytes": 3850224,
+        "stableHeapBytes": 3850280
+      },
+      {
+        "mode": "linear",
+        "lines": 10000,
+        "batch": 3,
+        "lookupMs": 0.008257,
+        "allocatedBytes": 24,
+        "peakHeapBytes": 3850224,
+        "stableHeapBytes": 3850280
+      }
+    ],
+    "after": [
+      {
+        "mode": "timeline",
+        "lines": 100,
+        "batch": 1,
+        "lookupMs": 0.000149,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 3580416,
+        "stableHeapBytes": 2588152
+      },
+      {
+        "mode": "timeline",
+        "lines": 100,
+        "batch": 2,
+        "lookupMs": 9.5e-05,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2737224,
+        "stableHeapBytes": 2737280
+      },
+      {
+        "mode": "timeline",
+        "lines": 100,
+        "batch": 3,
+        "lookupMs": 9.3e-05,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2736712,
+        "stableHeapBytes": 2736768
+      },
+      {
+        "mode": "timeline",
+        "lines": 1000,
+        "batch": 1,
+        "lookupMs": 7.1e-05,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2849208,
+        "stableHeapBytes": 2849264
+      },
+      {
+        "mode": "timeline",
+        "lines": 1000,
+        "batch": 2,
+        "lookupMs": 8.7e-05,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2849208,
+        "stableHeapBytes": 2849264
+      },
+      {
+        "mode": "timeline",
+        "lines": 1000,
+        "batch": 3,
+        "lookupMs": 0.00012,
+        "allocatedBytes": 56,
+        "peakHeapBytes": 2849264,
+        "stableHeapBytes": 2849320
+      },
+      {
+        "mode": "timeline",
+        "lines": 10000,
+        "batch": 1,
+        "lookupMs": 4.8e-05,
+        "allocatedBytes": 104,
+        "peakHeapBytes": 3980544,
+        "stableHeapBytes": 3980648
+      },
+      {
+        "mode": "timeline",
+        "lines": 10000,
+        "batch": 2,
+        "lookupMs": 3e-05,
+        "allocatedBytes": 24,
+        "peakHeapBytes": 3980592,
+        "stableHeapBytes": 3980648
+      },
+      {
+        "mode": "timeline",
+        "lines": 10000,
+        "batch": 3,
+        "lookupMs": 2.2e-05,
+        "allocatedBytes": 24,
+        "peakHeapBytes": 3980592,
+        "stableHeapBytes": 3980648
+      }
+    ]
+  },
+  "applicationStartup": {
+    "before": [
+      {
+        "tracks": 100,
+        "batch": 1,
+        "applicationLibraryReadyMs": 1532.695,
+        "peakHeapBytes": 54577544,
+        "stableHeapBytes": 21579952
+      },
+      {
+        "tracks": 100,
+        "batch": 2,
+        "applicationLibraryReadyMs": 277.514,
+        "peakHeapBytes": 35826192,
+        "stableHeapBytes": 25630096
+      },
+      {
+        "tracks": 100,
+        "batch": 3,
+        "applicationLibraryReadyMs": 191.733,
+        "peakHeapBytes": 41790048,
+        "stableHeapBytes": 30536416
+      },
+      {
+        "tracks": 1000,
+        "batch": 1,
+        "applicationLibraryReadyMs": 1321.054,
+        "peakHeapBytes": 54546072,
+        "stableHeapBytes": 23208656
+      },
+      {
+        "tracks": 1000,
+        "batch": 2,
+        "applicationLibraryReadyMs": 263.74,
+        "peakHeapBytes": 42854144,
+        "stableHeapBytes": 27049344
+      },
+      {
+        "tracks": 1000,
+        "batch": 3,
+        "applicationLibraryReadyMs": 234.857,
+        "peakHeapBytes": 42965056,
+        "stableHeapBytes": 32714752
+      },
+      {
+        "tracks": 10000,
+        "batch": 1,
+        "applicationLibraryReadyMs": 2285.028,
+        "peakHeapBytes": 58700624,
+        "stableHeapBytes": 29215840
+      },
+      {
+        "tracks": 10000,
+        "batch": 2,
+        "applicationLibraryReadyMs": 534.396,
+        "peakHeapBytes": 62474224,
+        "stableHeapBytes": 41180872
+      },
+      {
+        "tracks": 10000,
+        "batch": 3,
+        "applicationLibraryReadyMs": 446.076,
+        "peakHeapBytes": 76931064,
+        "stableHeapBytes": 53871792
+      }
+    ],
+    "after": [
+      {
+        "tracks": 100,
+        "batch": 1,
+        "applicationLibraryReadyMs": 1356.16,
+        "peakHeapBytes": 54846920,
+        "stableHeapBytes": 21720912
+      },
+      {
+        "tracks": 100,
+        "batch": 2,
+        "applicationLibraryReadyMs": 180.607,
+        "peakHeapBytes": 36886784,
+        "stableHeapBytes": 25646584
+      },
+      {
+        "tracks": 100,
+        "batch": 3,
+        "applicationLibraryReadyMs": 199.485,
+        "peakHeapBytes": 40791976,
+        "stableHeapBytes": 30591096
+      },
+      {
+        "tracks": 1000,
+        "batch": 1,
+        "applicationLibraryReadyMs": 1338.069,
+        "peakHeapBytes": 54716464,
+        "stableHeapBytes": 22281808
+      },
+      {
+        "tracks": 1000,
+        "batch": 2,
+        "applicationLibraryReadyMs": 319.088,
+        "peakHeapBytes": 42775392,
+        "stableHeapBytes": 26974024
+      },
+      {
+        "tracks": 1000,
+        "batch": 3,
+        "applicationLibraryReadyMs": 233.253,
+        "peakHeapBytes": 42928456,
+        "stableHeapBytes": 32634256
+      },
+      {
+        "tracks": 10000,
+        "batch": 1,
+        "applicationLibraryReadyMs": 2299.196,
+        "peakHeapBytes": 61153464,
+        "stableHeapBytes": 28502912
+      },
+      {
+        "tracks": 10000,
+        "batch": 2,
+        "applicationLibraryReadyMs": 553.284,
+        "peakHeapBytes": 62405656,
+        "stableHeapBytes": 41182944
+      },
+      {
+        "tracks": 10000,
+        "batch": 3,
+        "applicationLibraryReadyMs": 460.814,
+        "peakHeapBytes": 75604944,
+        "stableHeapBytes": 53811664
+      }
+    ]
+  }
+}

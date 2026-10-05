@@ -1,0 +1,473 @@
+{
+  "status": "Failed initial comparison; retained as diagnostic evidence, not the release gate protocol.",
+  "library": {
+    "before": {
+      "label": "4.1.11-final-comparison",
+      "api": 35,
+      "model": "sdk_gphone64_x86_64",
+      "results": [
+        {
+          "tracks": 100,
+          "batch": 1,
+          "startupMs": 4.4155,
+          "queryMs": 0.0462934,
+          "observedPeakHeapBytes": 4176832,
+          "stableHeapBytes": 2882400,
+          "stablePssKiB": 60282
+        },
+        {
+          "tracks": 100,
+          "batch": 2,
+          "startupMs": 7.6066,
+          "queryMs": 0.0416598,
+          "observedPeakHeapBytes": 4176832,
+          "stableHeapBytes": 2882400,
+          "stablePssKiB": 60282
+        },
+        {
+          "tracks": 100,
+          "batch": 3,
+          "startupMs": 5.228,
+          "queryMs": 0.038765999999999995,
+          "observedPeakHeapBytes": 4180928,
+          "stableHeapBytes": 2882400,
+          "stablePssKiB": 60082
+        },
+        {
+          "tracks": 1000,
+          "batch": 1,
+          "startupMs": 49.259,
+          "queryMs": 0.38869600000000004,
+          "observedPeakHeapBytes": 7097184,
+          "stableHeapBytes": 3611488,
+          "stablePssKiB": 61082
+        },
+        {
+          "tracks": 1000,
+          "batch": 2,
+          "startupMs": 48.1532,
+          "queryMs": 0.41127460000000005,
+          "observedPeakHeapBytes": 7097184,
+          "stableHeapBytes": 3611488,
+          "stablePssKiB": 61078
+        },
+        {
+          "tracks": 1000,
+          "batch": 3,
+          "startupMs": 40.0449,
+          "queryMs": 0.402766,
+          "observedPeakHeapBytes": 7195488,
+          "stableHeapBytes": 3611488,
+          "stablePssKiB": 61014
+        },
+        {
+          "tracks": 10000,
+          "batch": 1,
+          "startupMs": 381.0428,
+          "queryMs": 4.6970592,
+          "observedPeakHeapBytes": 22547296,
+          "stableHeapBytes": 11025248,
+          "stablePssKiB": 73950
+        },
+        {
+          "tracks": 10000,
+          "batch": 2,
+          "startupMs": 389.4204,
+          "queryMs": 4.1738016,
+          "observedPeakHeapBytes": 22494048,
+          "stableHeapBytes": 11029344,
+          "stablePssKiB": 73934
+        },
+        {
+          "tracks": 10000,
+          "batch": 3,
+          "startupMs": 356.116,
+          "queryMs": 4.167914799999999,
+          "observedPeakHeapBytes": 22846304,
+          "stableHeapBytes": 11029344,
+          "stablePssKiB": 73886
+        }
+      ]
+    },
+    "after": {
+      "label": "4.1.12-final-comparison",
+      "api": 35,
+      "model": "sdk_gphone64_x86_64",
+      "results": [
+        {
+          "tracks": 100,
+          "batch": 1,
+          "startupMs": 6.3314,
+          "queryMs": 0.0758212,
+          "observedPeakHeapBytes": 4676544,
+          "stableHeapBytes": 3382112,
+          "stablePssKiB": 59734
+        },
+        {
+          "tracks": 100,
+          "batch": 2,
+          "startupMs": 11.4252,
+          "queryMs": 0.0701048,
+          "observedPeakHeapBytes": 4676544,
+          "stableHeapBytes": 3382112,
+          "stablePssKiB": 59742
+        },
+        {
+          "tracks": 100,
+          "batch": 3,
+          "startupMs": 12.314,
+          "queryMs": 0.0402218,
+          "observedPeakHeapBytes": 4680640,
+          "stableHeapBytes": 3382112,
+          "stablePssKiB": 59730
+        },
+        {
+          "tracks": 1000,
+          "batch": 1,
+          "startupMs": 57.562,
+          "queryMs": 0.46227140000000005,
+          "observedPeakHeapBytes": 7867232,
+          "stableHeapBytes": 4111200,
+          "stablePssKiB": 61130
+        },
+        {
+          "tracks": 1000,
+          "batch": 2,
+          "startupMs": 51.817,
+          "queryMs": 0.4945024,
+          "observedPeakHeapBytes": 8203104,
+          "stableHeapBytes": 4111200,
+          "stablePssKiB": 61154
+        },
+        {
+          "tracks": 1000,
+          "batch": 3,
+          "startupMs": 51.3435,
+          "queryMs": 0.4526128,
+          "observedPeakHeapBytes": 8268640,
+          "stableHeapBytes": 4111200,
+          "stablePssKiB": 60926
+        },
+        {
+          "tracks": 10000,
+          "batch": 1,
+          "startupMs": 428.7321,
+          "queryMs": 7.7368758,
+          "observedPeakHeapBytes": 23661408,
+          "stableHeapBytes": 11524960,
+          "stablePssKiB": 74136
+        },
+        {
+          "tracks": 10000,
+          "batch": 2,
+          "startupMs": 1017.6965,
+          "queryMs": 7.393285799999999,
+          "observedPeakHeapBytes": 23599968,
+          "stableHeapBytes": 11529056,
+          "stablePssKiB": 73560
+        },
+        {
+          "tracks": 10000,
+          "batch": 3,
+          "startupMs": 965.356,
+          "queryMs": 7.067881000000001,
+          "observedPeakHeapBytes": 23681888,
+          "stableHeapBytes": 11529056,
+          "stablePssKiB": 71192
+        }
+      ]
+    }
+  },
+  "import": {
+    "before": {
+      "label": "4.1.11-final-comparison",
+      "mode": "legacy",
+      "results": [
+        {
+          "elapsedMs": 3230.7146,
+          "heapBeforeWorkBytes": 2988352,
+          "observedPeakHeapBytes": 3545504,
+          "stableHeapBytes": 3025216,
+          "stablePssKiB": 60335,
+          "batch": 1,
+          "tracks": 500
+        },
+        {
+          "elapsedMs": 3047.5418,
+          "heapBeforeWorkBytes": 2992992,
+          "observedPeakHeapBytes": 3550144,
+          "stableHeapBytes": 3025760,
+          "stablePssKiB": 60199,
+          "batch": 2,
+          "tracks": 500
+        },
+        {
+          "elapsedMs": 3038.3102,
+          "heapBeforeWorkBytes": 2992992,
+          "observedPeakHeapBytes": 3550144,
+          "stableHeapBytes": 3029856,
+          "stablePssKiB": 60203,
+          "batch": 3,
+          "tracks": 500
+        }
+      ]
+    },
+    "after": {
+      "label": "4.1.12-final-comparison",
+      "mode": "optimized",
+      "results": [
+        {
+          "elapsedMs": 160.8837,
+          "heapBeforeWorkBytes": 3475776,
+          "observedPeakHeapBytes": 3770784,
+          "stableHeapBytes": 3512640,
+          "stablePssKiB": 60379,
+          "batch": 1,
+          "tracks": 500
+        },
+        {
+          "elapsedMs": 170.1575,
+          "heapBeforeWorkBytes": 3480416,
+          "observedPeakHeapBytes": 3775424,
+          "stableHeapBytes": 3513184,
+          "stablePssKiB": 60622,
+          "batch": 2,
+          "tracks": 500
+        },
+        {
+          "elapsedMs": 249.3775,
+          "heapBeforeWorkBytes": 3480416,
+          "observedPeakHeapBytes": 3775424,
+          "stableHeapBytes": 3517280,
+          "stablePssKiB": 60630,
+          "batch": 3,
+          "tracks": 500
+        }
+      ]
+    }
+  },
+  "lyrics": {
+    "before": {
+      "label": "4.1.11-final-comparison",
+      "mode": "legacy",
+      "results": [
+        {
+          "elapsedMs": 52870.5285,
+          "heapBeforeWorkBytes": 4010192,
+          "observedPeakHeapBytes": 16200016,
+          "stableHeapBytes": 4059472,
+          "stablePssKiB": 59205,
+          "batch": 1,
+          "lines": 1000,
+          "updates": 500
+        },
+        {
+          "elapsedMs": 53132.1045,
+          "heapBeforeWorkBytes": 4026704,
+          "observedPeakHeapBytes": 16294224,
+          "stableHeapBytes": 4059472,
+          "stablePssKiB": 59432,
+          "batch": 2,
+          "lines": 1000,
+          "updates": 500
+        },
+        {
+          "elapsedMs": 53173.9401,
+          "heapBeforeWorkBytes": 4030816,
+          "observedPeakHeapBytes": 16298336,
+          "stableHeapBytes": 4063584,
+          "stablePssKiB": 60032,
+          "batch": 3,
+          "lines": 1000,
+          "updates": 500
+        }
+      ]
+    },
+    "after": {
+      "label": "4.1.12-final-comparison",
+      "mode": "optimized",
+      "results": [
+        {
+          "elapsedMs": 213.3342,
+          "heapBeforeWorkBytes": 4608208,
+          "observedPeakHeapBytes": 9163184,
+          "stableHeapBytes": 4645200,
+          "stablePssKiB": 60026,
+          "batch": 1,
+          "lines": 1000,
+          "updates": 500
+        },
+        {
+          "elapsedMs": 178.4639,
+          "heapBeforeWorkBytes": 4608336,
+          "observedPeakHeapBytes": 8933808,
+          "stableHeapBytes": 4645200,
+          "stablePssKiB": 59933,
+          "batch": 2,
+          "lines": 1000,
+          "updates": 500
+        },
+        {
+          "elapsedMs": 187.6157,
+          "heapBeforeWorkBytes": 4612448,
+          "observedPeakHeapBytes": 9167296,
+          "stableHeapBytes": 4649312,
+          "stablePssKiB": 60451,
+          "batch": 3,
+          "lines": 1000,
+          "updates": 500
+        }
+      ]
+    }
+  },
+  "activity": {
+    "before": [
+      {
+        "tracks": 100,
+        "batch": 1,
+        "activityLibraryReadyMs": 2268.5992,
+        "observedPeakHeapBytes": 6269712,
+        "stableHeapBytes": 5041760,
+        "stablePssKiB": 69927
+      },
+      {
+        "tracks": 100,
+        "batch": 2,
+        "activityLibraryReadyMs": 449.2765,
+        "observedPeakHeapBytes": 6502752,
+        "stableHeapBytes": 5074496,
+        "stablePssKiB": 69060
+      },
+      {
+        "tracks": 100,
+        "batch": 3,
+        "activityLibraryReadyMs": 445.8943,
+        "observedPeakHeapBytes": 6501104,
+        "stableHeapBytes": 5119040,
+        "stablePssKiB": 69935
+      },
+      {
+        "tracks": 1000,
+        "batch": 1,
+        "activityLibraryReadyMs": 358.3284,
+        "observedPeakHeapBytes": 8849936,
+        "stableHeapBytes": 5664352,
+        "stablePssKiB": 72444
+      },
+      {
+        "tracks": 1000,
+        "batch": 2,
+        "activityLibraryReadyMs": 393.7772,
+        "observedPeakHeapBytes": 9876016,
+        "stableHeapBytes": 6712720,
+        "stablePssKiB": 74575
+      },
+      {
+        "tracks": 1000,
+        "batch": 3,
+        "activityLibraryReadyMs": 374.9954,
+        "observedPeakHeapBytes": 9917504,
+        "stableHeapBytes": 6740928,
+        "stablePssKiB": 75168
+      },
+      {
+        "tracks": 10000,
+        "batch": 1,
+        "activityLibraryReadyMs": 1215.8549,
+        "observedPeakHeapBytes": 18251328,
+        "stableHeapBytes": 11419200,
+        "stablePssKiB": 87566
+      },
+      {
+        "tracks": 10000,
+        "batch": 2,
+        "activityLibraryReadyMs": 1029.2267,
+        "observedPeakHeapBytes": 22517824,
+        "stableHeapBytes": 11357808,
+        "stablePssKiB": 88716
+      },
+      {
+        "tracks": 10000,
+        "batch": 3,
+        "activityLibraryReadyMs": 863.7011,
+        "observedPeakHeapBytes": 32918576,
+        "stableHeapBytes": 11361328,
+        "stablePssKiB": 86680
+      }
+    ],
+    "after": [
+      {
+        "tracks": 100,
+        "batch": 1,
+        "activityLibraryReadyMs": 3077.4545,
+        "observedPeakHeapBytes": 6314768,
+        "stableHeapBytes": 5086816,
+        "stablePssKiB": 76430
+      },
+      {
+        "tracks": 100,
+        "batch": 2,
+        "activityLibraryReadyMs": 564.9936,
+        "observedPeakHeapBytes": 6572640,
+        "stableHeapBytes": 5058144,
+        "stablePssKiB": 69691
+      },
+      {
+        "tracks": 100,
+        "batch": 3,
+        "activityLibraryReadyMs": 504.2167,
+        "observedPeakHeapBytes": 6419072,
+        "stableHeapBytes": 5123072,
+        "stablePssKiB": 70321
+      },
+      {
+        "tracks": 1000,
+        "batch": 1,
+        "activityLibraryReadyMs": 523.5102,
+        "observedPeakHeapBytes": 8886704,
+        "stableHeapBytes": 5668416,
+        "stablePssKiB": 72739
+      },
+      {
+        "tracks": 1000,
+        "batch": 2,
+        "activityLibraryReadyMs": 688.5048,
+        "observedPeakHeapBytes": 9978368,
+        "stableHeapBytes": 5639136,
+        "stablePssKiB": 73526
+      },
+      {
+        "tracks": 1000,
+        "batch": 3,
+        "activityLibraryReadyMs": 492.6836,
+        "observedPeakHeapBytes": 9917472,
+        "stableHeapBytes": 5708944,
+        "stablePssKiB": 73834
+      },
+      {
+        "tracks": 10000,
+        "batch": 1,
+        "activityLibraryReadyMs": 1574.8337,
+        "observedPeakHeapBytes": 18099808,
+        "stableHeapBytes": 11402848,
+        "stablePssKiB": 87557
+      },
+      {
+        "tracks": 10000,
+        "batch": 2,
+        "activityLibraryReadyMs": 1400.8884,
+        "observedPeakHeapBytes": 23080640,
+        "stableHeapBytes": 11341408,
+        "stablePssKiB": 89121
+      },
+      {
+        "tracks": 10000,
+        "batch": 3,
+        "activityLibraryReadyMs": 1422.2616,
+        "observedPeakHeapBytes": 18173568,
+        "stableHeapBytes": 11345536,
+        "stablePssKiB": 88921
+      }
+    ]
+  }
+}

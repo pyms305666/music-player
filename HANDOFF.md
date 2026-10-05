@@ -1,15 +1,18 @@
-# 项目交接：ZA音乐 4.1.11
+# 项目交接：ZA音乐 4.1.12
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版与原生 Android 版均为 `4.1.11`。
+- 版本：Windows 桌面版与原生 Android 版均为 `4.1.12`。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
-- 数据库 schema 保持兼容：`tracks`、`lyrics`。
+- 数据库保持兼容：`tracks`、`lyrics`；Android schema 3 额外保存导入来源映射 `imports`，升级保留原表和用户数据。
 
 ## 主要模块
+
+- 第三轮（4.1.12）：`BoundedExpiringCache` / `ResolutionCache` 限制下载解析缓存；`GeneratedFileCache` 用租约保护在用封面和播放修正文件；`LyricTimeline` 双端共用，Android `AndroidLyricsPresenter` 保持全文并更新高亮；`AndroidLibraryImporter` 按 50 首事务导入、按 URI 去重并清理失败副本，`AndroidTrackFiles` 原子预留文件名。性能和完整验证范围见 `docs/performance-4.1.12.md`。
+- 三组独立进程性能对照已完成。长歌词稳定堆增加 0.566MiB / 15.257%，用户于 2026-10-05 明确接受，以保留约 99.5% 的高亮耗时下降；该例外不扩大到其他指标。真机候选覆盖升级与 24 项功能回归通过，保留 102 首歌曲、4 条歌词缓存。最终附件来源、全部 CI 与散列以 Release 的构建记录为准。
 
 - `playlist.SearchSnapshot` / `LocalSearch`：不可变匹配字段、后台过滤、200ms 大曲库防抖和请求版本校验。
 - Android `ui.LocalTrackList` / `TrackRow` / `TrackAdapter`：曲库变更时排序并建快照，搜索仅更新显示；DiffUtil 比较不可变字段，选择按歌曲标识保留。

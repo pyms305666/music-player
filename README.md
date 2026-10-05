@@ -1,4 +1,4 @@
-# ZA音乐 4.1.11
+# ZA音乐 4.1.12
 
 ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
@@ -13,6 +13,7 @@ ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器
 - 在线搜索按来源完成顺序追加结果，保留选择；成功查询缓存最多 50 项、2 分钟。搜索和下载可分别取消，下载最多同时运行 2 项、等待 8 项；未知文件大小时显示已下载大小。
 - 显示本地 LRC 和缓存歌词；支持桌面端歌词锁定、字体缩放及纯歌词模式。
 - SQLite 保存曲库信息及歌词缓存；封面、歌词和播放兼容文件使用本地缓存。
+- 两端共用歌词时间轴；安卓歌词复用全文，只更新高亮。安卓导入每 50 首提交一次事务，并报告成功、重复和失败数量。
 
 在线来源依赖第三方网站接口，可能随网站改版而不可用；在线功能需要网络连接。请仅在遵守当地法律法规和相关服务条款的前提下使用在线搜索与下载功能。
 
@@ -130,6 +131,10 @@ downloads/
 
 桌面版会尝试将旧位置的 `music-player.db` 复制到新目录。数据库沿用 `tracks` 和 `lyrics` 表；重构不要求删除旧数据。曲库中移除歌曲只会修改曲库记录，不会删除原始本地音频。Windows 的 `downloads/` 被 `.gitignore` 排除；请自行备份，其中可能包含个人音乐和数据库。
 
+桌面封面磁盘缓存预算为 256MiB，播放格式修正缓存为 512MiB。后台按最近使用时间清理直接位于对应目录、符合应用生成名称的文件；原始歌曲、其他文件、子目录和符号链接不参与淘汰。正在使用的缓存受租约保护，可能暂时超过预算，释放后再清理。两端下载地址缓存最多 500 项，成功有效期 4 分钟，失败有效期 45 秒。
+
+安卓数据库升级到版本 3，新增导入 URI 与私有歌曲路径的映射；原曲库及歌词表保留。重复选择同一 URI 会跳过已有且可读的歌曲，移除歌曲后可以重新导入；导入仍会复制到私有曲库。文件复制或某批事务失败时清理该批未入库的副本，之前成功的批次保留。
+
 Windows 4.1.5 的“ZA音乐”使用新的安装目录。首次启动时，如果新版曲库尚未建立，会从同级旧目录“简约音乐播放器/downloads”复制歌曲、数据库和缓存，并修正数据库中下载歌曲的路径。旧目录不会被此迁移删除；首次启动前请关闭旧版播放器。若旧版使用自定义安装路径，请先备份 `downloads/`，再手动迁移。
 
 ## 发布文件
@@ -201,7 +206,7 @@ Android 真机回归测试位于 `android-app/app/src/androidTest/`。构建测�
 
 ```powershell
 python scripts/android-signing.py package
-python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android-4.1.11.apk
+python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android-4.1.12.apk
 ```
 
 打包先执行共享测试、Release 构建和 lint，再用新旧密钥与轮换证明签名，逐个验证 API 28/31/32/33/35/36 的证书选择和二进制清单，生成 APK 旁的构建记录。测试 APK 仅用于本地验证，验证后卸载，不上传 Release。外部构建须同时提供新旧两组四个环境变量（`ZA_KEYSTORE`、`ZA_STORE_PASSWORD`、`ZA_KEY_ALIAS`、`ZA_KEY_PASSWORD`，旧组增加 `OLD_`：如 `ZA_OLD_KEYSTORE`）。直接 `assembleRelease` 得到的中间包不包含完整发布轮换流程。Windows EXE 尚未配置 Authenticode 签名。
@@ -214,7 +219,7 @@ python scripts/android-signing.py verify --apk android-app/dist/ZA-Music-Android
 4. 设置已授权的 `GH_TOKEN` 或登录 `gh`，执行发布脚本；也可以先加 `-VerifyOnly` 校验。
 
 ```powershell
-.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.11.md'
+.\scripts\publish-release.ps1 -WindowsInstaller '<本次 EXE 绝对路径>' -NotesFile '.\docs\release-4.1.12.md'
 ```
 
 脚本检查干净源码、附件构建提交、应用版本、包名/证书、散列、远端分支和对应提交的 CI。它先创建草稿并校验上传附件，再公开并检查 tag 与源码一致。不覆盖已有 Release；失败后检查保留的草稿再处理。构建记录是发布核对信息，不是第三方签发的供应链证明。

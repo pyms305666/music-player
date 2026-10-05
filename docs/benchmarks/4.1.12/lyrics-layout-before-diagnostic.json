@@ -1,0 +1,64 @@
+{
+  "label": "controlled-1-before",
+  "mode": "legacy",
+  "results": [
+    {
+      "elapsedMs": 68640.286033,
+      "heapBeforeWorkBytes": 3880304,
+      "observedPeakHeapBytes": 14079472,
+      "stableHeapBytes": 3896816,
+      "stablePssKiB": 48149,
+      "gcBeforeWork": {
+        "art.gc.blocking-gc-count": "2",
+        "art.gc.gc-time": "16",
+        "art.gc.bytes-allocated": "13962784",
+        "art.gc.bytes-freed": "10082480",
+        "art.gc.gc-count-rate-histogram": "",
+        "art.gc.total-time-waiting-for-gc": null,
+        "art.gc.blocking-gc-count-rate-histogram": "",
+        "art.gc.pre-oome-gc-count": null,
+        "art.gc.objects-allocated": null,
+        "art.gc.gc-count": "2",
+        "art.gc.blocking-gc-time": "16"
+      },
+      "gcAfterWork": {
+        "art.gc.blocking-gc-count": "3",
+        "art.gc.gc-time": "9527",
+        "art.gc.bytes-allocated": "3946975072",
+        "art.gc.bytes-freed": "3935963408",
+        "art.gc.gc-count-rate-histogram": "22:1,61:1,62:2,96:1,138:1,141:1",
+        "art.gc.total-time-waiting-for-gc": null,
+        "art.gc.blocking-gc-count-rate-histogram": "0:5,1:1,2:1",
+        "art.gc.pre-oome-gc-count": null,
+        "art.gc.objects-allocated": null,
+        "art.gc.gc-count": "626",
+        "art.gc.blocking-gc-time": "35"
+      },
+      "gcAfterSettle": {
+        "art.gc.blocking-gc-count": "5",
+        "art.gc.gc-time": "9564",
+        "art.gc.bytes-allocated": "3947138912",
+        "art.gc.bytes-freed": "3943242096",
+        "art.gc.gc-count-rate-histogram": "22:1,61:1,62:2,96:1,138:1,141:1",
+        "art.gc.total-time-waiting-for-gc": null,
+        "art.gc.blocking-gc-count-rate-histogram": "0:5,1:1,2:1",
+        "art.gc.pre-oome-gc-count": null,
+        "art.gc.objects-allocated": null,
+        "art.gc.gc-count": "628",
+        "art.gc.blocking-gc-time": "76"
+      },
+      "heapAccounting": {
+        "totalBytes": 7662559,
+        "freeBytes": 3765743,
+        "usedBytes": 3896816
+      },
+      "diagnosticHeapDump": false,
+      "finalLayout": "StaticLayout",
+      "layoutBeforeSettle": "StaticLayout",
+      "layoutLines": 10000,
+      "batch": 1,
+      "lines": 1000,
+      "updates": 500
+    }
+  ]
+}

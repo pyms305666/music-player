@@ -29,12 +29,14 @@ class AudioFileInspectorTest {
     void createsMp3PlaybackAliasForMislabeledDownload() throws Exception {
         Path source = Files.write(tempDir.resolve("download.m4a"), new byte[]{(byte) 0xff, (byte) 0xfb, 0, 0});
         AudioFileInspector inspector = new AudioFileInspector();
-        PlaybackFileResolver resolver = new PlaybackFileResolver(tempDir.resolve("cache"), inspector);
-
-        PlaybackFileResolver.Resolution resolution = resolver.resolve(source);
-
-        assertTrue(resolution.correctedExtension());
-        assertTrue(resolution.path().getFileName().toString().endsWith(".mp3"));
-        assertTrue(Files.isRegularFile(resolution.path()));
+        try (var resolver = new PlaybackFileResolver(tempDir.resolve("cache"), inspector);
+             var resolution = resolver.resolve(source)) {
+            assertTrue(resolution.correctedExtension());
+            assertTrue(resolution.path().getFileName().toString().endsWith(".mp3"));
+            assertTrue(Files.isRegularFile(resolution.path()));
+            assertEquals(-1, Files.mismatch(source, resolution.path()));
+            try (var again = resolver.resolve(source)) { assertEquals(resolution.path(), again.path()); }
+            try (var entries = Files.list(tempDir.resolve("cache"))) { assertEquals(1, entries.count()); }
+        }
     }
 }

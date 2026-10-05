@@ -53,13 +53,21 @@ def exercise(args):
     base = [adb, "-s", serial]
     def command(*items):
         return s.run([*base, *items], capture=True)
-    def install(path):
+    api = int(command("shell", "getprop", "ro.build.version.sdk").strip())
+    def install(path, test=False):
         command("shell", "input", "keyevent", "224")
         command("shell", "wm", "dismiss-keyguard")
         command("shell", "input", "keyevent", "82")
-        result = command("install", "-r", Path(path).resolve())
+        # Release targets must be able to resolve the test APK's synthetic provider.
+        # This install-only fixture flag avoids adding test authorities to production.
+        visibility = ["--force-queryable"] if test and api >= 30 else []
+        result = command("install", "-r", *visibility, Path(path).resolve())
         if "Success" not in result:
             raise RuntimeError("APK installation failed")
+        if test:
+            # An existing target process may cache provider visibility from before
+            # this fixture install; start instrumentation with a fresh resolver.
+            command("shell", "am", "force-stop", "app.musicplayer.android")
     policy = json.loads(Path(args.policy).read_text())
     instrumentation_number = 0
     def instrument(method, phase="", seed=False):
@@ -90,11 +98,17 @@ def exercise(args):
                 except Exception as diagnostic_error:
                     print("Could not collect failure logcat:", diagnostic_error, file=sys.stderr)
             raise RuntimeError("Instrumentation regression failed")
+    def functional_checks():
+        # Exercise the same components after each upgrade and on a fresh install, including API 28.
+        for test_class in ["PlaybackServiceTest", "TrackAdapterTest", "OnlineTrackAdapterTest",
+                           "app.musicplayer.online.AndroidOnlineTasksTest", "app.musicplayer.online.AndroidTransportTest",
+                           "AndroidLibraryImporterTest", "AndroidLyricsPresenterTest", "AndroidTrackFilesTest"]:
+            instrument(test_class)
     if args.baseline:
         install(args.baseline)
     command("shell", "am", "force-stop", "app.musicplayer.android")
     if not args.resume:
-        install(args.baseline_tests)
+        install(args.baseline_tests, test=True)
         instrument("SigningMigrationTest#recordBeforeUpgrade", "record", bool(args.baseline))
         command("uninstall", "app.musicplayer.android.test")
     for app in [args.candidate, args.final]:
@@ -103,12 +117,9 @@ def exercise(args):
         s.verify(Path(app).resolve(), args.policy, qa=args.qa)
         install(app)
         test = Path(app).with_name(Path(app).stem + "-tests.apk")
-        install(test)
+        install(test, test=True)
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
-        instrument("PlaybackServiceTest")
-        instrument("OnlineTrackAdapterTest")
-        instrument("app.musicplayer.online.AndroidOnlineTasksTest")
-        instrument("app.musicplayer.online.AndroidTransportTest")
+        functional_checks()
         command("shell", "am", "force-stop", "app.musicplayer.android")
         # Validate again after playing, then carry the original snapshot into the next upgrade.
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
@@ -116,7 +127,7 @@ def exercise(args):
     if not args.keep_snapshot:
         # Cleanup with the matching test certificate, while keeping the main app.
         last = Path(args.final or args.candidate)
-        install(last.with_name(last.stem + "-tests.apk"))
+        install(last.with_name(last.stem + "-tests.apk"), test=True)
         instrument("SigningMigrationTest#removeTemporarySnapshot", "cleanup")
         command("uninstall", "app.musicplayer.android.test")
     command("shell", "input", "keyevent", "224")
@@ -130,13 +141,10 @@ def exercise(args):
         command("uninstall", "app.musicplayer.android")
         last = Path(args.final or args.candidate)
         install(last)
-        install(last.with_name(last.stem + "-tests.apk"))
+        install(last.with_name(last.stem + "-tests.apk"), test=True)
         instrument("SigningMigrationTest#recordBeforeUpgrade", "record", True)
         instrument("SigningMigrationTest#verifyAfterUpgrade", "verify")
-        instrument("PlaybackServiceTest")
-        instrument("OnlineTrackAdapterTest")
-        instrument("app.musicplayer.online.AndroidOnlineTasksTest")
-        instrument("app.musicplayer.online.AndroidTransportTest")
+        functional_checks()
         instrument("SigningMigrationTest#removeTemporarySnapshot", "cleanup")
         command("uninstall", "app.musicplayer.android.test")
         print("CLEAN INSTALL CHECKS PASSED:", serial)

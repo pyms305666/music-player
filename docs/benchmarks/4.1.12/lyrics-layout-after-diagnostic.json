@@ -1,0 +1,64 @@
+{
+  "label": "controlled-1-after",
+  "mode": "optimized",
+  "results": [
+    {
+      "elapsedMs": 486.690766,
+      "heapBeforeWorkBytes": 4478320,
+      "observedPeakHeapBytes": 8672848,
+      "stableHeapBytes": 4486640,
+      "stablePssKiB": 46746,
+      "gcBeforeWork": {
+        "art.gc.blocking-gc-count": "2",
+        "art.gc.gc-time": "45",
+        "art.gc.bytes-allocated": "16977440",
+        "art.gc.bytes-freed": "12499120",
+        "art.gc.gc-count-rate-histogram": "",
+        "art.gc.total-time-waiting-for-gc": null,
+        "art.gc.blocking-gc-count-rate-histogram": "",
+        "art.gc.pre-oome-gc-count": null,
+        "art.gc.objects-allocated": null,
+        "art.gc.gc-count": "2",
+        "art.gc.blocking-gc-time": "45"
+      },
+      "gcAfterWork": {
+        "art.gc.blocking-gc-count": "2",
+        "art.gc.gc-time": "53",
+        "art.gc.bytes-allocated": "25267968",
+        "art.gc.bytes-freed": "16623888",
+        "art.gc.gc-count-rate-histogram": "",
+        "art.gc.total-time-waiting-for-gc": null,
+        "art.gc.blocking-gc-count-rate-histogram": "",
+        "art.gc.pre-oome-gc-count": null,
+        "art.gc.objects-allocated": null,
+        "art.gc.gc-count": "3",
+        "art.gc.blocking-gc-time": "45"
+      },
+      "gcAfterSettle": {
+        "art.gc.blocking-gc-count": "4",
+        "art.gc.gc-time": "87",
+        "art.gc.bytes-allocated": "25399040",
+        "art.gc.bytes-freed": "20912400",
+        "art.gc.gc-count-rate-histogram": "",
+        "art.gc.total-time-waiting-for-gc": null,
+        "art.gc.blocking-gc-count-rate-histogram": "",
+        "art.gc.pre-oome-gc-count": null,
+        "art.gc.objects-allocated": null,
+        "art.gc.gc-count": "5",
+        "art.gc.blocking-gc-time": "79"
+      },
+      "heapAccounting": {
+        "totalBytes": 8842207,
+        "freeBytes": 4355567,
+        "usedBytes": 4486640
+      },
+      "diagnosticHeapDump": false,
+      "finalLayout": "DynamicLayout",
+      "layoutBeforeSettle": "DynamicLayout",
+      "layoutLines": 10000,
+      "batch": 1,
+      "lines": 1000,
+      "updates": 500
+    }
+  ]
+}

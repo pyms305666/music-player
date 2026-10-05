@@ -157,6 +157,7 @@ public final class MusicPlayerApp extends Application {
     private final java.util.List<Track> pendingImports = new java.util.ArrayList<>();
     private Track currentTrack;
     private Lyrics currentLyrics = Lyrics.empty("导入歌曲后开始播放");
+    private app.musicplayer.lyrics.LyricTimeline lyricTimeline = new app.musicplayer.lyrics.LyricTimeline(currentLyrics.lines());
     private boolean previewingOnlineResult;
     private long lyricsRequestId;
     private long playbackRequestId;
@@ -274,7 +275,8 @@ public final class MusicPlayerApp extends Application {
         if (lyricsService != null) { lyricsService.close(); }
         if (onlineTasks != null) onlineTasks.close();
         if (onlineMusicSearchService != null) { onlineMusicSearchService.close(); }
-        if (mediaPlayer != null) { mediaPlayer.dispose(); }
+        disposePlayer();
+        playbackFileResolver.close();
         if (database != null) libraryExecutor.execute(database::close);
         libraryExecutor.shutdown();
     }
@@ -767,14 +769,20 @@ public final class MusicPlayerApp extends Application {
         long request = playbackRequestId;
         CompletableFuture.supplyAsync(() -> {
                     var resolved = playbackFileResolver.resolve(track.path());
-                    if (audioFileInspector.detect(resolved.path()) == AudioFormat.RAW_AAC)
+                    if (audioFileInspector.detect(resolved.path()) == AudioFormat.RAW_AAC) {
+                        resolved.close();
                         throw new IllegalStateException("JavaFX 无法稳定播放原始 AAC 音频");
+                    }
                     return resolved;
                 }, libraryExecutor)
                 .whenComplete((resolution, error) -> Platform.runLater(() -> {
-                    if (closing || request != playbackRequestId || currentTrack != track) return;
+                    if (closing || request != playbackRequestId || currentTrack != track) {
+                        if (resolution != null) resolution.close();
+                        return;
+                    }
                     if (error != null) { showPlayerError(error); return; }
                     if (resolution.correctedExtension()) statusLabel.setText("已按实际音频格式准备播放");
+                    playbackResolution = resolution;
                     createPlayer(track, resolution.path(), request);
                 }));
     }
@@ -796,7 +804,7 @@ public final class MusicPlayerApp extends Application {
             created.setOnEndOfMedia(() -> { if (mediaPlayer == created) handleEndOfMedia(); });
             created.setOnError(() -> { if (mediaPlayer == created) showPlayerError(created.getError()); });
             media.setOnError(() -> { if (mediaPlayer == created) showPlayerError(media.getError()); });
-        } catch (MediaException error) { showPlayerError(error); }
+        } catch (MediaException error) { disposePlayer(); showPlayerError(error); }
     }
 
     private void updateMetadata(Media media) {
@@ -901,7 +909,12 @@ public final class MusicPlayerApp extends Application {
 
     private void seekToProgress() {
         if (mediaPlayer == null || mediaPlayer.getTotalDuration() == null) return;
-        Duration t = mediaPlayer.getTotalDuration(); if (t.greaterThan(Duration.ZERO)) mediaPlayer.seek(t.multiply(progressSlider.getValue()));
+        Duration t = mediaPlayer.getTotalDuration();
+        if (t.greaterThan(Duration.ZERO)) {
+            Duration target = t.multiply(progressSlider.getValue());
+            mediaPlayer.seek(target);
+            highlightLyric(lyricTimeline.seek(Math.round(target.toMillis())));
+        }
     }
 
     private void updatePlaybackProgress(Duration ct) {
@@ -981,6 +994,7 @@ public final class MusicPlayerApp extends Application {
 
     private void showLyrics(Lyrics lyrics) {
         currentLyrics = lyrics;
+        lyricTimeline = new app.musicplayer.lyrics.LyricTimeline(lyrics.lines());
         lyricRows.setAll(lyrics.lines().stream().map(LyricLine::text).toList());
         sourceLabel.setText("歌词来源：" + lyrics.source());
         if (lyricsView != null) {
@@ -1029,15 +1043,14 @@ public final class MusicPlayerApp extends Application {
 
     private void updateHighlightedLyric(Duration ct) {
         if (lyricsAutoScrollLocked || previewingOnlineResult || currentLyrics == null || !currentLyrics.timed() || currentLyrics.lines().isEmpty()) return;
-        List<LyricLine> lines = currentLyrics.lines();
-        int sel = 0;
-        for (int i = 0; i < lines.size(); i++) {
-            if (lines.get(i).time().toMillis() <= Math.round(ct.toMillis())) sel = i;
-            else break;
-        }
+        int sel = lyricTimeline.advance(Math.round(ct.toMillis()));
+        highlightLyric(sel);
+    }
+    private void highlightLyric(int sel) {
+        if (lyricsAutoScrollLocked || previewingOnlineResult || currentLyrics == null || !currentLyrics.timed()) return;
         if (lyricsView.getSelectionModel().getSelectedIndex() != sel) {
-            lyricsView.getSelectionModel().select(sel);
-            lyricsView.scrollTo(Math.max(0, sel - 4));
+            if (sel < 0) lyricsView.getSelectionModel().clearSelection();
+            else { lyricsView.getSelectionModel().select(sel); lyricsView.scrollTo(Math.max(0, sel - 4)); }
         }
     }
 
@@ -1090,5 +1103,10 @@ public final class MusicPlayerApp extends Application {
         }));
     }
 
-    private void disposePlayer() { lyricsRequestId++; playbackRequestId++; if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); mediaPlayer = null; } }
+    private PlaybackFileResolver.Resolution playbackResolution;
+    private void disposePlayer() {
+        lyricsRequestId++; playbackRequestId++;
+        if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); mediaPlayer = null; }
+        if (playbackResolution != null) { playbackResolution.close(); playbackResolution = null; }
+    }
 }

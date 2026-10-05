@@ -1,6 +1,6 @@
 package app.musicplayer.online;
 
-import java.util.LinkedHashMap;
+import app.musicplayer.util.BoundedExpiringCache;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
@@ -9,10 +9,8 @@ import java.util.function.LongSupplier;
 final class SearchResultCache {
     static final int MAX_QUERIES = 50;
     static final long TTL_NANOS = TimeUnit.MINUTES.toNanos(2);
-    private record Entry(OnlineSearchSnapshot snapshot, long expiresAt) { }
-    private final LinkedHashMap<String, Entry> entries = new LinkedHashMap<>(16, .75f, true);
-    private final LongSupplier clock;
-    SearchResultCache(LongSupplier clock) { this.clock = clock; }
+    private final BoundedExpiringCache<String, OnlineSearchSnapshot> entries;
+    SearchResultCache(LongSupplier clock) { entries = new BoundedExpiringCache<>(MAX_QUERIES, clock); }
     static String key(String query) {
         if (query == null) return "";
         StringBuilder normalized = new StringBuilder(query.length());
@@ -31,18 +29,15 @@ final class SearchResultCache {
         }
         return normalized.toString().toLowerCase(Locale.ROOT);
     }
-    synchronized OnlineSearchSnapshot get(String query) {
-        purge();
-        Entry entry = entries.get(key(query));
-        return entry == null ? null : entry.snapshot().asCached();
+    OnlineSearchSnapshot get(String query) {
+        OnlineSearchSnapshot snapshot = entries.get(key(query));
+        return snapshot == null ? null : snapshot.asCached();
     }
-    synchronized void put(OnlineSearchSnapshot snapshot) {
+    void put(OnlineSearchSnapshot snapshot) {
         if (!snapshot.cacheable()) return;
-        purge();
-        entries.put(key(snapshot.query()), new Entry(snapshot, clock.getAsLong() + TTL_NANOS));
-        while (entries.size() > MAX_QUERIES) entries.remove(entries.keySet().iterator().next());
+        entries.put(key(snapshot.query()), snapshot, TTL_NANOS);
     }
-    private void purge() { long now = clock.getAsLong(); entries.values().removeIf(entry -> entry.expiresAt() <= now); }
-    synchronized int size() { purge(); return entries.size(); }
-    synchronized void clear() { entries.clear(); }
+    int size() { return entries.size(); }
+    void clear() { entries.clear(); }
+    void close() { entries.close(); }
 }

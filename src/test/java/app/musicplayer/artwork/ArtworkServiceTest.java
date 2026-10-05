@@ -10,6 +10,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ArtworkServiceTest {
     @TempDir Path cache;
+    @Test void completedConsumerProtectsFileUntilPresentationReleasesIt() throws Exception {
+        var disk = new app.musicplayer.cache.GeneratedFileCache(cache,
+                app.musicplayer.cache.GeneratedFileCache.Kind.ARTWORK, 0, System::currentTimeMillis);
+        HttpServer server = server(new byte[]{1, 2, 3});
+        try (var service = new ArtworkService(cache, disk)) {
+            var request = service.acquire("http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png");
+            Path path = request.result().get(5, TimeUnit.SECONDS);
+            disk.cleanAsync().get(3, TimeUnit.SECONDS); assertTrue(Files.exists(path));
+            request.close(); disk.cleanAsync().get(3, TimeUnit.SECONDS); assertFalse(Files.exists(path));
+        } finally { server.stop(0); }
+    }
 
     @Test void downloadsWithoutExecutorDeadlockAndReusesCompleteCache() throws Exception {
         HttpServer server = server(new byte[] {1, 2, 3});

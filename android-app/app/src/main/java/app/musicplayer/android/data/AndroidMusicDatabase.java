@@ -16,7 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class AndroidMusicDatabase extends SQLiteOpenHelper {
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
+    public static final int IMPORT_BATCH_SIZE = 50;
+    private static final String IMPORT_LOOKUP = "select (select imports.path from imports join tracks on tracks.path=imports.path where source_uri=? limit 1)";
+    public record ImportedTrack(String sourceUri, TrackEntry entry) { }
+    public record ImportCommit(List<TrackEntry> added, List<TrackEntry> duplicates) {
+        public ImportCommit { added = List.copyOf(added); duplicates = List.copyOf(duplicates); }
+    }
 
     private final Context context;
 
@@ -32,6 +38,7 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase database) {
         database.execSQL("create table tracks(path text primary key,title text not null,artist text not null,created_at integer not null,storage_type text not null default 'FILE',file_name text)");
         database.execSQL("create table lyrics(path text primary key,source text not null,raw_text text not null,artwork_url text)");
+        createImports(database);
     }
 
     @Override
@@ -40,6 +47,49 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
             database.execSQL("alter table tracks add column storage_type text not null default 'FILE'");
             database.execSQL("alter table tracks add column file_name text");
         }
+        if (oldVersion < 3) createImports(database);
+    }
+    private static void createImports(SQLiteDatabase database) {
+        database.execSQL("create table imports(source_uri text primary key,path text not null)");
+        database.execSQL("create index imports_path on imports(path)");
+    }
+    public boolean hasImported(String sourceUri) { return hasImported(getReadableDatabase(), sourceUri); }
+    private boolean hasImported(SQLiteDatabase database, String sourceUri) {
+        // A scalar statement avoids creating a CursorWindow for every imported URI.
+        try (var statement = database.compileStatement(IMPORT_LOOKUP)) {
+            return hasImported(statement, sourceUri);
+        }
+    }
+    private static boolean hasImported(android.database.sqlite.SQLiteStatement statement, String sourceUri) {
+        statement.bindString(1, sourceUri);
+        String path = statement.simpleQueryForString();
+        return path != null && new java.io.File(path).isFile();
+    }
+    /** One transaction either commits this entire batch or leaves both tables unchanged. */
+    public ImportCommit saveImportedTracks(List<ImportedTrack> batch) {
+        if (batch.size() > IMPORT_BATCH_SIZE) throw new IllegalArgumentException("Import batch exceeds 50");
+        SQLiteDatabase database = getWritableDatabase();
+        List<TrackEntry> added = new ArrayList<>(), duplicates = new ArrayList<>();
+        database.beginTransaction();
+        try (var lookup = database.compileStatement(IMPORT_LOOKUP);
+             var insert = database.compileStatement("insert into tracks(path,title,artist,created_at,storage_type,file_name) values(?,?,?,?,?,?)");
+             var mapping = database.compileStatement("insert or replace into imports(source_uri,path) values(?,?)")) {
+            for (ImportedTrack item : batch) {
+                TrackEntry entry = item.entry();
+                if (hasImported(lookup, item.sourceUri())) { duplicates.add(entry); continue; }
+                insert.clearBindings();
+                insert.bindString(1, entry.location()); insert.bindString(2, entry.track().title());
+                insert.bindString(3, entry.track().artist()); insert.bindLong(4, entry.createdAt());
+                insert.bindString(5, entry.storageType().name());
+                if (entry.fileName() != null) insert.bindString(6, entry.fileName());
+                if (insert.executeInsert() == -1) throw new android.database.sqlite.SQLiteException("Imported track write failed");
+                mapping.bindString(1, item.sourceUri()); mapping.bindString(2, entry.location());
+                if (mapping.executeInsert() == -1) throw new android.database.sqlite.SQLiteException("Import mapping write failed");
+                added.add(entry);
+            }
+            database.setTransactionSuccessful();
+        } finally { database.endTransaction(); }
+        return new ImportCommit(added, duplicates);
     }
 
     public List<TrackEntry> loadTracks() {
@@ -71,6 +121,9 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
     }
 
     public void saveTrack(TrackEntry entry) {
+        getWritableDatabase().insertWithOnConflict("tracks", null, trackValues(entry), SQLiteDatabase.CONFLICT_REPLACE);
+    }
+    private static ContentValues trackValues(TrackEntry entry) {
         ContentValues values = new ContentValues();
         values.put("path", entry.location());
         values.put("title", entry.track().title());
@@ -78,10 +131,11 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
         values.put("created_at", entry.createdAt());
         values.put("storage_type", entry.storageType().name());
         values.put("file_name", entry.fileName());
-        getWritableDatabase().insertWithOnConflict("tracks", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        return values;
     }
 
     public void removeTrack(TrackEntry entry) {
+        getWritableDatabase().delete("imports", "path=?", new String[]{entry.key()});
         getWritableDatabase().delete("lyrics", "path=?", new String[]{entry.key()});
         getWritableDatabase().delete("tracks", "path=?", new String[]{entry.key()});
     }

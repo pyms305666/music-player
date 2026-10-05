@@ -77,6 +77,6 @@ final class SearchCoordinator implements AutoCloseable {
     @Override public synchronized void close() {
         closed = true;
         if (current != null) { current.cancellation.close(); current.delivery.close(); }
-        latest.close(); worker.shutdownNow(); scheduler.shutdownNow(); cache.clear();
+        latest.close(); worker.shutdownNow(); scheduler.shutdownNow(); cache.close();
     }
 }

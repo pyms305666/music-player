@@ -43,6 +43,26 @@ public class DesktopSmoke {
             if (!"ok".equals(session.fetch(url, url))) throw new AssertionError("Shared HTTP transport failed");
         } finally { server.stop(0); }
     }
+    static void checkLyricSeeking() throws Exception {
+        fx(() -> {
+            MediaPlayer player = (MediaPlayer)field("mediaPlayer");
+            player.pause();
+            var previous = (app.musicplayer.model.Lyrics)field("currentLyrics");
+            var lyrics = LrcParser.parse("seek-fixture", "[00:00]first\n[00:00]last duplicate\n[00:01]next");
+            try {
+                call("showLyrics", app.musicplayer.model.Lyrics.class, lyrics);
+                var slider = (javafx.scene.control.Slider)field("progressSlider");
+                var view = (javafx.scene.control.ListView<?>)field("lyricsView");
+                slider.setValue(0); call("seekToProgress", null, null);
+                if (view.getSelectionModel().getSelectedIndex() != 1) throw new AssertionError("Duplicate lyric seek failed");
+                slider.setValue(0.6); call("seekToProgress", null, null);
+                if (view.getSelectionModel().getSelectedIndex() != 2) throw new AssertionError("Small forward lyric seek failed");
+                slider.setValue(0); call("seekToProgress", null, null);
+                if (view.getSelectionModel().getSelectedIndex() != 1) throw new AssertionError("Backward lyric seek failed");
+            } finally { call("showLyrics", app.musicplayer.model.Lyrics.class, previous); player.play(); }
+            return null;
+        });
+    }
     static void checkArtworkPresentation(Path data) throws Exception {
         Path source = data.resolve("cover.png");
         javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(576, 576,
@@ -190,6 +210,7 @@ public class DesktopSmoke {
                 ((javafx.scene.control.TextField)field("searchField")).setText(""); return null;
             });
             await(() -> ((List<?>)field("filteredTracks")).size()==2, "Clearing filter did not restore library");
+            checkLyricSeeking();
             checkArtworkPresentation(data);
             checkSharedHttpTransport();
             checkOnlinePresentation(data);

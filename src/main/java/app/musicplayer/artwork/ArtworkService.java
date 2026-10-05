@@ -1,6 +1,7 @@
 package app.musicplayer.artwork;
 
 import app.musicplayer.util.Hashing;
+import app.musicplayer.cache.GeneratedFileCache;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -23,6 +24,7 @@ public final class ArtworkService implements AutoCloseable {
     private final Path cacheDir;
     private final ExecutorService executor;
     private final HttpClient httpClient;
+    private final GeneratedFileCache diskCache;
     private final Map<String, Download> downloads = new HashMap<>();
     private boolean closed;
 
@@ -35,20 +37,39 @@ public final class ArtworkService implements AutoCloseable {
     /** Each consumer can cancel independently; the last one interrupts network work. */
     public final class Request implements AutoCloseable {
         private final CompletableFuture<Path> result = new CompletableFuture<>();
-        private Request(String url, Download download) {
+        private final String url;
+        private final Download download;
+        private final GeneratedFileCache.Lease lease;
+        private boolean released;
+        private Request(String url, Download download, GeneratedFileCache.Lease lease) {
+            this.url = url; this.download = download; this.lease = lease;
             download.consumers++;
-            result.whenComplete((ignored, error) -> release(url, download));
             download.result.whenComplete((path, error) -> {
                 if (error == null) result.complete(path);
                 else result.completeExceptionally(error);
             });
         }
         public CompletableFuture<Path> result() { return result; }
-        @Override public void close() { result.cancel(false); }
+        @Override public void close() {
+            boolean abandoned;
+            synchronized (ArtworkService.this) {
+                if (released) return;
+                released = true;
+                abandoned = --download.consumers == 0;
+                if (abandoned) downloads.remove(url, download);
+            }
+            result.cancel(false);
+            if (abandoned) download.work.close();
+            lease.close();
+        }
     }
 
     public ArtworkService(Path cacheDir) {
+        this(cacheDir, new GeneratedFileCache(cacheDir, GeneratedFileCache.Kind.ARTWORK));
+    }
+    ArtworkService(Path cacheDir, GeneratedFileCache diskCache) {
         this.cacheDir = cacheDir;
+        this.diskCache = diskCache;
         this.executor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "artwork-cache");
             thread.setDaemon(true);
@@ -76,32 +97,28 @@ public final class ArtworkService implements AutoCloseable {
         if (!isRemoteUrl(url)) {
             return CompletableFuture.completedFuture(null);
         }
-        return acquire(url).result();
+        Request request = acquire(url);
+        request.result().whenComplete((path, error) -> request.close());
+        return request.result();
     }
 
     public synchronized Request acquire(String url) {
         if (closed) throw new IllegalStateException("Artwork service is closed");
         if (!isRemoteUrl(url)) throw new IllegalArgumentException("Remote artwork URL required");
+        var lease = diskCache.acquire(cachedPath(url));
         Download download = downloads.get(url);
         if (download == null) {
             download = new Download();
             downloads.put(url, download);
             download.result = download.work.submit(executor, () -> download(url, cachedPath(url)));
         }
-        return new Request(url, download);
-    }
-
-    private synchronized void release(String url, Download download) {
-        if (--download.consumers == 0) {
-            downloads.remove(url, download);
-            download.work.close();
-        }
+        return new Request(url, download, lease);
     }
 
     private Path download(String url, Path target) {
         Path temporary = null;
         try {
-            if (Files.isRegularFile(target)) {
+            if (Files.isRegularFile(target, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 return target;
             }
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
@@ -153,11 +170,15 @@ public final class ArtworkService implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() {
-        closed = true;
-        List.copyOf(downloads.values()).forEach(download -> download.work.close());
-        downloads.clear();
+    public void close() {
+        List<Download> active;
+        synchronized (this) {
+            if (closed) return;
+            closed = true; active = List.copyOf(downloads.values()); downloads.clear();
+        }
+        active.forEach(download -> download.work.close());
         executor.shutdownNow();
         httpClient.shutdownNow();
+        diskCache.close();
     }
 }

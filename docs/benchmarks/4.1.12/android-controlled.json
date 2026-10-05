@@ -1,0 +1,2726 @@
+{
+  "metadata": {
+    "serial": "emulator-5560",
+    "api": 35,
+    "mainSha256": {
+      "before": "65cf24cde20d238c9c68c4db9a0a09f1b88b2ad5a5139a605514437a75c57a4c",
+      "after": "cecc228598903e8e07f1489ca0f5cdc2b08f8ea1dcc3610a360a1224c0d68b41"
+    },
+    "testSha256": "403658b20ff537ea84332fb1f004657c3b01ba19dc90090d2aa4ddf09965f121",
+    "protocol": "Three independent pairs, alternating order; each class in a fresh process; identical test APK, compile reset then speed request; actual compiler filters recorded; symmetric test warmups; GC sentinel and ART counters recorded. All fixtures on an explicitly guarded disposable emulator."
+  },
+  "pairs": [
+    {
+      "pair": 1,
+      "order": [
+        "before",
+        "after"
+      ],
+      "before": {
+        "library": {
+          "label": "controlled-1-before",
+          "api": 35,
+          "model": "sdk_gphone64_x86_64",
+          "results": [
+            {
+              "tracks": 100,
+              "batch": 1,
+              "startupMs": 50.1088,
+              "queryMs": 0.0656084,
+              "observedPeakHeapBytes": 3584688,
+              "stableHeapBytes": 2294352,
+              "stablePssKiB": 32588,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "20",
+                "art.gc.bytes-allocated": "7963600",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "21"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "20",
+                "art.gc.bytes-allocated": "9340096",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "21"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "57",
+                "art.gc.bytes-allocated": "9471168",
+                "art.gc.bytes-freed": "7176816",
+                "art.gc.gc-count-rate-histogram": "3:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "3:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "59"
+              },
+              "heapAccounting": {
+                "totalBytes": 4457630,
+                "freeBytes": 2163278,
+                "usedBytes": 2294352
+              }
+            },
+            {
+              "tracks": 1000,
+              "batch": 1,
+              "startupMs": 115.5396,
+              "queryMs": 0.699135,
+              "observedPeakHeapBytes": 6087344,
+              "stableHeapBytes": 3035728,
+              "stablePssKiB": 34466,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "313",
+                "art.gc.bytes-allocated": "53257408",
+                "art.gc.bytes-freed": "51040880",
+                "art.gc.gc-count-rate-histogram": "3:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "3:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "21",
+                "art.gc.blocking-gc-time": "77"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "372",
+                "art.gc.bytes-allocated": "66479488",
+                "art.gc.bytes-freed": "61236016",
+                "art.gc.gc-count-rate-histogram": "3:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "3:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "25",
+                "art.gc.blocking-gc-time": "77"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "8",
+                "art.gc.gc-time": "394",
+                "art.gc.bytes-allocated": "66610560",
+                "art.gc.bytes-freed": "63574832",
+                "art.gc.gc-count-rate-histogram": "3:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "3:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "27",
+                "art.gc.blocking-gc-time": "99"
+              },
+              "heapAccounting": {
+                "totalBytes": 5940381,
+                "freeBytes": 2904653,
+                "usedBytes": 3035728
+              }
+            },
+            {
+              "tracks": 10000,
+              "batch": 1,
+              "startupMs": 995.3898,
+              "queryMs": 6.8749692,
+              "observedPeakHeapBytes": 21488208,
+              "stableHeapBytes": 10453584,
+              "stablePssKiB": 46918,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2247",
+                "art.gc.bytes-allocated": "621356416",
+                "art.gc.bytes-freed": "619127600",
+                "art.gc.gc-count-rate-histogram": "3:1,18:2,19:1,38:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:3,3:1,5:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "99",
+                "art.gc.blocking-gc-time": "117"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "11",
+                "art.gc.gc-time": "2800",
+                "art.gc.bytes-allocated": "791053792",
+                "art.gc.bytes-freed": "777810832",
+                "art.gc.gc-count-rate-histogram": "3:1,18:2,19:1,38:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:3,3:1,5:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "119",
+                "art.gc.blocking-gc-time": "148"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "13",
+                "art.gc.gc-time": "2847",
+                "art.gc.bytes-allocated": "791184864",
+                "art.gc.bytes-freed": "780731280",
+                "art.gc.gc-count-rate-histogram": "3:1,18:2,19:1,38:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:3,3:1,5:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "121",
+                "art.gc.blocking-gc-time": "196"
+              },
+              "heapAccounting": {
+                "totalBytes": 20776094,
+                "freeBytes": 10322510,
+                "usedBytes": 10453584
+              }
+            }
+          ]
+        },
+        "import": {
+          "label": "controlled-1-before",
+          "mode": "legacy",
+          "results": [
+            {
+              "elapsedMs": 7001.107,
+              "heapBeforeWorkBytes": 2437024,
+              "observedPeakHeapBytes": 3027184,
+              "stableHeapBytes": 2453552,
+              "stablePssKiB": 33388,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "30",
+                "art.gc.bytes-allocated": "4649392",
+                "art.gc.bytes-freed": "2212368",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "36"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "30",
+                "art.gc.bytes-allocated": "5239552",
+                "art.gc.bytes-freed": "2212368",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "36"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "53",
+                "art.gc.bytes-allocated": "5370624",
+                "art.gc.bytes-freed": "2917072",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "61"
+              },
+              "heapAccounting": {
+                "totalBytes": 4776031,
+                "freeBytes": 2322479,
+                "usedBytes": 2453552
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "tracks": 500
+            }
+          ]
+        },
+        "lyrics": {
+          "label": "controlled-1-before",
+          "mode": "legacy",
+          "results": [
+            {
+              "elapsedMs": 109458.6049,
+              "heapBeforeWorkBytes": 3880304,
+              "observedPeakHeapBytes": 13469168,
+              "stableHeapBytes": 3892720,
+              "stablePssKiB": 48742,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "48",
+                "art.gc.bytes-allocated": "13897248",
+                "art.gc.bytes-freed": "10016944",
+                "art.gc.gc-count-rate-histogram": "0:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "51"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "14959",
+                "art.gc.bytes-allocated": "3947052848",
+                "art.gc.bytes-freed": "3938810128",
+                "art.gc.gc-count-rate-histogram": "0:1,46:1,56:2,57:4,58:4",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:9,1:2,2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "627",
+                "art.gc.blocking-gc-time": "112"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "14995",
+                "art.gc.bytes-allocated": "3947282272",
+                "art.gc.bytes-freed": "3943389552",
+                "art.gc.gc-count-rate-histogram": "0:1,46:1,56:2,57:4,58:4",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:9,1:2,2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "629",
+                "art.gc.blocking-gc-time": "152"
+              },
+              "heapAccounting": {
+                "totalBytes": 7654365,
+                "freeBytes": 3761645,
+                "usedBytes": 3892720
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "lines": 1000,
+              "updates": 500
+            }
+          ]
+        },
+        "activity": [
+          {
+            "tracks": 100,
+            "batch": 1,
+            "activityLibraryReadyMs": 658.8754,
+            "observedPeakHeapBytes": 5979328,
+            "stableHeapBytes": 4535072,
+            "stablePssKiB": 65410,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "347",
+              "art.gc.bytes-allocated": "9323504",
+              "art.gc.bytes-freed": "4911664",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "286"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "347",
+              "art.gc.bytes-allocated": "10890992",
+              "art.gc.bytes-freed": "4911664",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "286"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "8",
+              "art.gc.gc-time": "491",
+              "art.gc.bytes-allocated": "11087600",
+              "art.gc.bytes-freed": "6552528",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "9",
+              "art.gc.blocking-gc-time": "448"
+            },
+            "heapAccounting": {
+              "totalBytes": 8873534,
+              "freeBytes": 4338462,
+              "usedBytes": 4535072
+            }
+          },
+          {
+            "tracks": 1000,
+            "batch": 1,
+            "activityLibraryReadyMs": 782.6398,
+            "observedPeakHeapBytes": 9402144,
+            "stableHeapBytes": 5091536,
+            "stablePssKiB": 65587,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "15",
+              "art.gc.gc-time": "967",
+              "art.gc.bytes-allocated": "22191040",
+              "art.gc.bytes-freed": "17172656",
+              "art.gc.gc-count-rate-histogram": "12:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "880"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "15",
+              "art.gc.gc-time": "967",
+              "art.gc.bytes-allocated": "26574800",
+              "art.gc.bytes-freed": "17172656",
+              "art.gc.gc-count-rate-histogram": "12:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "880"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "17",
+              "art.gc.gc-time": "1036",
+              "art.gc.bytes-allocated": "26771408",
+              "art.gc.bytes-freed": "21679872",
+              "art.gc.gc-count-rate-histogram": "12:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "19",
+              "art.gc.blocking-gc-time": "950"
+            },
+            "heapAccounting": {
+              "totalBytes": 10051999,
+              "freeBytes": 4960463,
+              "usedBytes": 5091536
+            }
+          },
+          {
+            "tracks": 10000,
+            "batch": 1,
+            "activityLibraryReadyMs": 1399.9603,
+            "observedPeakHeapBytes": 21667536,
+            "stableHeapBytes": 10855216,
+            "stablePssKiB": 80551,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "23",
+              "art.gc.gc-time": "2035",
+              "art.gc.bytes-allocated": "119540832",
+              "art.gc.bytes-freed": "108796240",
+              "art.gc.gc-count-rate-histogram": "12:1,16:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "7:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "42",
+              "art.gc.blocking-gc-time": "1217"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "23",
+              "art.gc.gc-time": "2174",
+              "art.gc.bytes-allocated": "153753632",
+              "art.gc.bytes-freed": "138401008",
+              "art.gc.gc-count-rate-histogram": "12:1,16:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "7:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "45",
+              "art.gc.blocking-gc-time": "1217"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "25",
+              "art.gc.gc-time": "2235",
+              "art.gc.bytes-allocated": "153950240",
+              "art.gc.bytes-freed": "143095024",
+              "art.gc.gc-count-rate-histogram": "12:1,16:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "7:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "47",
+              "art.gc.blocking-gc-time": "1279"
+            },
+            "heapAccounting": {
+              "totalBytes": 21513823,
+              "freeBytes": 10658607,
+              "usedBytes": 10855216
+            }
+          }
+        ]
+      },
+      "after": {
+        "library": {
+          "label": "controlled-1-after",
+          "api": 35,
+          "model": "sdk_gphone64_x86_64",
+          "results": [
+            {
+              "tracks": 100,
+              "batch": 1,
+              "startupMs": 52.642,
+              "queryMs": 0.06485439999999999,
+              "observedPeakHeapBytes": 3584688,
+              "stableHeapBytes": 2294352,
+              "stablePssKiB": 32299,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "17",
+                "art.gc.bytes-allocated": "7963600",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "1:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "1:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "17"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "17",
+                "art.gc.bytes-allocated": "9340096",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "1:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "1:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "17"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "34",
+                "art.gc.bytes-allocated": "9471168",
+                "art.gc.bytes-freed": "7176816",
+                "art.gc.gc-count-rate-histogram": "1:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "1:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "37"
+              },
+              "heapAccounting": {
+                "totalBytes": 4457630,
+                "freeBytes": 2163278,
+                "usedBytes": 2294352
+              }
+            },
+            {
+              "tracks": 1000,
+              "batch": 1,
+              "startupMs": 120.5788,
+              "queryMs": 0.633832,
+              "observedPeakHeapBytes": 6189648,
+              "stableHeapBytes": 3035728,
+              "stablePssKiB": 34385,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "281",
+                "art.gc.bytes-allocated": "53343520",
+                "art.gc.bytes-freed": "51061360",
+                "art.gc.gc-count-rate-histogram": "1:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "1:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "21",
+                "art.gc.blocking-gc-time": "58"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "331",
+                "art.gc.bytes-allocated": "66495872",
+                "art.gc.bytes-freed": "61281072",
+                "art.gc.gc-count-rate-histogram": "1:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "1:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "25",
+                "art.gc.blocking-gc-time": "58"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "8",
+                "art.gc.gc-time": "350",
+                "art.gc.bytes-allocated": "66626944",
+                "art.gc.bytes-freed": "63591216",
+                "art.gc.gc-count-rate-histogram": "1:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "1:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "27",
+                "art.gc.blocking-gc-time": "78"
+              },
+              "heapAccounting": {
+                "totalBytes": 5940381,
+                "freeBytes": 2904653,
+                "usedBytes": 3035728
+              }
+            },
+            {
+              "tracks": 10000,
+              "batch": 1,
+              "startupMs": 948.6383,
+              "queryMs": 7.0685218,
+              "observedPeakHeapBytes": 21455440,
+              "stableHeapBytes": 10453584,
+              "stablePssKiB": 46694,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2164",
+                "art.gc.bytes-allocated": "620787072",
+                "art.gc.bytes-freed": "618558256",
+                "art.gc.gc-count-rate-histogram": "1:1,22:1,26:1,40:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,1:1,7:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "99",
+                "art.gc.blocking-gc-time": "99"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2710",
+                "art.gc.bytes-allocated": "790287840",
+                "art.gc.bytes-freed": "776942480",
+                "art.gc.gc-count-rate-histogram": "1:1,22:1,25:1,26:1,40:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,1:1,2:1,7:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "119",
+                "art.gc.blocking-gc-time": "99"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "12",
+                "art.gc.gc-time": "2768",
+                "art.gc.bytes-allocated": "790418912",
+                "art.gc.bytes-freed": "779965328",
+                "art.gc.gc-count-rate-histogram": "1:1,22:1,25:1,26:1,40:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,1:1,2:1,7:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "121",
+                "art.gc.blocking-gc-time": "158"
+              },
+              "heapAccounting": {
+                "totalBytes": 20776094,
+                "freeBytes": 10322510,
+                "usedBytes": 10453584
+              }
+            }
+          ]
+        },
+        "import": {
+          "label": "controlled-1-after",
+          "mode": "optimized",
+          "results": [
+            {
+              "elapsedMs": 461.1534,
+              "heapBeforeWorkBytes": 2437024,
+              "observedPeakHeapBytes": 2732176,
+              "stableHeapBytes": 2441264,
+              "stablePssKiB": 35177,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "30",
+                "art.gc.bytes-allocated": "4682160",
+                "art.gc.bytes-freed": "2245136",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "34"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "30",
+                "art.gc.bytes-allocated": "4977312",
+                "art.gc.bytes-freed": "2245136",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "34"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "52",
+                "art.gc.bytes-allocated": "5108384",
+                "art.gc.bytes-freed": "2667120",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "57"
+              },
+              "heapAccounting": {
+                "totalBytes": 4751455,
+                "freeBytes": 2310191,
+                "usedBytes": 2441264
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "tracks": 500
+            }
+          ]
+        },
+        "lyrics": {
+          "label": "controlled-1-after",
+          "mode": "optimized",
+          "results": [
+            {
+              "elapsedMs": 528.2515,
+              "heapBeforeWorkBytes": 4478320,
+              "observedPeakHeapBytes": 8738384,
+              "stableHeapBytes": 4486640,
+              "stablePssKiB": 47517,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "42",
+                "art.gc.bytes-allocated": "16944672",
+                "art.gc.bytes-freed": "12466352",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "45"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "93",
+                "art.gc.bytes-allocated": "25202432",
+                "art.gc.bytes-freed": "16714000",
+                "art.gc.gc-count-rate-histogram": "2:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "3",
+                "art.gc.blocking-gc-time": "45"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "125",
+                "art.gc.bytes-allocated": "25333504",
+                "art.gc.bytes-freed": "20846864",
+                "art.gc.gc-count-rate-histogram": "2:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "5",
+                "art.gc.blocking-gc-time": "78"
+              },
+              "heapAccounting": {
+                "totalBytes": 8842207,
+                "freeBytes": 4355567,
+                "usedBytes": 4486640
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "lines": 1000,
+              "updates": 500
+            }
+          ]
+        },
+        "activity": [
+          {
+            "tracks": 100,
+            "batch": 1,
+            "activityLibraryReadyMs": 550.2751,
+            "observedPeakHeapBytes": 5472496,
+            "stableHeapBytes": 4502288,
+            "stablePssKiB": 67778,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "246",
+              "art.gc.bytes-allocated": "9331664",
+              "art.gc.bytes-freed": "5361152",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "262"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "246",
+              "art.gc.bytes-allocated": "10833648",
+              "art.gc.bytes-freed": "5361152",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "262"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "8",
+              "art.gc.gc-time": "336",
+              "art.gc.bytes-allocated": "11030256",
+              "art.gc.bytes-freed": "6527968",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "9",
+              "art.gc.blocking-gc-time": "353"
+            },
+            "heapAccounting": {
+              "totalBytes": 8873503,
+              "freeBytes": 4371215,
+              "usedBytes": 4502288
+            }
+          },
+          {
+            "tracks": 1000,
+            "batch": 1,
+            "activityLibraryReadyMs": 578.5924,
+            "observedPeakHeapBytes": 9393920,
+            "stableHeapBytes": 5152928,
+            "stablePssKiB": 65838,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "598",
+              "art.gc.bytes-allocated": "22264672",
+              "art.gc.bytes-freed": "17254528",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "536"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "598",
+              "art.gc.bytes-allocated": "26648448",
+              "art.gc.bytes-freed": "17254528",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "536"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "16",
+              "art.gc.gc-time": "668",
+              "art.gc.bytes-allocated": "26845056",
+              "art.gc.bytes-freed": "21692128",
+              "art.gc.gc-count-rate-histogram": "17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "14:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "19",
+              "art.gc.blocking-gc-time": "611"
+            },
+            "heapAccounting": {
+              "totalBytes": 10043709,
+              "freeBytes": 4890781,
+              "usedBytes": 5152928
+            }
+          },
+          {
+            "tracks": 10000,
+            "batch": 1,
+            "activityLibraryReadyMs": 1454.7022,
+            "observedPeakHeapBytes": 22175072,
+            "stableHeapBytes": 10851088,
+            "stablePssKiB": 80486,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1524",
+              "art.gc.bytes-allocated": "120450032",
+              "art.gc.bytes-freed": "109722144",
+              "art.gc.gc-count-rate-histogram": "14:1,17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "2:1,14:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "43",
+              "art.gc.blocking-gc-time": "892"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1701",
+              "art.gc.bytes-allocated": "154630016",
+              "art.gc.bytes-freed": "139175024",
+              "art.gc.gc-count-rate-histogram": "14:1,17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "2:1,14:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "46",
+              "art.gc.blocking-gc-time": "892"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "24",
+              "art.gc.gc-time": "1766",
+              "art.gc.bytes-allocated": "154859392",
+              "art.gc.bytes-freed": "144008304",
+              "art.gc.gc-count-rate-histogram": "14:1,17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "2:1,14:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "48",
+              "art.gc.blocking-gc-time": "958"
+            },
+            "heapAccounting": {
+              "totalBytes": 21571101,
+              "freeBytes": 10720013,
+              "usedBytes": 10851088
+            }
+          }
+        ]
+      }
+    },
+    {
+      "pair": 2,
+      "order": [
+        "after",
+        "before"
+      ],
+      "before": {
+        "library": {
+          "label": "controlled-2-before",
+          "api": 35,
+          "model": "sdk_gphone64_x86_64",
+          "results": [
+            {
+              "tracks": 100,
+              "batch": 1,
+              "startupMs": 49.6188,
+              "queryMs": 0.07009739999999999,
+              "observedPeakHeapBytes": 3584688,
+              "stableHeapBytes": 2294352,
+              "stablePssKiB": 32458,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "16",
+                "art.gc.bytes-allocated": "7963600",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "17"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "16",
+                "art.gc.bytes-allocated": "9340096",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "17"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "42",
+                "art.gc.bytes-allocated": "9471168",
+                "art.gc.bytes-freed": "7176816",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "45"
+              },
+              "heapAccounting": {
+                "totalBytes": 4457630,
+                "freeBytes": 2163278,
+                "usedBytes": 2294352
+              }
+            },
+            {
+              "tracks": 1000,
+              "batch": 1,
+              "startupMs": 125.9431,
+              "queryMs": 0.6659882,
+              "observedPeakHeapBytes": 6054480,
+              "stableHeapBytes": 3035728,
+              "stablePssKiB": 34148,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "275",
+                "art.gc.bytes-allocated": "53294272",
+                "art.gc.bytes-freed": "51077744",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "21",
+                "art.gc.blocking-gc-time": "63"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "338",
+                "art.gc.bytes-allocated": "66516352",
+                "art.gc.bytes-freed": "61371184",
+                "art.gc.gc-count-rate-histogram": "21:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "6:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "25",
+                "art.gc.blocking-gc-time": "63"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "8",
+                "art.gc.gc-time": "360",
+                "art.gc.bytes-allocated": "66647424",
+                "art.gc.bytes-freed": "63611696",
+                "art.gc.gc-count-rate-histogram": "21:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "6:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "27",
+                "art.gc.blocking-gc-time": "86"
+              },
+              "heapAccounting": {
+                "totalBytes": 5940381,
+                "freeBytes": 2904653,
+                "usedBytes": 3035728
+              }
+            },
+            {
+              "tracks": 10000,
+              "batch": 1,
+              "startupMs": 1072.3201,
+              "queryMs": 7.0862834,
+              "observedPeakHeapBytes": 21422672,
+              "stableHeapBytes": 10453584,
+              "stablePssKiB": 46703,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2242",
+                "art.gc.bytes-allocated": "620709248",
+                "art.gc.bytes-freed": "618480432",
+                "art.gc.gc-count-rate-histogram": "21:2,22:1,31:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,6:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "99",
+                "art.gc.blocking-gc-time": "110"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2808",
+                "art.gc.bytes-allocated": "790222304",
+                "art.gc.bytes-freed": "777606032",
+                "art.gc.gc-count-rate-histogram": "21:2,22:1,31:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,6:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "119",
+                "art.gc.blocking-gc-time": "110"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "12",
+                "art.gc.gc-time": "2844",
+                "art.gc.bytes-allocated": "790353376",
+                "art.gc.bytes-freed": "779899792",
+                "art.gc.gc-count-rate-histogram": "21:2,22:1,31:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,6:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "121",
+                "art.gc.blocking-gc-time": "147"
+              },
+              "heapAccounting": {
+                "totalBytes": 20776094,
+                "freeBytes": 10322510,
+                "usedBytes": 10453584
+              }
+            }
+          ]
+        },
+        "import": {
+          "label": "controlled-2-before",
+          "mode": "legacy",
+          "results": [
+            {
+              "elapsedMs": 7516.0012,
+              "heapBeforeWorkBytes": 2432928,
+              "observedPeakHeapBytes": 3023088,
+              "stableHeapBytes": 2449456,
+              "stablePssKiB": 33081,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "28",
+                "art.gc.bytes-allocated": "4649392",
+                "art.gc.bytes-freed": "2216464",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "33"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "28",
+                "art.gc.bytes-allocated": "5239552",
+                "art.gc.bytes-freed": "2216464",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "33"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "50",
+                "art.gc.bytes-allocated": "5370624",
+                "art.gc.bytes-freed": "2921168",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "56"
+              },
+              "heapAccounting": {
+                "totalBytes": 4767837,
+                "freeBytes": 2318381,
+                "usedBytes": 2449456
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "tracks": 500
+            }
+          ]
+        },
+        "lyrics": {
+          "label": "controlled-2-before",
+          "mode": "legacy",
+          "results": [
+            {
+              "elapsedMs": 109013.0122,
+              "heapBeforeWorkBytes": 3880304,
+              "observedPeakHeapBytes": 15119856,
+              "stableHeapBytes": 3892720,
+              "stablePssKiB": 48603,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "46",
+                "art.gc.bytes-allocated": "13897248",
+                "art.gc.bytes-freed": "10016944",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "50"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "14937",
+                "art.gc.bytes-allocated": "3947188064",
+                "art.gc.bytes-freed": "3937573136",
+                "art.gc.gc-count-rate-histogram": "43:1,56:1,57:5,58:4",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:9,2:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "626",
+                "art.gc.blocking-gc-time": "115"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "14980",
+                "art.gc.bytes-allocated": "3947351904",
+                "art.gc.bytes-freed": "3943459184",
+                "art.gc.gc-count-rate-histogram": "43:1,56:1,57:5,58:4",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:9,2:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "628",
+                "art.gc.blocking-gc-time": "159"
+              },
+              "heapAccounting": {
+                "totalBytes": 7654365,
+                "freeBytes": 3761645,
+                "usedBytes": 3892720
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "lines": 1000,
+              "updates": 500
+            }
+          ]
+        },
+        "activity": [
+          {
+            "tracks": 100,
+            "batch": 1,
+            "activityLibraryReadyMs": 622.9783,
+            "observedPeakHeapBytes": 5472496,
+            "stableHeapBytes": 4535056,
+            "stablePssKiB": 66757,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "213",
+              "art.gc.bytes-allocated": "9348048",
+              "art.gc.bytes-freed": "5377536",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "203"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "213",
+              "art.gc.bytes-allocated": "10850032",
+              "art.gc.bytes-freed": "5377536",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "203"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "8",
+              "art.gc.gc-time": "272",
+              "art.gc.bytes-allocated": "11046640",
+              "art.gc.bytes-freed": "6511584",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "9",
+              "art.gc.blocking-gc-time": "265"
+            },
+            "heapAccounting": {
+              "totalBytes": 8807966,
+              "freeBytes": 4272910,
+              "usedBytes": 4535056
+            }
+          },
+          {
+            "tracks": 1000,
+            "batch": 1,
+            "activityLibraryReadyMs": 661.0179,
+            "observedPeakHeapBytes": 9369344,
+            "stableHeapBytes": 5161120,
+            "stablePssKiB": 65695,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "559",
+              "art.gc.bytes-allocated": "22215520",
+              "art.gc.bytes-freed": "17197184",
+              "art.gc.gc-count-rate-histogram": "12:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "475"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "559",
+              "art.gc.bytes-allocated": "26566528",
+              "art.gc.bytes-freed": "17197184",
+              "art.gc.gc-count-rate-histogram": "12:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "475"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "16",
+              "art.gc.gc-time": "617",
+              "art.gc.bytes-allocated": "26763136",
+              "art.gc.bytes-freed": "21602016",
+              "art.gc.gc-count-rate-histogram": "12:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "19",
+              "art.gc.blocking-gc-time": "533"
+            },
+            "heapAccounting": {
+              "totalBytes": 10060094,
+              "freeBytes": 4898974,
+              "usedBytes": 5161120
+            }
+          },
+          {
+            "tracks": 10000,
+            "batch": 1,
+            "activityLibraryReadyMs": 1410.4721,
+            "observedPeakHeapBytes": 21228896,
+            "stableHeapBytes": 10793744,
+            "stablePssKiB": 79911,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1390",
+              "art.gc.bytes-allocated": "119368592",
+              "art.gc.bytes-freed": "108636608",
+              "art.gc.gc-count-rate-histogram": "12:1,17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "42",
+              "art.gc.blocking-gc-time": "807"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1495",
+              "art.gc.bytes-allocated": "153548576",
+              "art.gc.bytes-freed": "136762384",
+              "art.gc.gc-count-rate-histogram": "12:1,17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "45",
+              "art.gc.blocking-gc-time": "807"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "24",
+              "art.gc.gc-time": "1570",
+              "art.gc.bytes-allocated": "153745184",
+              "art.gc.bytes-freed": "142951440",
+              "art.gc.gc-count-rate-histogram": "12:1,17:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "47",
+              "art.gc.blocking-gc-time": "883"
+            },
+            "heapAccounting": {
+              "totalBytes": 21456415,
+              "freeBytes": 10662671,
+              "usedBytes": 10793744
+            }
+          }
+        ]
+      },
+      "after": {
+        "library": {
+          "label": "controlled-2-after",
+          "api": 35,
+          "model": "sdk_gphone64_x86_64",
+          "results": [
+            {
+              "tracks": 100,
+              "batch": 1,
+              "startupMs": 47.9255,
+              "queryMs": 0.066291,
+              "observedPeakHeapBytes": 3584688,
+              "stableHeapBytes": 2294352,
+              "stablePssKiB": 32177,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "23",
+                "art.gc.bytes-allocated": "7963600",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "23"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "23",
+                "art.gc.bytes-allocated": "9340096",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "23"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "46",
+                "art.gc.bytes-allocated": "9471168",
+                "art.gc.bytes-freed": "7176816",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "49"
+              },
+              "heapAccounting": {
+                "totalBytes": 4457630,
+                "freeBytes": 2163278,
+                "usedBytes": 2294352
+              }
+            },
+            {
+              "tracks": 1000,
+              "batch": 1,
+              "startupMs": 113.6101,
+              "queryMs": 0.7384542000000001,
+              "observedPeakHeapBytes": 6144592,
+              "stableHeapBytes": 3035728,
+              "stablePssKiB": 34298,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "318",
+                "art.gc.bytes-allocated": "53351616",
+                "art.gc.bytes-freed": "51135088",
+                "art.gc.gc-count-rate-histogram": "13:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "4:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "21",
+                "art.gc.blocking-gc-time": "68"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "385",
+                "art.gc.bytes-allocated": "66569600",
+                "art.gc.bytes-freed": "61358800",
+                "art.gc.gc-count-rate-histogram": "13:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "4:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "25",
+                "art.gc.blocking-gc-time": "68"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "8",
+                "art.gc.gc-time": "411",
+                "art.gc.bytes-allocated": "66700672",
+                "art.gc.bytes-freed": "63664944",
+                "art.gc.gc-count-rate-histogram": "13:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "4:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "27",
+                "art.gc.blocking-gc-time": "95"
+              },
+              "heapAccounting": {
+                "totalBytes": 5940381,
+                "freeBytes": 2904653,
+                "usedBytes": 3035728
+              }
+            },
+            {
+              "tracks": 10000,
+              "batch": 1,
+              "startupMs": 997.9801,
+              "queryMs": 7.1057882,
+              "observedPeakHeapBytes": 21545552,
+              "stableHeapBytes": 10453584,
+              "stablePssKiB": 46748,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2405",
+                "art.gc.bytes-allocated": "621249920",
+                "art.gc.bytes-freed": "619021104",
+                "art.gc.gc-count-rate-histogram": "13:1,22:2,36:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,4:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "100",
+                "art.gc.blocking-gc-time": "118"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "11",
+                "art.gc.gc-time": "2970",
+                "art.gc.bytes-allocated": "791037408",
+                "art.gc.bytes-freed": "777687952",
+                "art.gc.gc-count-rate-histogram": "13:1,22:2,24:1,36:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,4:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "120",
+                "art.gc.blocking-gc-time": "150"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "13",
+                "art.gc.gc-time": "3014",
+                "art.gc.bytes-allocated": "791168480",
+                "art.gc.bytes-freed": "780714896",
+                "art.gc.gc-count-rate-histogram": "13:1,22:2,24:1,36:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,4:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "122",
+                "art.gc.blocking-gc-time": "195"
+              },
+              "heapAccounting": {
+                "totalBytes": 20776094,
+                "freeBytes": 10322510,
+                "usedBytes": 10453584
+              }
+            }
+          ]
+        },
+        "import": {
+          "label": "controlled-2-after",
+          "mode": "optimized",
+          "results": [
+            {
+              "elapsedMs": 517.5633,
+              "heapBeforeWorkBytes": 2437024,
+              "observedPeakHeapBytes": 2732176,
+              "stableHeapBytes": 2441264,
+              "stablePssKiB": 35560,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "31",
+                "art.gc.bytes-allocated": "4682160",
+                "art.gc.bytes-freed": "2245136",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "34"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "31",
+                "art.gc.bytes-allocated": "4977312",
+                "art.gc.bytes-freed": "2245136",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "34"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "52",
+                "art.gc.bytes-allocated": "5108384",
+                "art.gc.bytes-freed": "2667120",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "56"
+              },
+              "heapAccounting": {
+                "totalBytes": 4751455,
+                "freeBytes": 2310191,
+                "usedBytes": 2441264
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "tracks": 500
+            }
+          ]
+        },
+        "lyrics": {
+          "label": "controlled-2-after",
+          "mode": "optimized",
+          "results": [
+            {
+              "elapsedMs": 492.084,
+              "heapBeforeWorkBytes": 4474224,
+              "observedPeakHeapBytes": 8799824,
+              "stableHeapBytes": 4486640,
+              "stablePssKiB": 47980,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "41",
+                "art.gc.bytes-allocated": "16944672",
+                "art.gc.bytes-freed": "12470448",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "45"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "62",
+                "art.gc.bytes-allocated": "25206528",
+                "art.gc.bytes-freed": "16746768",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "3",
+                "art.gc.blocking-gc-time": "45"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "94",
+                "art.gc.bytes-allocated": "25337600",
+                "art.gc.bytes-freed": "20850960",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "5",
+                "art.gc.blocking-gc-time": "78"
+              },
+              "heapAccounting": {
+                "totalBytes": 8842207,
+                "freeBytes": 4355567,
+                "usedBytes": 4486640
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "lines": 1000,
+              "updates": 500
+            }
+          ]
+        },
+        "activity": [
+          {
+            "tracks": 100,
+            "batch": 1,
+            "activityLibraryReadyMs": 574.2878,
+            "observedPeakHeapBytes": 5472512,
+            "stableHeapBytes": 4535088,
+            "stablePssKiB": 67711,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "203",
+              "art.gc.bytes-allocated": "9335696",
+              "art.gc.bytes-freed": "5365152",
+              "art.gc.gc-count-rate-histogram": "0:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "191"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "203",
+              "art.gc.bytes-allocated": "10837664",
+              "art.gc.bytes-freed": "5365152",
+              "art.gc.gc-count-rate-histogram": "0:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "191"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "8",
+              "art.gc.gc-time": "278",
+              "art.gc.bytes-allocated": "11034272",
+              "art.gc.bytes-freed": "6499184",
+              "art.gc.gc-count-rate-histogram": "0:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "9",
+              "art.gc.blocking-gc-time": "270"
+            },
+            "heapAccounting": {
+              "totalBytes": 8808031,
+              "freeBytes": 4272943,
+              "usedBytes": 4535088
+            }
+          },
+          {
+            "tracks": 1000,
+            "batch": 1,
+            "activityLibraryReadyMs": 677.5696,
+            "observedPeakHeapBytes": 9426688,
+            "stableHeapBytes": 5087424,
+            "stablePssKiB": 65828,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "591",
+              "art.gc.bytes-allocated": "22268640",
+              "art.gc.bytes-freed": "17258464",
+              "art.gc.gc-count-rate-histogram": "0:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "487"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "591",
+              "art.gc.bytes-allocated": "26685152",
+              "art.gc.bytes-freed": "17258464",
+              "art.gc.gc-count-rate-histogram": "0:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "487"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "16",
+              "art.gc.gc-time": "643",
+              "art.gc.bytes-allocated": "26881760",
+              "art.gc.bytes-freed": "21794336",
+              "art.gc.gc-count-rate-histogram": "0:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "19",
+              "art.gc.blocking-gc-time": "541"
+            },
+            "heapAccounting": {
+              "totalBytes": 10043774,
+              "freeBytes": 4956350,
+              "usedBytes": 5087424
+            }
+          },
+          {
+            "tracks": 10000,
+            "batch": 1,
+            "activityLibraryReadyMs": 1742.3524,
+            "observedPeakHeapBytes": 22142368,
+            "stableHeapBytes": 10855200,
+            "stablePssKiB": 80580,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1503",
+              "art.gc.bytes-allocated": "120634160",
+              "art.gc.bytes-freed": "109906240",
+              "art.gc.gc-count-rate-histogram": "0:1,16:1,19:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1,2:1,16:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "43",
+              "art.gc.blocking-gc-time": "785"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1662",
+              "art.gc.bytes-allocated": "154912480",
+              "art.gc.bytes-freed": "139449280",
+              "art.gc.gc-count-rate-histogram": "0:1,16:1,19:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1,2:1,16:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "46",
+              "art.gc.blocking-gc-time": "785"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "24",
+              "art.gc.gc-time": "1722",
+              "art.gc.bytes-allocated": "155109088",
+              "art.gc.bytes-freed": "144253888",
+              "art.gc.gc-count-rate-histogram": "0:1,16:1,19:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "0:1,2:1,16:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "48",
+              "art.gc.blocking-gc-time": "845"
+            },
+            "heapAccounting": {
+              "totalBytes": 21448255,
+              "freeBytes": 10593055,
+              "usedBytes": 10855200
+            }
+          }
+        ]
+      }
+    },
+    {
+      "pair": 3,
+      "order": [
+        "before",
+        "after"
+      ],
+      "before": {
+        "library": {
+          "label": "controlled-3-before",
+          "api": 35,
+          "model": "sdk_gphone64_x86_64",
+          "results": [
+            {
+              "tracks": 100,
+              "batch": 1,
+              "startupMs": 51.441,
+              "queryMs": 0.0820554,
+              "observedPeakHeapBytes": 3584688,
+              "stableHeapBytes": 2294352,
+              "stablePssKiB": 32516,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "22",
+                "art.gc.bytes-allocated": "7996368",
+                "art.gc.bytes-freed": "5788176",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "23"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "22",
+                "art.gc.bytes-allocated": "9372864",
+                "art.gc.bytes-freed": "5788176",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "23"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "40",
+                "art.gc.bytes-allocated": "9503936",
+                "art.gc.bytes-freed": "7209584",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "44"
+              },
+              "heapAccounting": {
+                "totalBytes": 4457630,
+                "freeBytes": 2163278,
+                "usedBytes": 2294352
+              }
+            },
+            {
+              "tracks": 1000,
+              "batch": 1,
+              "startupMs": 123.666,
+              "queryMs": 0.6533782,
+              "observedPeakHeapBytes": 6103632,
+              "stableHeapBytes": 3035728,
+              "stablePssKiB": 34247,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "277",
+                "art.gc.bytes-allocated": "53441824",
+                "art.gc.bytes-freed": "51159664",
+                "art.gc.gc-count-rate-histogram": "5:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "4:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "21",
+                "art.gc.blocking-gc-time": "64"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "332",
+                "art.gc.bytes-allocated": "66565504",
+                "art.gc.bytes-freed": "61391664",
+                "art.gc.gc-count-rate-histogram": "5:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "4:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "25",
+                "art.gc.blocking-gc-time": "64"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "8",
+                "art.gc.gc-time": "355",
+                "art.gc.bytes-allocated": "66696576",
+                "art.gc.bytes-freed": "63660848",
+                "art.gc.gc-count-rate-histogram": "5:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "4:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "27",
+                "art.gc.blocking-gc-time": "88"
+              },
+              "heapAccounting": {
+                "totalBytes": 5940381,
+                "freeBytes": 2904653,
+                "usedBytes": 3035728
+              }
+            },
+            {
+              "tracks": 10000,
+              "batch": 1,
+              "startupMs": 978.9054,
+              "queryMs": 7.0210016,
+              "observedPeakHeapBytes": 21516880,
+              "stableHeapBytes": 10453584,
+              "stablePssKiB": 46839,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2219",
+                "art.gc.bytes-allocated": "621073792",
+                "art.gc.bytes-freed": "618844976",
+                "art.gc.gc-count-rate-histogram": "5:1,21:1,25:1,40:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,4:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "99",
+                "art.gc.blocking-gc-time": "108"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2781",
+                "art.gc.bytes-allocated": "790787552",
+                "art.gc.bytes-freed": "778072976",
+                "art.gc.gc-count-rate-histogram": "5:1,21:1,25:2,40:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,4:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "119",
+                "art.gc.blocking-gc-time": "108"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "12",
+                "art.gc.gc-time": "2823",
+                "art.gc.bytes-allocated": "790918624",
+                "art.gc.bytes-freed": "780465040",
+                "art.gc.gc-count-rate-histogram": "5:1,21:1,25:2,40:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,4:2",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "121",
+                "art.gc.blocking-gc-time": "151"
+              },
+              "heapAccounting": {
+                "totalBytes": 20776094,
+                "freeBytes": 10322510,
+                "usedBytes": 10453584
+              }
+            }
+          ]
+        },
+        "import": {
+          "label": "controlled-3-before",
+          "mode": "legacy",
+          "results": [
+            {
+              "elapsedMs": 7084.86,
+              "heapBeforeWorkBytes": 2437024,
+              "observedPeakHeapBytes": 3027184,
+              "stableHeapBytes": 2453552,
+              "stablePssKiB": 33087,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "25",
+                "art.gc.bytes-allocated": "4649392",
+                "art.gc.bytes-freed": "2212368",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "27"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "25",
+                "art.gc.bytes-allocated": "5239552",
+                "art.gc.bytes-freed": "2212368",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "27"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "53",
+                "art.gc.bytes-allocated": "5370624",
+                "art.gc.bytes-freed": "2917072",
+                "art.gc.gc-count-rate-histogram": "2:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "56"
+              },
+              "heapAccounting": {
+                "totalBytes": 4776031,
+                "freeBytes": 2322479,
+                "usedBytes": 2453552
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "tracks": 500
+            }
+          ]
+        },
+        "lyrics": {
+          "label": "controlled-3-before",
+          "mode": "legacy",
+          "results": [
+            {
+              "elapsedMs": 109607.8317,
+              "heapBeforeWorkBytes": 3880304,
+              "observedPeakHeapBytes": 15033840,
+              "stableHeapBytes": 3892720,
+              "stablePssKiB": 48549,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "39",
+                "art.gc.bytes-allocated": "13930016",
+                "art.gc.bytes-freed": "10049712",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "43"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "15199",
+                "art.gc.bytes-allocated": "3947347808",
+                "art.gc.bytes-freed": "3936278800",
+                "art.gc.gc-count-rate-histogram": "31:1,55:1,56:1,57:5,58:3",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:8,1:2,2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "626",
+                "art.gc.blocking-gc-time": "97"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "15249",
+                "art.gc.bytes-allocated": "3947511648",
+                "art.gc.bytes-freed": "3943618928",
+                "art.gc.gc-count-rate-histogram": "31:1,55:1,56:1,57:5,58:3",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:8,1:2,2:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "628",
+                "art.gc.blocking-gc-time": "149"
+              },
+              "heapAccounting": {
+                "totalBytes": 7654365,
+                "freeBytes": 3761645,
+                "usedBytes": 3892720
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "lines": 1000,
+              "updates": 500
+            }
+          ]
+        },
+        "activity": [
+          {
+            "tracks": 100,
+            "batch": 1,
+            "activityLibraryReadyMs": 572.4519,
+            "observedPeakHeapBytes": 5942400,
+            "stableHeapBytes": 4535024,
+            "stablePssKiB": 67232,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "346",
+              "art.gc.bytes-allocated": "9380720",
+              "art.gc.bytes-freed": "4973008",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "318"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "346",
+              "art.gc.bytes-allocated": "10915408",
+              "art.gc.bytes-freed": "4973008",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "318"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "8",
+              "art.gc.gc-time": "422",
+              "art.gc.bytes-allocated": "11112016",
+              "art.gc.bytes-freed": "6576992",
+              "art.gc.gc-count-rate-histogram": "7:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "9",
+              "art.gc.blocking-gc-time": "402"
+            },
+            "heapAccounting": {
+              "totalBytes": 8807901,
+              "freeBytes": 4272877,
+              "usedBytes": 4535024
+            }
+          },
+          {
+            "tracks": 1000,
+            "batch": 1,
+            "activityLibraryReadyMs": 560.3766,
+            "observedPeakHeapBytes": 9369360,
+            "stableHeapBytes": 5157040,
+            "stablePssKiB": 65519,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "781",
+              "art.gc.bytes-allocated": "22215456",
+              "art.gc.bytes-freed": "17197088",
+              "art.gc.gc-count-rate-histogram": "7:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "673"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "781",
+              "art.gc.bytes-allocated": "26566448",
+              "art.gc.bytes-freed": "17197088",
+              "art.gc.gc-count-rate-histogram": "7:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "673"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "16",
+              "art.gc.gc-time": "834",
+              "art.gc.bytes-allocated": "26763056",
+              "art.gc.bytes-freed": "21606016",
+              "art.gc.gc-count-rate-histogram": "7:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "19",
+              "art.gc.blocking-gc-time": "728"
+            },
+            "heapAccounting": {
+              "totalBytes": 10051934,
+              "freeBytes": 4894894,
+              "usedBytes": 5157040
+            }
+          },
+          {
+            "tracks": 10000,
+            "batch": 1,
+            "activityLibraryReadyMs": 1462.316,
+            "observedPeakHeapBytes": 21785888,
+            "stableHeapBytes": 10793776,
+            "stablePssKiB": 80019,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1639",
+              "art.gc.bytes-allocated": "119327536",
+              "art.gc.bytes-freed": "108595552",
+              "art.gc.gc-count-rate-histogram": "7:1,18:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "42",
+              "art.gc.blocking-gc-time": "999"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "22",
+              "art.gc.gc-time": "1769",
+              "art.gc.bytes-allocated": "153474688",
+              "art.gc.bytes-freed": "137388880",
+              "art.gc.gc-count-rate-histogram": "7:1,18:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:1,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "45",
+              "art.gc.blocking-gc-time": "999"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "24",
+              "art.gc.gc-time": "1835",
+              "art.gc.bytes-allocated": "153671296",
+              "art.gc.bytes-freed": "142877520",
+              "art.gc.gc-count-rate-histogram": "7:1,18:1,20:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "6:2,10:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "47",
+              "art.gc.blocking-gc-time": "1067"
+            },
+            "heapAccounting": {
+              "totalBytes": 21456477,
+              "freeBytes": 10662701,
+              "usedBytes": 10793776
+            }
+          }
+        ]
+      },
+      "after": {
+        "library": {
+          "label": "controlled-3-after",
+          "api": 35,
+          "model": "sdk_gphone64_x86_64",
+          "results": [
+            {
+              "tracks": 100,
+              "batch": 1,
+              "startupMs": 50.2343,
+              "queryMs": 0.0728668,
+              "observedPeakHeapBytes": 3584688,
+              "stableHeapBytes": 2294352,
+              "stablePssKiB": 32259,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "20",
+                "art.gc.bytes-allocated": "7963600",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "20"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "20",
+                "art.gc.bytes-allocated": "9340096",
+                "art.gc.bytes-freed": "5755408",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "20"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "41",
+                "art.gc.bytes-allocated": "9471168",
+                "art.gc.bytes-freed": "7176816",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "44"
+              },
+              "heapAccounting": {
+                "totalBytes": 4457630,
+                "freeBytes": 2163278,
+                "usedBytes": 2294352
+              }
+            },
+            {
+              "tracks": 1000,
+              "batch": 1,
+              "startupMs": 130.8814,
+              "queryMs": 0.640698,
+              "observedPeakHeapBytes": 6202032,
+              "stableHeapBytes": 3035728,
+              "stablePssKiB": 34402,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "341",
+                "art.gc.bytes-allocated": "53281984",
+                "art.gc.bytes-freed": "51065456",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "21",
+                "art.gc.blocking-gc-time": "64"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "6",
+                "art.gc.gc-time": "403",
+                "art.gc.bytes-allocated": "66467200",
+                "art.gc.bytes-freed": "61313840",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "25",
+                "art.gc.blocking-gc-time": "64"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "8",
+                "art.gc.gc-time": "423",
+                "art.gc.bytes-allocated": "66598272",
+                "art.gc.bytes-freed": "63562544",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "27",
+                "art.gc.blocking-gc-time": "85"
+              },
+              "heapAccounting": {
+                "totalBytes": 5940381,
+                "freeBytes": 2904653,
+                "usedBytes": 3035728
+              }
+            },
+            {
+              "tracks": 10000,
+              "batch": 1,
+              "startupMs": 954.5869,
+              "queryMs": 6.947585,
+              "observedPeakHeapBytes": 21434960,
+              "stableHeapBytes": 10453584,
+              "stablePssKiB": 46819,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2309",
+                "art.gc.bytes-allocated": "621188480",
+                "art.gc.bytes-freed": "618959664",
+                "art.gc.gc-count-rate-histogram": "23:1,26:1,36:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,8:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "99",
+                "art.gc.blocking-gc-time": "107"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "10",
+                "art.gc.gc-time": "2866",
+                "art.gc.bytes-allocated": "790980064",
+                "art.gc.bytes-freed": "777298832",
+                "art.gc.gc-count-rate-histogram": "23:1,25:1,26:1,36:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,8:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "119",
+                "art.gc.blocking-gc-time": "107"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "12",
+                "art.gc.gc-time": "2901",
+                "art.gc.bytes-allocated": "791111136",
+                "art.gc.bytes-freed": "780657552",
+                "art.gc.gc-count-rate-histogram": "23:1,25:1,26:1,36:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:2,2:1,8:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "121",
+                "art.gc.blocking-gc-time": "142"
+              },
+              "heapAccounting": {
+                "totalBytes": 20776094,
+                "freeBytes": 10322510,
+                "usedBytes": 10453584
+              }
+            }
+          ]
+        },
+        "import": {
+          "label": "controlled-3-after",
+          "mode": "optimized",
+          "results": [
+            {
+              "elapsedMs": 502.8526,
+              "heapBeforeWorkBytes": 2437024,
+              "observedPeakHeapBytes": 2732176,
+              "stableHeapBytes": 2445360,
+              "stablePssKiB": 35139,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "29",
+                "art.gc.bytes-allocated": "4682160",
+                "art.gc.bytes-freed": "2245136",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "32"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "29",
+                "art.gc.bytes-allocated": "4977312",
+                "art.gc.bytes-freed": "2245136",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "32"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "50",
+                "art.gc.bytes-allocated": "5108384",
+                "art.gc.bytes-freed": "2663024",
+                "art.gc.gc-count-rate-histogram": "",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "4",
+                "art.gc.blocking-gc-time": "55"
+              },
+              "heapAccounting": {
+                "totalBytes": 4759646,
+                "freeBytes": 2314286,
+                "usedBytes": 2445360
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "tracks": 500
+            }
+          ]
+        },
+        "lyrics": {
+          "label": "controlled-3-after",
+          "mode": "optimized",
+          "results": [
+            {
+              "elapsedMs": 499.3963,
+              "heapBeforeWorkBytes": 4474224,
+              "observedPeakHeapBytes": 8701520,
+              "stableHeapBytes": 4486640,
+              "stablePssKiB": 47447,
+              "gcBeforeWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "40",
+                "art.gc.bytes-allocated": "16944672",
+                "art.gc.bytes-freed": "12470448",
+                "art.gc.gc-count-rate-histogram": "0:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "2",
+                "art.gc.blocking-gc-time": "41"
+              },
+              "gcAfterWork": {
+                "art.gc.blocking-gc-count": "2",
+                "art.gc.gc-time": "61",
+                "art.gc.bytes-allocated": "25202432",
+                "art.gc.bytes-freed": "16714000",
+                "art.gc.gc-count-rate-histogram": "0:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "3",
+                "art.gc.blocking-gc-time": "41"
+              },
+              "gcAfterSettle": {
+                "art.gc.blocking-gc-count": "4",
+                "art.gc.gc-time": "92",
+                "art.gc.bytes-allocated": "25333504",
+                "art.gc.bytes-freed": "20846864",
+                "art.gc.gc-count-rate-histogram": "0:1",
+                "art.gc.total-time-waiting-for-gc": null,
+                "art.gc.blocking-gc-count-rate-histogram": "0:1",
+                "art.gc.pre-oome-gc-count": null,
+                "art.gc.objects-allocated": null,
+                "art.gc.gc-count": "5",
+                "art.gc.blocking-gc-time": "73"
+              },
+              "heapAccounting": {
+                "totalBytes": 8842207,
+                "freeBytes": 4355567,
+                "usedBytes": 4486640
+              },
+              "diagnosticHeapDump": false,
+              "batch": 1,
+              "lines": 1000,
+              "updates": 500
+            }
+          ]
+        },
+        "activity": [
+          {
+            "tracks": 100,
+            "batch": 1,
+            "activityLibraryReadyMs": 614.7669,
+            "observedPeakHeapBytes": 5505376,
+            "stableHeapBytes": 4535088,
+            "stablePssKiB": 66581,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "243",
+              "art.gc.bytes-allocated": "9298832",
+              "art.gc.bytes-freed": "5328288",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "225"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "6",
+              "art.gc.gc-time": "243",
+              "art.gc.bytes-allocated": "10833664",
+              "art.gc.bytes-freed": "5328288",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "7",
+              "art.gc.blocking-gc-time": "225"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "8",
+              "art.gc.gc-time": "306",
+              "art.gc.bytes-allocated": "11063040",
+              "art.gc.bytes-freed": "6527952",
+              "art.gc.gc-count-rate-histogram": "",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "9",
+              "art.gc.blocking-gc-time": "301"
+            },
+            "heapAccounting": {
+              "totalBytes": 8808031,
+              "freeBytes": 4272943,
+              "usedBytes": 4535088
+            }
+          },
+          {
+            "tracks": 1000,
+            "batch": 1,
+            "activityLibraryReadyMs": 615.78,
+            "observedPeakHeapBytes": 9361248,
+            "stableHeapBytes": 5152944,
+            "stablePssKiB": 65612,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "597",
+              "art.gc.bytes-allocated": "22363136",
+              "art.gc.bytes-freed": "17352896",
+              "art.gc.gc-count-rate-histogram": "10:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "8:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "512"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "14",
+              "art.gc.gc-time": "597",
+              "art.gc.bytes-allocated": "26714144",
+              "art.gc.bytes-freed": "17352896",
+              "art.gc.gc-count-rate-histogram": "10:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "8:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "17",
+              "art.gc.blocking-gc-time": "512"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "16",
+              "art.gc.gc-time": "663",
+              "art.gc.bytes-allocated": "26910752",
+              "art.gc.bytes-freed": "21757808",
+              "art.gc.gc-count-rate-histogram": "10:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "8:1",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "19",
+              "art.gc.blocking-gc-time": "579"
+            },
+            "heapAccounting": {
+              "totalBytes": 10043743,
+              "freeBytes": 4890799,
+              "usedBytes": 5152944
+            }
+          },
+          {
+            "tracks": 10000,
+            "batch": 1,
+            "activityLibraryReadyMs": 1454.5484,
+            "observedPeakHeapBytes": 21843328,
+            "stableHeapBytes": 10789680,
+            "stablePssKiB": 80348,
+            "gcBeforeWork": {
+              "art.gc.blocking-gc-count": "23",
+              "art.gc.gc-time": "1493",
+              "art.gc.bytes-allocated": "120650688",
+              "art.gc.bytes-freed": "109926880",
+              "art.gc.gc-count-rate-histogram": "10:1,18:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "8:2",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "44",
+              "art.gc.blocking-gc-time": "897"
+            },
+            "gcAfterWork": {
+              "art.gc.blocking-gc-count": "23",
+              "art.gc.gc-time": "1628",
+              "art.gc.bytes-allocated": "154797920",
+              "art.gc.bytes-freed": "138970160",
+              "art.gc.gc-count-rate-histogram": "10:1,18:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "8:2",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "47",
+              "art.gc.blocking-gc-time": "897"
+            },
+            "gcAfterSettle": {
+              "art.gc.blocking-gc-count": "25",
+              "art.gc.gc-time": "1688",
+              "art.gc.bytes-allocated": "154994528",
+              "art.gc.bytes-freed": "144204848",
+              "art.gc.gc-count-rate-histogram": "10:1,18:1",
+              "art.gc.total-time-waiting-for-gc": null,
+              "art.gc.blocking-gc-count-rate-histogram": "8:2",
+              "art.gc.pre-oome-gc-count": null,
+              "art.gc.objects-allocated": null,
+              "art.gc.gc-count": "49",
+              "art.gc.blocking-gc-time": "958"
+            },
+            "heapAccounting": {
+              "totalBytes": 21448286,
+              "freeBytes": 10658606,
+              "usedBytes": 10789680
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "acceptedDeviation": {
+    "metric": "lyrics.results[0].stableHeapBytes",
+    "beforeBytes": 3892720,
+    "afterBytes": 4486640,
+    "increaseBytes": 593920,
+    "increasePercent": 15.257198051747878,
+    "userAcceptedOn": "2026-10-05",
+    "scope": "Only the 1000-line/500-highlight fixture stable-heap tradeoff; all other >10% three-pair gates remain unchanged."
+  }
+}

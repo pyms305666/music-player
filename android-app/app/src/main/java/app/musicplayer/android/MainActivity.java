@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.database.Cursor;
-import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
@@ -17,13 +16,8 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
-import android.provider.OpenableColumns;
 import android.provider.Settings;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
 import android.view.animation.LinearInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.view.View;
@@ -66,14 +60,16 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import app.musicplayer.android.data.AndroidMusicDatabase;
+import app.musicplayer.android.data.AndroidLibraryImporter;
+import app.musicplayer.android.data.AndroidTrackFiles;
 import app.musicplayer.android.data.TrackEntry;
 import app.musicplayer.android.ui.OnlineTrackAdapter;
 import app.musicplayer.android.ui.AndroidOnlineTasks;
+import app.musicplayer.android.ui.AndroidLyricsPresenter;
 import app.musicplayer.android.ui.TrackAdapter;
 import app.musicplayer.android.ui.LocalTrackList;
 import app.musicplayer.android.ui.VerticalVolumeView;
 import app.musicplayer.lyrics.LrcParser;
-import app.musicplayer.model.LyricLine;
 import app.musicplayer.model.Lyrics;
 import app.musicplayer.model.LyricsLookupResult;
 import app.musicplayer.model.OnlineTrackInfo;
@@ -113,8 +109,7 @@ public final class MainActivity extends AppCompatActivity {
     private MediaController player;
     private ListenableFuture<MediaController> controllerFuture;
     private boolean uiVisible;
-    private int lastLyricIndex = Integer.MIN_VALUE;
-    private Lyrics renderedLyrics;
+    private AndroidLyricsPresenter lyricsPresenter;
     private final java.util.concurrent.ExecutorService libraryExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
     private int libraryRequestId;
     private File privateMusicDir;
@@ -184,6 +179,8 @@ public final class MainActivity extends AppCompatActivity {
 
 
         bindViews();
+        lyricsPresenter = new AndroidLyricsPresenter(lyricsText, lyricsScroll);
+        lyricsPresenter.show(currentLyrics);
         configureWindowInsets();
         applyResponsiveArtworkSize();
         configureStorageAccess();
@@ -432,7 +429,11 @@ public final class MainActivity extends AppCompatActivity {
             @Override public void onStartTrackingTouch(SeekBar seekBar) { seeking = true; }
             @Override public void onStopTrackingTouch(SeekBar seekBar) {
                 long duration = player == null ? 0 : player.getDuration();
-                if (duration > 0) player.seekTo(duration * seekBar.getProgress() / seekBar.getMax());
+                if (duration > 0) {
+                    long target = duration * seekBar.getProgress() / seekBar.getMax();
+                    player.seekTo(target);
+                    lyricsPresenter.seek(target);
+                }
                 seeking = false;
             }
         });
@@ -496,65 +497,25 @@ public final class MainActivity extends AppCompatActivity {
         muteButton.setContentDescription(getString(percent == 0 ? R.string.unmute : R.string.mute));
     }
 
+    private AndroidLibraryImporter importer;
+    private int importRequestId;
     private void importUris(List<Uri> uris) {
         if (uris == null || uris.isEmpty()) return;
+        if (importer == null) importer = new AndroidLibraryImporter(
+                getApplicationContext(), privateMusicDir, database, libraryExecutor, this::runOnUiThread);
+        int request = ++importRequestId;
         showStatus("正在导入 " + uris.size() + " 首歌曲");
-        CompletableFuture.runAsync(() -> {
-            int imported = 0;
-            for (Uri uri : uris) {
-                try {
-                    getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                } catch (RuntimeException ignored) {
-                }
-                try {
-                    File file = copyIntoPrivateLibrary(uri);
-                    TrackEntry entry = createEntry(file, System.currentTimeMillis());
-                    database.saveTrack(entry);
-                    imported++;
-                } catch (Exception ignored) {
-                }
-            }
-            int count = imported;
-            runOnUiThread(() -> {
-                if (isDestroyed()) return;
-                reloadTracks();
-                showStatus("已导入 " + count + " 首歌曲");
-                bottomNavigation.setSelectedItemId(R.id.nav_playlist);
-            });
-        }, libraryExecutor);
-    }
-
-    private File copyIntoPrivateLibrary(Uri uri) throws IOException {
-        String name = queryDisplayName(uri);
-        File target = uniqueFile(privateMusicDir, sanitizeFileName(name));
-        try (InputStream input = getContentResolver().openInputStream(uri);
-             FileOutputStream output = new FileOutputStream(target)) {
-            if (input == null) throw new IOException("无法读取文件");
-            copyStream(input, output);
-        }
-        return target;
-    }
-
-    private String queryDisplayName(Uri uri) {
-        try (Cursor cursor = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
-        }
-        return "imported-" + System.currentTimeMillis() + ".mp3";
-    }
-
-    private TrackEntry createEntry(File file, long createdAt) {
-        Track track = new Track(file.toPath());
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        try {
-            retriever.setDataSource(file.getAbsolutePath());
-            String title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
-            String artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
-            track.updateMetadata(title, artist);
-        } catch (RuntimeException ignored) {
-        } finally {
-            try { retriever.release(); } catch (IOException ignored) { }
-        }
-        return new TrackEntry(track, createdAt);
+        importer.submit(uris, progress -> {
+            if (isDestroyed()) return;
+            if (progress.finished() && progress.success() > 0) reloadTracks();
+            if (request != importRequestId) return;
+            int failed = progress.processed() - progress.success() - progress.duplicates();
+            String message = (progress.finished() ? "导入完成" : "导入 " + progress.processed() + "/" + progress.total())
+                    + "：成功 " + progress.success() + "，重复 " + progress.duplicates() + "，失败 " + failed;
+            if (!progress.failures().isEmpty()) message += "（" + progress.failures().get(0).detail() + "）";
+            showStatus(message);
+            if (progress.finished()) bottomNavigation.setSelectedItemId(R.id.nav_playlist);
+        });
     }
 
     private void reloadTracks() { reloadTracks(() -> { }); }
@@ -612,7 +573,7 @@ public final class MainActivity extends AppCompatActivity {
         int request = ++lyricsRequestId;
         setRefreshLoading(false);
         currentLyrics = Lyrics.empty("正在加载歌词...");
-        renderLyrics(-1);
+        renderLyrics();
         CompletableFuture.supplyAsync(() -> {
             AndroidMusicDatabase.CachedLyrics cached = database.loadLyrics(entry);
             if (cached != null) return new LyricsLookupResult(LrcParser.parse(cached.source(), cached.rawText()), cached.artworkUrl());
@@ -631,7 +592,7 @@ public final class MainActivity extends AppCompatActivity {
             if (isDestroyed() || request != lyricsRequestId) return;
             if (lookup != null) {
                 currentLyrics = lookup.lyrics();
-                renderLyrics(-1);
+                renderLyrics();
                 if (!TextUtils.isEmpty(lookup.artworkUrl())) loadArtwork(lookup.artworkUrl());
             } else lookupLyricsOnline(entry, request, false);
         }));
@@ -651,11 +612,11 @@ public final class MainActivity extends AppCompatActivity {
                     setRefreshLoading(false);
                     if (error != null || lookup == null) {
                         currentLyrics = Lyrics.empty(forceRefresh ? "刷新失败，没有找到歌词" : "暂无歌词，可点右上角刷新重试");
-                        renderLyrics(-1);
+                        renderLyrics();
                         return;
                     }
                     currentLyrics = lookup.lyrics();
-                    renderLyrics(-1);
+                    renderLyrics();
                     if (!TextUtils.isEmpty(lookup.artworkUrl())) loadArtwork(lookup.artworkUrl());
                     if (forceRefresh) showStatus("歌词已更新：" + lookup.lyrics().source());
                 }));
@@ -670,7 +631,7 @@ public final class MainActivity extends AppCompatActivity {
         }
         int reqId = ++lyricsRequestId;
         currentLyrics = Lyrics.empty("正在刷新歌词...");
-        renderLyrics(-1);
+        renderLyrics();
         lookupLyricsOnline(entry, reqId, true);
     }
 
@@ -755,7 +716,7 @@ public final class MainActivity extends AppCompatActivity {
         onlineService.preview(info).result().whenComplete((lookup, error) -> runOnUiThread(() -> {
             if (isDestroyed() || request != previewRequestId) return;
             currentLyrics = lookup == null || error != null ? Lyrics.empty("在线结果暂无歌词") : lookup.lyrics();
-            renderLyrics(-1);
+            renderLyrics();
         }));
     }
 
@@ -873,16 +834,16 @@ public final class MainActivity extends AppCompatActivity {
     }
 
     private Track readTrackMetadata(File file) {
-        return createEntry(file, System.currentTimeMillis()).track();
+        return AndroidTrackFiles.entry(file, System.currentTimeMillis()).track();
     }
 
     private File copyToDirectory(File source, File directory) throws IOException {
         if (!ensureDirectory(directory)) {
             throw new IOException("无法创建歌曲目录：" + directory.getAbsolutePath());
         }
-        File target = uniqueFile(directory, sanitizeFileName(source.getName()));
+        File target = AndroidTrackFiles.reserve(directory, source.getName());
         try {
-            Files.copy(source.toPath(), target.toPath());
+            Files.copy(source.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             Files.deleteIfExists(source.toPath());
             return target;
         } catch (IOException error) {
@@ -894,7 +855,7 @@ public final class MainActivity extends AppCompatActivity {
     @RequiresApi(Build.VERSION_CODES.Q)
     private MediaStoreFile publishToMediaStore(File source) throws IOException {
         String relativePath = Environment.DIRECTORY_MUSIC + "/music/";
-        String fileName = uniqueMediaStoreName(sanitizeFileName(source.getName()), relativePath);
+        String fileName = uniqueMediaStoreName(AndroidTrackFiles.safeName(source.getName()), relativePath);
         ContentValues values = new ContentValues();
         values.put(MediaStore.Audio.Media.DISPLAY_NAME, fileName);
         values.put(MediaStore.Audio.Media.MIME_TYPE, mimeTypeFor(fileName));
@@ -1082,42 +1043,11 @@ public final class MainActivity extends AppCompatActivity {
 
     private void updateLyricPosition(long positionMillis) {
         if (lyricsPage.getVisibility() != View.VISIBLE || currentLyrics == null || !currentLyrics.timed()) return;
-        int active = -1;
-        for (int index = 0; index < currentLyrics.lines().size(); index++) {
-            LyricLine line = currentLyrics.lines().get(index);
-            if (line.time() != null && line.time().toMillis() <= positionMillis) active = index;
-            else break;
-        }
-        renderLyrics(active);
+        lyricsPresenter.update(positionMillis);
     }
 
-    private void renderLyrics(int activeIndex) {
-        if (currentLyrics == null) return;
-        if (renderedLyrics == currentLyrics && lastLyricIndex == activeIndex) return;
-        renderedLyrics = currentLyrics;
-        lastLyricIndex = activeIndex;
-        SpannableStringBuilder builder = new SpannableStringBuilder();
-        int activeStart = -1;
-        int activeEnd = -1;
-        for (int index = 0; index < currentLyrics.lines().size(); index++) {
-            if (index > 0) builder.append('\n');
-            int start = builder.length();
-            builder.append(currentLyrics.lines().get(index).text());
-            if (index == activeIndex) {
-                activeStart = start;
-                activeEnd = builder.length();
-            }
-        }
-        if (activeStart >= 0) {
-            builder.setSpan(new ForegroundColorSpan(Color.rgb(240, 90, 60)), activeStart, activeEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            builder.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), activeStart, activeEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        lyricsText.setText(builder);
-        if (activeIndex >= 0) {
-            int lineHeight = Math.max(1, lyricsText.getLineHeight());
-            int target = Math.max(0, activeIndex * lineHeight - lyricsScroll.getHeight() / 2);
-            lyricsScroll.smoothScrollTo(0, target);
-        }
+    private void renderLyrics() {
+        if (currentLyrics != null) lyricsPresenter.show(currentLyrics);
     }
 
     private void showPage(View target) {
@@ -1158,21 +1088,6 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
-    private static String sanitizeFileName(String value) {
-        String safe = value == null || value.isBlank() ? "audio.mp3" : value;
-        return safe.replaceAll("[\\\\/:*?\"<>|]", "_");
-    }
-
-    private static File uniqueFile(File directory, String name) {
-        File candidate = new File(directory, name);
-        int dot = name.lastIndexOf('.');
-        String base = dot > 0 ? name.substring(0, dot) : name;
-        String extension = dot > 0 ? name.substring(dot) : "";
-        int counter = 2;
-        while (candidate.exists()) candidate = new File(directory, base + " (" + counter++ + ")" + extension);
-        return candidate;
-    }
-
     private static boolean ensureDirectory(File directory) {
         return directory.isDirectory() || directory.mkdirs();
     }
@@ -1196,6 +1111,8 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (importer != null) importer.close();
+        if (lyricsPresenter != null) lyricsPresenter.close();
         if (onlineTasks != null) onlineTasks.close();
         if (localTrackList != null) localTrackList.close();
         progressHandler.removeCallbacksAndMessages(null);
