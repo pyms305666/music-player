@@ -10,6 +10,7 @@ import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 
 /** The service owns the complete queue, so automatic transitions do not require the UI. */
+@androidx.annotation.OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)
 public final class PlaybackService extends MediaSessionService {
     private MediaSession session;
 
@@ -35,7 +36,9 @@ public final class PlaybackService extends MediaSessionService {
         });
         Player traced = new ForwardingPlayer(player) {
             @Override public void stop() {
-                android.util.Log.i("ZaPlaybackTrace", "stop called", new Throwable("stop caller"));
+                MediaSession.ControllerInfo caller = session == null ? null : session.getControllerForCurrentRequest();
+                android.util.Log.i("ZaPlaybackTrace", "stop called; origin=" + (caller == null ? "none"
+                        : caller.getPackageName() + "/" + caller.hashCode()), new Throwable("stop caller"));
                 super.stop();
             }
             @Override public void setPlayWhenReady(boolean value) {
@@ -65,6 +68,19 @@ public final class PlaybackService extends MediaSessionService {
 
     @Nullable @Override public MediaSession onGetSession(MediaSession.ControllerInfo controller) {
         return session;
+    }
+
+    @Override public int onStartCommand(android.content.Intent intent, int flags, int startId) {
+        android.view.KeyEvent key = intent == null ? null : intent.getParcelableExtra(android.content.Intent.EXTRA_KEY_EVENT);
+        android.util.Log.i("ZaPlaybackTrace", "start action=" + (intent == null ? "null" : intent.getAction())
+                + " key=" + (key == null ? -1 : key.getKeyCode()) + " dismissed="
+                + (intent != null && intent.getBooleanExtra("androidx.media3.session.NOTIFICATION_DISMISSED_EVENT_KEY", false)));
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override public void onTaskRemoved(android.content.Intent rootIntent) {
+        android.util.Log.i("ZaPlaybackTrace", "task removed foreground=" + isPlaybackOngoing());
+        super.onTaskRemoved(rootIntent);
     }
 
     @Override public void onDestroy() {
