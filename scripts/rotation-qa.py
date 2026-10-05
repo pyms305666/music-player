@@ -88,15 +88,18 @@ def exercise(args):
             WORK.mkdir(parents=True, exist_ok=True)
             label = f"instrument-{instrumentation_number:02d}"
             (WORK / (label + ".txt")).write_text(output, encoding="utf-8")
-        if not re.search(r"OK \(\d+ tests?\)", output) or "FAILURES" in output:
-            if serial.startswith("emulator-"):
+        failed = not re.search(r"OK \(\d+ tests?\)", output) or "FAILURES" in output
+        if serial.startswith("emulator-") and (failed or test_class.endswith("PlaybackServiceTest")):
                 try:
                     logs = command("logcat", "-d", "-v", "threadtime", "ExoPlayerImpl:V",
                                    "MediaSessionService:V", "AudioTrack:V", "AudioManager:V",
+                                   "MSessionService:V", "MNotificationManager:V", "MSessionImpl:V",
+                                   "ExoPlayerImplInternal:V", "ActivityManager:I", "ZaPlaybackTrace:V",
                                    "TestRunner:V", "AndroidRuntime:E", "*:S")
                     (WORK / (label + "-logcat.txt")).write_text(logs, encoding="utf-8")
                 except Exception as diagnostic_error:
-                    print("Could not collect failure logcat:", diagnostic_error, file=sys.stderr)
+                    print("Could not collect playback logcat:", diagnostic_error, file=sys.stderr)
+        if failed:
             raise RuntimeError("Instrumentation regression failed")
     def functional_checks():
         # Exercise the same components after each upgrade and on a fresh install, including API 28.

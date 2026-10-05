@@ -255,7 +255,8 @@ public class PlaybackServiceTest {
         start(List.of(audio("screen-first", 2), audio("screen-second", 2)), Player.REPEAT_MODE_ALL);
         try {
             shell("input keyevent 223");
-            assertTrue("Screen-off queue failed to loop", wrapped.await(12, TimeUnit.SECONDS));
+            boolean didWrap = wrapped.await(12, TimeUnit.SECONDS);
+            assertTrue("Screen-off queue failed to loop; " + playbackDiagnostics(), didWrap);
             main(() -> assertTrue(controller.isPlaying()));
         } finally { shell("input keyevent 224"); shell("wm dismiss-keyguard"); }
     }
