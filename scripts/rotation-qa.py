@@ -90,15 +90,17 @@ def exercise(args):
             (WORK / (label + ".txt")).write_text(output, encoding="utf-8")
         failed = not re.search(r"OK \(\d+ tests?\)", output) or "FAILURES" in output
         if serial.startswith("emulator-") and (failed or test_class.endswith("PlaybackServiceTest")):
-                try:
-                    logs = command("logcat", "-d", "-v", "threadtime", "ExoPlayerImpl:V",
-                                   "MediaSessionService:V", "AudioTrack:V", "AudioManager:V",
-                                   "MSessionService:V", "MNotificationManager:V", "MSessionImpl:V",
-                                   "ExoPlayerImplInternal:V", "ActivityManager:I", "ZaPlaybackTrace:V",
-                                   "TestRunner:V", "AndroidRuntime:E", "*:S")
-                    (WORK / (label + "-logcat.txt")).write_text(logs, encoding="utf-8")
-                except Exception as diagnostic_error:
-                    print("Could not collect playback logcat:", diagnostic_error, file=sys.stderr)
+            try:
+                logs = command("logcat", "-d", "-v", "threadtime", "ExoPlayerImpl:V",
+                               "MediaSessionService:V", "AudioTrack:V", "AudioManager:V",
+                               "MSessionService:V", "MNotificationManager:V", "MSessionImpl:V",
+                               "ExoPlayerImplInternal:V", "ActivityManager:I", "ZaPlaybackTrace:V",
+                               "NotificationService:V", "NotificationMediaManager:V", "MediaDataManager:V",
+                               "MediaSessionBasedFilter:V", "NotifCollection:V",
+                               "TestRunner:V", "AndroidRuntime:E", "*:S")
+                (WORK / (label + "-logcat.txt")).write_text(logs, encoding="utf-8")
+            except Exception as diagnostic_error:
+                print("Could not collect playback logcat:", diagnostic_error, file=sys.stderr)
         if failed:
             raise RuntimeError("Instrumentation regression failed")
     def functional_checks():

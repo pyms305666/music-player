@@ -8,11 +8,14 @@ import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
+import androidx.media3.session.DefaultMediaNotificationProvider;
 
 /** The service owns the complete queue, so automatic transitions do not require the UI. */
 @androidx.annotation.OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)
 public final class PlaybackService extends MediaSessionService {
     private MediaSession session;
+    private int notificationId = new java.util.Random().nextInt(Integer.MAX_VALUE - 1) + 1;
+    private boolean notificationCycleEnded = true;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -24,6 +27,22 @@ public final class PlaybackService extends MediaSessionService {
                 .build();
         player.setRepeatMode(Player.REPEAT_MODE_ALL);
         player.setVolume(0.7f);
+        player.addListener(new Player.Listener() {
+            @Override public void onTimelineChanged(androidx.media3.common.Timeline timeline, int reason) {
+                if (timeline.isEmpty()) notificationCycleEnded = true;
+            }
+        });
+        setMediaNotificationProvider(new DefaultMediaNotificationProvider.Builder(this)
+                .setNotificationIdProvider(mediaSession -> {
+                    // Android 13 SystemUI may process an old removal after a new notification
+                    // has appeared. Give each new nonempty queue lifecycle a different key.
+                    if (notificationCycleEnded && mediaSession.getPlayer().getMediaItemCount() > 0) {
+                        notificationId = notificationId == Integer.MAX_VALUE ? 1 : notificationId + 1;
+                        notificationCycleEnded = false;
+                    }
+                    android.util.Log.i("ZaPlaybackTrace", "notification id=" + notificationId);
+                    return notificationId;
+                }).build());
         // Temporary API 33 CI diagnostics; removed before final publication.
         player.addListener(new Player.Listener() {
             @Override public void onPlaybackStateChanged(int state) {

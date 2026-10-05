@@ -261,6 +261,64 @@ public class PlaybackServiceTest {
         } finally { shell("input keyevent 224"); shell("wm dismiss-keyguard"); }
     }
 
+    @Test public void clearedQueueNotificationCannotDismissRestartedPlayback() throws Exception {
+        start(List.of(audio("notify-first", 20)), Player.REPEAT_MODE_ALL);
+        android.service.notification.StatusBarNotification oldNotification = awaitMediaNotification(-1);
+        main(() -> { controller.stop(); controller.clearMediaItems(); });
+        long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
+        while (!mediaNotifications().isEmpty() && android.os.SystemClock.elapsedRealtime() < deadline)
+            Thread.sleep(50);
+        assertTrue("Cleared queue retained a media notification", mediaNotifications().isEmpty());
+
+        start(List.of(audio("notify-second", 20)), Player.REPEAT_MODE_ALL);
+        var current = awaitMediaNotification(oldNotification.getId());
+        var manager = (android.app.NotificationManager) context().getSystemService(Context.NOTIFICATION_SERVICE);
+        // An asynchronous system removal for the old key must not affect the new queue.
+        manager.cancel(oldNotification.getId());
+        AtomicReference<Long> before = new AtomicReference<>();
+        main(() -> before.set(controller.getCurrentPosition()));
+        Thread.sleep(600);
+        String diagnostic = playbackDiagnostics();
+        main(() -> {
+            assertTrue("Obsolete notification removal stopped playback; " + diagnostic, controller.isPlaying());
+            assertTrue(controller.getCurrentPosition() >= before.get() + 300);
+        });
+
+        // A dismissal of the current notification must still stop playback normally.
+        assertNotNull(current.getNotification().deleteIntent);
+        current.getNotification().deleteIntent.send();
+        deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
+        boolean stopped = false;
+        while (android.os.SystemClock.elapsedRealtime() < deadline) {
+            AtomicReference<Boolean> value = new AtomicReference<>(false);
+            main(() -> value.set(controller.getPlaybackState() == Player.STATE_IDLE && !controller.isPlaying()));
+            if (value.get()) { stopped = true; break; }
+            Thread.sleep(50);
+        }
+        assertTrue("Current notification dismissal did not stop playback; " + playbackDiagnostics(), stopped);
+    }
+
+    private List<android.service.notification.StatusBarNotification> mediaNotifications() {
+        var manager = (android.app.NotificationManager) context().getSystemService(Context.NOTIFICATION_SERVICE);
+        List<android.service.notification.StatusBarNotification> result = new ArrayList<>();
+        for (var notification : manager.getActiveNotifications()) {
+            if (notification.getNotification().extras.containsKey(android.app.Notification.EXTRA_MEDIA_SESSION))
+                result.add(notification);
+        }
+        return result;
+    }
+
+    private android.service.notification.StatusBarNotification awaitMediaNotification(int obsoleteId) throws Exception {
+        long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
+        while (android.os.SystemClock.elapsedRealtime() < deadline) {
+            var notifications = mediaNotifications();
+            if (notifications.size() == 1 && notifications.get(0).getId() != obsoleteId) return notifications.get(0);
+            Thread.sleep(50);
+        }
+        fail("Expected exactly one current media notification after queue restart");
+        return null;
+    }
+
     private void shell(String command) throws Exception {
         try (var descriptor = InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
              var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) { while (input.read(new byte[1024]) != -1) { /* Drain shell output on API 28 too. */ } }
