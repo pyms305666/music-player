@@ -24,7 +24,7 @@ jobs:
       - name: Verify generated cache protection including real symbolic links
         run: |
           chmod +x gradlew
-          ./gradlew test --tests app.musicplayer.cache.GeneratedFileCacheTest --no-daemon --console=plain
+          ./gradlew :test --tests app.musicplayer.cache.GeneratedFileCacheTest --no-daemon --console=plain
           python3 - <<'PY'
           import pathlib, xml.etree.ElementTree as ET
           report = ET.parse(pathlib.Path('build/test-results/test/TEST-app.musicplayer.cache.GeneratedFileCacheTest.xml'))
