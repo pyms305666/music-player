@@ -116,6 +116,17 @@ API 33 升级矩阵在页面销毁和息屏回归中真实失败，原失败没�
 
 Android 13 SystemUI 的媒体通知删除处理异步跨线程，并可能按相同通知 key 查找当前通知后将其撤销；这是旧通知事件影响新通知的可行路径，原始日志没有完整记录 SystemUI 内部事件来源，不能声称已经逐步观测到该系统路径。参考 [AOSP NotificationMediaManager](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-13.0.0_r1/packages/SystemUI/src/com/android/systemui/statusbar/NotificationMediaManager.java) 和 [MediaSessionBasedFilter](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-13.0.0_r1/packages/SystemUI/src/com/android/systemui/media/MediaSessionBasedFilter.kt)。
 
-修复在队列清空后为下一次非空队列分配不同通知 ID，并先撤销旧 ID；同一队列的切歌、暂停和元数据更新仍使用稳定 ID。默认 Media3 样式、前台服务管理和当前通知删除触发 STOP 均保留。新增第 7 项播放测试：冷启动的非前台暂停通知在同一主线程回调内清空并重建队列，只留下一个新通知；旧 ID 撤销不停止新播放，当前通知的 deleteIntent 仍停止播放。最终真机功能集合由 24 项扩为 25 项，必须对最终 APK 全部通过，并再次核对个人数据。临时 ForwardingPlayer 与生命周期诊断日志在发布源码中移除。
+修复在队列清空后为下一次非空队列分配不同通知 ID，并先撤销旧 ID；同一队列的切歌、暂停和元数据更新仍使用稳定 ID。默认 Media3 样式、前台服务管理和当前通知删除触发 STOP 均保留。新增第 7 项播放测试：冷启动的非前台暂停通知在同一主线程回调内清空并重建队列，只留下一个新通知；旧 ID 撤销不停止新播放，当前通知的 deleteIntent 仍停止播放。原拟将最终真机集合由 24 项扩为 25 项；实测与用户接受的发布范围见下文。最终 APK 仍须再次核对个人数据。临时 ForwardingPlayer 与生命周期诊断日志在发布源码中移除。
 
 上述三对性能数据针对缓存、歌词和导入实现；补充通知修复后没有重新采集这组性能数据。最终提交的全部 CI、正式附件散列与验证来源统一见 Release build-info.json；发布脚本仍拒绝任一门禁未完成的提交。
+
+
+## 最终真机通知限制与已接受的验证范围
+
+最终候选源码完整 CI 的 API 28/31/32/33 升级矩阵及 API 35 功能回归通过。API 35 和 32 曾在系统镜像安装阶段报 ZIP 错误，测试未执行；保留原失败日志，在相同提交重跑失败任务后通过，不将基础设施失败记为播放断言通过。最终发布的源码/CI 仍以 build-info.json 为准。
+
+vivo V2528A / Android 16 的最终正式 APK：24 项功能回归、覆盖升级及播放后数据检查通过，102 首歌曲和 4 条歌词缓存保留，安装的 APK 散列与正式附件一致。新增冷暂停通知测试未通过，停在第一条暂停通知发布之前；不得计入真机成功数。测试诊断显示 READY、非空队列、无播放错误、频道 importance=2，Media3 已创建 MediaStyle 通知并注入媒体会话令牌，系统却没有可查询的该应用通知。该手机的通知可用状态为 false；原 UID 通知策略及 vivo 开关均为关闭。不能仅凭这些证据断言厂商内部实现的具体拒绝分支。
+
+临时 UID 设置、vivo 开关和合成元数据对照均未使该测试通过；这些失败保留。宿主 finally 恢复原通知策略，最终只读复核原设置；不增加生产权限、不绕过任何测试断言。用于诊断的测试修改没有进入发布源码；个人数据库备份不进入 Git 或 Release。正式测试包、设备临时快照和测试音频已清理，保留主应用与个人数据。
+
+用户于 2026-10-05 明确选择“接受该范围并发布”：真机 24 项功能与数据保留检查＋模拟器通知回归。该接受仅涉及这项机型验证限制；通知用例仍完整运行在 CI，发布继续要求干净最终源码、对应提交全部 CI、两端附件散列与正式 APK 签名/身份校验。Windows 随包运行时的实际播放烟测已通过，未声称在个人桌面安装/卸载安装程序。

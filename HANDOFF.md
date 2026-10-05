@@ -14,7 +14,7 @@
 - 第三轮（4.1.12）：`BoundedExpiringCache` / `ResolutionCache` 限制下载解析缓存；`GeneratedFileCache` 用租约保护在用封面和播放修正文件；`LyricTimeline` 双端共用，Android `AndroidLyricsPresenter` 保持全文并更新高亮；`AndroidLibraryImporter` 按 50 首事务导入、按 URI 去重并清理失败副本，`AndroidTrackFiles` 原子预留文件名。性能和完整验证范围见 `docs/performance-4.1.12.md`。
 - 三组独立进程性能对照已完成。长歌词稳定堆增加 0.566MiB / 15.257%，用户于 2026-10-05 明确接受，以保留约 99.5% 的高亮耗时下降；该例外不扩大到其他指标。真机候选覆盖升级与 24 项功能回归通过，保留 102 首歌曲、4 条歌词缓存。最终附件来源、全部 CI 与散列以 Release 的构建记录为准。
 
-- 发布前补充 Android 13 通知竞态修复：清空队列后轮换通知 ID 并撤销旧通知，暂停快速重建也不留下重复通知。新增第 7 项播放回归，最终真机门禁为 25 项功能测试和数据保留复核；最终成功 CI、源码与附件以 Release build-info.json 为准。诊断与边界见性能记录。
+- 发布前补充 Android 13 通知竞态修复：清空队列后轮换通知 ID 并撤销旧通知，暂停快速重建也不留下重复通知。新增第 7 项播放回归。用户于 2026-10-05 明确接受真机 24 项功能及数据保留检查＋模拟器通知回归的发布范围；vivo 系统未发布冷暂停通知，该项真机失败保留且不计通过，原通知设置已恢复。最终成功 CI、源码与附件以 Release build-info.json 为准。诊断与边界见性能记录。
 
 - `playlist.SearchSnapshot` / `LocalSearch`：不可变匹配字段、后台过滤、200ms 大曲库防抖和请求版本校验。
 - Android `ui.LocalTrackList` / `TrackRow` / `TrackAdapter`：曲库变更时排序并建快照，搜索仅更新显示；DiffUtil 比较不可变字段，选择按歌曲标识保留。
