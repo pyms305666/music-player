@@ -34,6 +34,8 @@ public final class OnlineMusicSearchService implements AutoCloseable {
 
     public OnlineMusicSearchService() { this(new MusicCrawler(), System::nanoTime); }
     public OnlineMusicSearchService(boolean allowFallback) { this(new MusicCrawler(allowFallback), System::nanoTime); }
+    /** Two batch songs search independently; each needs capacity for all of its sources. */
+    public static OnlineMusicSearchService forPlaylists() { return new OnlineMusicSearchService(new MusicCrawler(false,2),System::nanoTime); }
 
     OnlineMusicSearchService(MusicCrawler crawler, java.util.function.LongSupplier clock) {
         this(crawler, clock, crawler::download);

@@ -22,7 +22,7 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
     private static final String[] BITRATES = {"320kmp3", "2000kflac", "128kmp3"};
 
     private static final Pattern FIELD_PATTERN =
-            Pattern.compile("'(NAME|SONGNAME|ARTIST|ALBUM|ALBUMID|MUSICRID)':'([^']*)'");
+            Pattern.compile("'(NAME|SONGNAME|SUBTITLE|ARTIST|ALBUM|ALBUMID|MUSICRID)':'([^']*)'");
     private static final Pattern TEXT_ESCAPE = Pattern.compile("\\\\+u([0-9a-fA-F]{4})");
 
     private final CrawlerSession session;
@@ -101,9 +101,10 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
 
     private static OnlineTrackInfo parseItem(String item) {
         String musicRid = field(item, "MUSICRID");
-        String title = field(item, "NAME");
+        // NAME can omit Remix / 3D / DJ annotations; SONGNAME preserves the recording's version.
+        String title = field(item, "SONGNAME");
         if (title == null || title.isBlank()) {
-            title = field(item, "SONGNAME");
+            title = field(item, "NAME");
         }
         if (musicRid == null || musicRid.isBlank() || title == null || title.isBlank()) {
             return null;
@@ -120,12 +121,23 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
         String albumId = field(item, "ALBUMID");
         return new OnlineTrackInfo(
                 SOURCE,
-                searchText(title),
+                searchTitle(title, field(item, "SUBTITLE")),
                 searchText(artist),
                 album == null ? "" : searchText(album),
                 null,
                 rid,
                 albumId);
+    }
+
+    private static String searchTitle(String title, String subtitle) {
+        String decoded = searchText(title);
+        String credit = subtitle == null ? "" : searchText(subtitle);
+        // A separately supplied soundtrack credit is promotional text, rather than a version.
+        if (credit.matches("《[^《》]+》(电视剧|电影)(插曲|主题曲|片头曲|片尾曲)")
+                && decoded.endsWith("-" + credit)) {
+            return decoded.substring(0, decoded.length() - credit.length() - 1).trim();
+        }
+        return decoded;
     }
 
     /** Search metadata sometimes contains several layers of escaped Unicode. */

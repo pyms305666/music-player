@@ -39,6 +39,35 @@ class SearchBudgetTest {
         }
     }
 
+    @Test void secondBatchSearchDoesNotWaitBehindFiveBlockedSources() throws Exception {
+        for(int parallelism:List.of(1,2)){
+            var started=new CountDownLatch(5);var release=new CountDownLatch(1);
+            var providers=new java.util.ArrayList<OnlineSourceProvider>();
+            for(int i=0;i<5;i++){String name="source"+i;providers.add(new OnlineSourceProvider(){
+                public String sourceName(){return name;}public String referer(){return "http://localhost/";}
+                public List<OnlineTrackInfo> search(String query){
+                    if(query.equals("blocked")){
+                        started.countDown();boolean interrupted=false;
+                        while(release.getCount()>0)try{release.await();}catch(InterruptedException error){interrupted=true;}
+                        if(interrupted)Thread.currentThread().interrupt();
+                    }
+                    return List.of(track(name));
+                }
+                public String resolve(OnlineTrackInfo track){return null;}
+            });}
+            var calls=Executors.newSingleThreadExecutor();
+            try(var crawler=new MusicCrawler(providers,1200,parallelism)){
+                try{
+                    var first=calls.submit(() -> crawler.search("blocked"));assertTrue(started.await(1,TimeUnit.SECONDS));
+                    var second=crawler.searchIncrementally("healthy",ignored -> {});
+                    assertEquals(parallelism==1?0:5,second.tracks().size());
+                    assertTrue(second.sources().stream().allMatch(s -> s.outcome()==(parallelism==1?OnlineSearchSnapshot.Outcome.TIMED_OUT:OnlineSearchSnapshot.Outcome.COMPLETE)));
+                    release.countDown();first.get(3,TimeUnit.SECONDS);
+                }finally{release.countDown();calls.shutdownNow();}
+            }
+        }
+    }
+
     private static OnlineTrackInfo track(String source) { return new OnlineTrackInfo(source, "song", "artist", "", null, "id", null); }
     private static OnlineSourceProvider provider(String source, java.util.function.Supplier<List<OnlineTrackInfo>> search, AtomicInteger resolves) {
         return new OnlineSourceProvider() {

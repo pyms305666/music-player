@@ -35,7 +35,7 @@ public final class PlaylistDownloads implements AutoCloseable {
     private int running;
     private boolean closed;
     public PlaylistDownloads(PlaylistStore store,Path scratch,Publisher publisher,Executor ui){
-        this(store,scratch,publisher,ui,new OnlineMusicSearchService(false));
+        this(store,scratch,publisher,ui,OnlineMusicSearchService.forPlaylists());
     }
     public PlaylistDownloads(PlaylistStore store,Path scratch,Publisher publisher,Executor ui,OnlineMusicSearchService service){
         this(store,scratch,publisher,ui,service,(CandidateLookup)(entry,cancellation) -> {

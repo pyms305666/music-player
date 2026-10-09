@@ -64,6 +64,30 @@ class KuwoSourceProviderTest {
     }
 
     @Test
+    void preservesSongnameVersionsInsteadOfAbbreviatedName() {
+        String body = "{'abslist':[{'MUSICRID':'MUSIC_28573071','NAME':'追光者',"
+                + "'SONGNAME':'追光者&nbsp;(Exclusive&nbsp;Remix)','ARTIST':'岑宁儿','ALBUM':'追光者'},"
+                + "{'MUSICRID':'MUSIC_152720313','NAME':'追光者','SONGNAME':'追光者&nbsp;(3d环绕)','ARTIST':'岑宁儿'}]}";
+        var results = KuwoSourceProvider.parseSearchResponse(body);
+        assertEquals("追光者 (Exclusive Remix)", results.get(0).title());
+        assertEquals("追光者 (3d环绕)", results.get(1).title());
+        var requested = new OnlineTrackInfo("酷狗音乐", "追光者", "岑宁儿", "夏至未至 电视剧原声带", "", "original", "");
+        assertEquals(List.of(), app.musicplayer.playlist.PlaylistSongMatcher.ranked(requested, results, true));
+    }
+
+    @Test
+    void removesOnlySeparatelyDeclaredSoundtrackCreditAndKeepsVersion() {
+        String body = "{'abslist':[{'MUSICRID':'MUSIC_25371883','NAME':'追光者-《夏至未至》电视剧插曲',"
+                + "'SONGNAME':'追光者-《夏至未至》电视剧插曲','SUBTITLE':'《夏至未至》电视剧插曲','ARTIST':'岑宁儿'},"
+                + "{'MUSICRID':'MUSIC_2','SONGNAME':'追光者 (Live)-《夏至未至》电视剧插曲','SUBTITLE':'《夏至未至》电视剧插曲'},"
+                + "{'MUSICRID':'MUSIC_3','SONGNAME':'追光者-Exclusive Remix','SUBTITLE':'Exclusive Remix'}]}";
+        var results = KuwoSourceProvider.parseSearchResponse(body);
+        assertEquals("追光者", results.get(0).title());
+        assertEquals("追光者 (Live)", results.get(1).title());
+        assertEquals("追光者-Exclusive Remix", results.get(2).title());
+    }
+
+    @Test
     void rejectsBlankBody() {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse(null));
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse("  "));

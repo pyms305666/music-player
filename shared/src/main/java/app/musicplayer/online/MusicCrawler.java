@@ -45,26 +45,32 @@ public final class MusicCrawler implements AutoCloseable {
     private final boolean allowFallback;
 
     public MusicCrawler() { this(true); }
-    public MusicCrawler(boolean allowFallback) {
+    public MusicCrawler(boolean allowFallback) { this(allowFallback,1); }
+    MusicCrawler(boolean allowFallback,int parallelSearches) {
         this.allowFallback = allowFallback;
         providers = List.of(new KugouSourceProvider(session), new KuwoSourceProvider(session),
                 new MiguSourceProvider(session), new QqSourceProvider(session), new NeteaseSourceProvider(session));
         providersByName = indexProviders(providers);
         searchBudgetNanos = TimeUnit.SECONDS.toNanos(SEARCH_TIMEOUT_SECONDS);
+        searchExecutor = searchExecutor(providers.size(),parallelSearches);
     }
 
-    MusicCrawler(List<OnlineSourceProvider> providers, long budgetMillis) {
+    MusicCrawler(List<OnlineSourceProvider> providers, long budgetMillis) { this(providers,budgetMillis,1); }
+    MusicCrawler(List<OnlineSourceProvider> providers, long budgetMillis,int parallelSearches) {
         this.allowFallback = true;
         this.providers = List.copyOf(providers);
         this.providersByName = indexProviders(providers);
         this.searchBudgetNanos = TimeUnit.MILLISECONDS.toNanos(budgetMillis);
+        searchExecutor = searchExecutor(providers.size(),parallelSearches);
     }
 
-    private final java.util.concurrent.ScheduledExecutorService searchExecutor = Executors.newScheduledThreadPool(5, runnable -> {
-        Thread thread = new Thread(runnable, "crawler-search");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final java.util.concurrent.ScheduledExecutorService searchExecutor;
+    private static java.util.concurrent.ScheduledExecutorService searchExecutor(int sources,int parallelSearches) {
+        if(parallelSearches<1||parallelSearches>2)throw new IllegalArgumentException("Support one interactive search or two batch searches");
+        return Executors.newScheduledThreadPool(Math.max(1,sources)*parallelSearches,runnable -> {
+            Thread thread=new Thread(runnable,"crawler-search");thread.setDaemon(true);return thread;
+        });
+    }
     private final ResolutionCache resolutionCache = new ResolutionCache(System::nanoTime);
     private final java.util.concurrent.atomic.AtomicBoolean resolutionMaintenanceStarted = new java.util.concurrent.atomic.AtomicBoolean();
     private final Map<String, ProviderHealth> healthBySource = new ConcurrentHashMap<>();
