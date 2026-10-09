@@ -113,6 +113,11 @@ public final class MusicPlayerApp extends Application {
         Thread t = new Thread(r, "lyrics-retry"); t.setDaemon(true); return t;
     });
 
+    private app.musicplayer.playlist.PlaylistWorkspace playlistWorkspace;
+    private app.musicplayer.playlist.DesktopPlaylistFiles playlistFiles;
+    private app.musicplayer.ui.PlaylistWindow savedPlaylistWindow;
+    private final java.util.List<Track> playbackOrder = new java.util.ArrayList<>();
+    private int savedPlaybackIndex = -1;
     private MusicDatabase database;
     private LyricsService lyricsService;
     private OnlineMusicSearchService onlineMusicSearchService;
@@ -277,7 +282,7 @@ public final class MusicPlayerApp extends Application {
         if (onlineMusicSearchService != null) { onlineMusicSearchService.close(); }
         disposePlayer();
         playbackFileResolver.close();
-        if (database != null) libraryExecutor.execute(database::close);
+        if (database != null) libraryExecutor.execute(() -> { if (playlistWorkspace != null) playlistWorkspace.shutdown().join(); database.close(); });
         libraryExecutor.shutdown();
     }
 
@@ -306,6 +311,9 @@ public final class MusicPlayerApp extends Application {
         catch (SQLException e) { throw new IllegalStateException("无法初始化本地数据库", e); }
         lyricsService = new LyricsService(database, LYRICS_CACHE_DIR);
         onlineMusicSearchService = new OnlineMusicSearchService();
+        playlistFiles = new app.musicplayer.playlist.DesktopPlaylistFiles(database);
+        playlistWorkspace = new app.musicplayer.playlist.PlaylistWorkspace(database, APP_PATHS.dataDir().resolve(".playlist-staging"), playlistFiles, Platform::runLater);
+        playlistWorkspace.downloads.listenPublished(id -> { if (!closing) restoreSavedTracks(); });
     }
 
     private static boolean isTextInputFocused(Scene scene) { return scene.getFocusOwner() instanceof TextField; }
@@ -320,9 +328,13 @@ public final class MusicPlayerApp extends Application {
         importFilesItem.setOnAction(event -> importFiles(stage));
         MenuItem importFolderItem = new MenuItem("导入文件夹");
         importFolderItem.setOnAction(event -> importFolder(stage));
-        MenuButton importButton = new MenuButton("导入音乐", null, importFilesItem, importFolderItem);
+        MenuItem playlistImport = new MenuItem("歌单导入 / 我的歌单");
+        playlistImport.setOnAction(event -> showSavedPlaylists(stage));
+        MenuButton importButton = new MenuButton("导入音乐", null, importFilesItem, importFolderItem, playlistImport);
         importButton.getStyleClass().add("primary-button");
 
+        Button savedPlaylists = new Button("我的歌单");
+        savedPlaylists.setOnAction(event -> showSavedPlaylists(stage));
         playModeBox = createPlayModeBox();
         onlineToggleButton = new Button("在线搜索");
         onlineToggleButton.getStyleClass().add("online-toggle-button");
@@ -347,7 +359,7 @@ public final class MusicPlayerApp extends Application {
             }
         });
 
-        HBox topBar = new HBox(12, appTitle, sectionLabel, spacer, statusLabel, importButton, onlineToggleButton);
+        HBox topBar = new HBox(12, appTitle, sectionLabel, spacer, statusLabel, importButton, savedPlaylists, onlineToggleButton);
         topBar.getStyleClass().add("top-bar");
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setPadding(new Insets(0, 24, 0, 24));
@@ -355,6 +367,26 @@ public final class MusicPlayerApp extends Application {
         topBar.setPrefHeight(56);
         topBar.setMaxHeight(56);
         return topBar;
+    }
+
+    private List<Track> playbackQueue() { return playbackOrder.isEmpty() ? tracks : playbackOrder; }
+
+    private void showSavedPlaylists(Stage stage) {
+        if (savedPlaylistWindow == null) savedPlaylistWindow = new app.musicplayer.ui.PlaylistWindow(stage, playlistWorkspace,
+                playlistFiles, DOWNLOAD_DIR.toString(), this::playSavedPlaylist);
+        savedPlaylistWindow.show();
+    }
+    private void playSavedPlaylist(List<String> locations, boolean append) {
+        CompletableFuture.supplyAsync(() -> playlistFiles.register(locations), libraryExecutor).whenComplete((saved,error) -> Platform.runLater(() -> {
+            if (closing) return;
+            if (error != null) { statusLabel.setText("读取歌单歌曲失败：" + error.getMessage()); return; }
+            if (append && playbackOrder.isEmpty()) { playbackOrder.addAll(tracks); savedPlaybackIndex = tracks.indexOf(currentTrack); }
+            tracks.addAll(trackLibrary.mergeUnique(tracks, saved).addedTracks()); sortTracks();
+            var ordered = saved.stream().map(t -> tracks.stream().filter(existing -> existing.path().toAbsolutePath().normalize().equals(t.path().toAbsolutePath().normalize())).findFirst().orElse(t)).toList();
+            if (append) playbackOrder.addAll(ordered);
+            else { playbackOrder.clear(); playbackOrder.addAll(ordered); savedPlaybackIndex = -1; if (!ordered.isEmpty()) playTrack(0); }
+            statusLabel.setText(append ? "已加入播放队列" : "正在播放歌单中的本地歌曲");
+        }));
     }
 
     private void updateOnlineToggleButton() {
@@ -380,9 +412,12 @@ public final class MusicPlayerApp extends Application {
                 loadLyrics(currentTrack, true);
             }
         });
+        MenuItem savedPlaylistsItem = new MenuItem("我的歌单 / 导入歌单");
+        savedPlaylistsItem.setOnAction(event -> showSavedPlaylists(stage));
         MenuButton manageButton = new MenuButton(
                 "管理",
                 null,
+                savedPlaylistsItem,
                 importFolderItem,
                 removeTrackItem,
                 reloadLyricsItem);
@@ -447,7 +482,7 @@ public final class MusicPlayerApp extends Application {
                 preferences,
                 this::applyTrackFilter,
                 this::sortTracks,
-                this::playTrack,
+                track -> { playbackOrder.clear(); playTrack(track); },
                 this::removeSelectedTrack,
                 !layoutMode.isMobile());
         searchField = playlistPane.searchField();
@@ -749,11 +784,16 @@ public final class MusicPlayerApp extends Application {
         else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0);
     }
 
-    private void playTrack(int idx) { if (idx >= 0 && idx < tracks.size()) playTrack(tracks.get(idx)); }
+    private void playTrack(int idx) { var queue = playbackQueue(); if (idx >= 0 && idx < queue.size()) { if (!playbackOrder.isEmpty()) savedPlaybackIndex = idx; playTrack(queue.get(idx)); } }
 
     private void playTrack(Track track) {
         onlinePreviewRequestId++;
         int idx = tracks.indexOf(track); if (idx < 0) return;
+        if (!playbackOrder.isEmpty()) {
+            if (!playbackOrder.contains(track)) { playbackOrder.clear(); savedPlaybackIndex = -1; }
+            else if (savedPlaybackIndex < 0 || savedPlaybackIndex >= playbackOrder.size() || playbackOrder.get(savedPlaybackIndex) != track)
+                savedPlaybackIndex = playbackOrder.indexOf(track);
+        }
         disposePlayer(); previewingOnlineResult = false; currentTrack = track;
         if (playbackContextLabel != null) playbackContextLabel.setText("正在播放");
         playbackControls.setPlaying(false);
@@ -879,7 +919,7 @@ public final class MusicPlayerApp extends Application {
 
     private void previousTrack() {
         if (tracks.isEmpty()) return;
-        int cur = currentTrackIndex(); playTrack(cur <= 0 ? tracks.size() - 1 : cur - 1);
+        int cur = currentTrackIndex(); playTrack(cur <= 0 ? playbackQueue().size() - 1 : cur - 1);
     }
 
     private void nextTrack(boolean manual) {
@@ -888,7 +928,7 @@ public final class MusicPlayerApp extends Application {
         if (m == PlayMode.REPEAT_ONE && !manual) { replayCurrent(); return; }
         playTrack(switch (m) {
             case SHUFFLE -> randomIndex();
-            case ORDER, REPEAT_ONE -> nextOrderedIndex(currentTrackIndex(), tracks.size());
+            case ORDER, REPEAT_ONE -> nextOrderedIndex(currentTrackIndex(), playbackQueue().size());
         });
     }
 
@@ -897,13 +937,18 @@ public final class MusicPlayerApp extends Application {
         return app.musicplayer.playlist.QueueOrder.relative(currentIndex, 1, trackCount);
     }
 
-    private int randomIndex() { if (tracks.size() <= 1) return 0; int c = currentTrackIndex(), n; do { n = random.nextInt(tracks.size()); } while (n == c); return n; }
+    private int randomIndex() { int size = playbackQueue().size(); if (size <= 1) return 0; int c = currentTrackIndex(), n; do { n = random.nextInt(size); } while (n == c); return n; }
 
     private void handleEndOfMedia() {
         nextTrack(false);
     }
 
-    private int currentTrackIndex() { int i = currentTrack == null ? -1 : tracks.indexOf(currentTrack); if (i >= 0) return i; Track s = playlistView.getSelectionModel().getSelectedItem(); return s == null ? -1 : tracks.indexOf(s); }
+    private int currentTrackIndex() {
+        if (!playbackOrder.isEmpty() && savedPlaybackIndex >= 0 && savedPlaybackIndex < playbackOrder.size()
+                && playbackOrder.get(savedPlaybackIndex) == currentTrack) return savedPlaybackIndex;
+        int i = currentTrack == null ? -1 : playbackQueue().indexOf(currentTrack); if (i >= 0) return i;
+        Track s = playlistView.getSelectionModel().getSelectedItem(); return s == null ? -1 : playbackQueue().indexOf(s);
+    }
 
     private void replayCurrent() { if (mediaPlayer != null) { mediaPlayer.seek(Duration.ZERO); mediaPlayer.play(); } }
 
@@ -1095,7 +1140,7 @@ public final class MusicPlayerApp extends Application {
             if (closing) return;
             if (error != null) { statusLabel.setText("移除失败：" + error.getMessage()); return; }
         int ri = tracks.indexOf(sel); boolean removingCurrent = sel == currentTrack;
-        tracks.remove(sel);
+        tracks.remove(sel); playbackOrder.removeIf(t -> t == sel);
         sortTracks();
         if (removingCurrent) { cancelLyricRetry(); disposePlayer(); currentTrack = null; previewingOnlineResult = false; if (playbackContextLabel != null) playbackContextLabel.setText("未播放"); playlistPane.setCurrentTrack(null); playbackControls.setTrackInfo(null, null); playbackControls.setPlaying(false); titleLabel.setText("未播放歌曲"); artistLabel.setText("当前歌曲已从歌单和缓存移除"); timeLabel.setText("00:00 / 00:00"); showArtwork(null); showLyrics(Lyrics.empty("当前歌曲已移除")); if (!tracks.isEmpty()) { int ni = Math.min(ri, tracks.size() - 1); Track nt = tracks.get(ni); if (filteredTracks.contains(nt)) playlistView.getSelectionModel().select(nt); else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(0); } }
         else if (!filteredTracks.isEmpty()) playlistView.getSelectionModel().select(Math.min(ri, filteredTracks.size() - 1));

@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class MusicDatabase implements AutoCloseable {
+public final class MusicDatabase implements AutoCloseable, app.musicplayer.playlist.PlaylistStore {
     private static final Logger LOGGER = Logger.getLogger(MusicDatabase.class.getName());
     private final Connection connection;
 
@@ -34,6 +34,8 @@ public final class MusicDatabase implements AutoCloseable {
 
     private void initialize() throws SQLException {
         try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("create table if not exists named_playlists(id text primary key,metadata text not null)");
+            statement.executeUpdate("create table if not exists named_playlist_items(playlist_id text not null,item_id text not null,position integer not null,payload text not null,primary key(playlist_id,item_id),foreign key(playlist_id) references named_playlists(id) on delete cascade)");
             // tracks 保存已经导入过的歌曲。下次启动时会读取这些路径，
             // 但只有文件仍然存在且格式受支持时才恢复到播放列表。
             statement.executeUpdate("""
@@ -79,6 +81,39 @@ public final class MusicDatabase implements AutoCloseable {
     }
 
     @FunctionalInterface private interface SqlAction { void run() throws SQLException; }
+
+    @Override public synchronized List<app.musicplayer.playlist.NamedPlaylist> loadPlaylists() {
+        var result = new ArrayList<app.musicplayer.playlist.NamedPlaylist>();
+        try (var query=connection.prepareStatement("select id,metadata from named_playlists order by rowid");var rows=query.executeQuery();
+             var items=connection.prepareStatement("select payload from named_playlist_items where playlist_id=? order by position")) {
+            while(rows.next()) {
+                var entries=new ArrayList<app.musicplayer.playlist.NamedPlaylist.Entry>();items.setString(1,rows.getString(1));
+                try(var itemRows=items.executeQuery()){while(itemRows.next())entries.add(app.musicplayer.playlist.PlaylistCodec.entry(itemRows.getString(1)));}
+                result.add(app.musicplayer.playlist.PlaylistCodec.header(rows.getString(2),entries));
+            }
+        } catch(SQLException error){throw new IllegalStateException("读取歌单失败",error);}return List.copyOf(result);
+    }
+    @Override public synchronized void savePlaylist(app.musicplayer.playlist.NamedPlaylist playlist) {
+        transaction(() -> {
+            try(var header=connection.prepareStatement("insert into named_playlists(id,metadata) values(?,?) on conflict(id) do update set metadata=excluded.metadata");
+                var clear=connection.prepareStatement("delete from named_playlist_items where playlist_id=?");
+                var item=connection.prepareStatement("insert into named_playlist_items(playlist_id,item_id,position,payload) values(?,?,?,?)")) {
+                header.setString(1,playlist.id());header.setString(2,app.musicplayer.playlist.PlaylistCodec.header(playlist));header.executeUpdate();
+                clear.setString(1,playlist.id());clear.executeUpdate();int position=0;
+                for(var e:playlist.entries()){item.setString(1,playlist.id());item.setString(2,e.id());item.setInt(3,position++);item.setString(4,app.musicplayer.playlist.PlaylistCodec.entry(e));item.addBatch();}
+                item.executeBatch();
+            }
+        });
+    }
+    @Override public synchronized void updatePlaylistEntry(String playlistId,app.musicplayer.playlist.NamedPlaylist.Entry entry) {
+        try(var item=connection.prepareStatement("update named_playlist_items set payload=? where playlist_id=? and item_id=?")){
+            item.setString(1,app.musicplayer.playlist.PlaylistCodec.entry(entry));item.setString(2,playlistId);item.setString(3,entry.id());
+            if(item.executeUpdate()!=1)throw new IllegalStateException("歌单条目已移除");
+        }catch(SQLException error){throw new IllegalStateException("更新歌单失败",error);}
+    }
+    @Override public synchronized void deletePlaylist(String playlistId) {
+        transaction(() -> {try(var delete=connection.prepareStatement("delete from named_playlists where id=?")){delete.setString(1,playlistId);delete.executeUpdate();}});
+    }
 
     public synchronized List<Track> loadTracks() {
         List<Track> tracks = new ArrayList<>();

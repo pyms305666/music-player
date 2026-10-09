@@ -33,6 +33,7 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     });
 
     public OnlineMusicSearchService() { this(new MusicCrawler(), System::nanoTime); }
+    public OnlineMusicSearchService(boolean allowFallback) { this(new MusicCrawler(allowFallback), System::nanoTime); }
 
     OnlineMusicSearchService(MusicCrawler crawler, java.util.function.LongSupplier clock) {
         this(crawler, clock, crawler::download);
@@ -52,6 +53,14 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     public CancellableTask<Path> download(OnlineTrackInfo info, Path targetDir, java.util.concurrent.Executor ui,
             java.util.function.Consumer<DownloadEvent> progress) {
         return downloads.submit(info, targetDir, ui, progress);
+    }
+    /** Independent batch searches must not cancel one another through the interactive search coordinator. */
+    public java.util.List<OnlineTrackInfo> playlistCandidates(OnlineTrackInfo requested,RequestCancellation cancellation){
+        String query=(requested.artist()+" "+requested.title()).trim();
+        var results=new java.util.ArrayList<>(crawler.searchIncrementally(query,ignored -> {},cancellation).tracks());
+        cancellation.check();
+        if(!requested.primaryId().isBlank())results.add(requested.withAvailability(OnlineTrackInfo.Availability.TENTATIVE,"待下载"));
+        return app.musicplayer.playlist.PlaylistSongMatcher.ranked(requested,results,false);
     }
 
     // ---- lyrics preview (reuses crawler's HTTP session) ----

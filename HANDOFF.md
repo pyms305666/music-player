@@ -1,15 +1,19 @@
-# 项目交接：ZA音乐 4.1.12
+# 项目交接：ZA音乐 4.2.0
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 版本：Windows 桌面版与原生 Android 版均为 `4.1.12`。
+- 开发版本：Windows 桌面版与原生 Android 版均为 `4.2.0`，此次歌单功能尚未公开发布。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
-- 数据库保持兼容：`tracks`、`lyrics`；Android schema 3 额外保存导入来源映射 `imports`，升级保留原表和用户数据。
+- 数据库保持兼容：`tracks`、`lyrics`、Android `imports` 均保留；Android schema 4 与桌面新增 `named_playlists` / `named_playlist_items`，记录歌单和本地音频关联。删除歌单不会删除音频、曲库记录或歌词缓存。
 
 ## 主要模块
+
+- 4.2.0 歌单导入：共享 `PlaylistLinks` / `PlaylistImportService` 读取三家平台的公开歌单；`NamedPlaylist` / `PlaylistCodec` / `PlaylistStore` 持久化独立歌单；`PlaylistDuplicates` 区分来源标识一致与名称、歌手疑似匹配；`PlaylistDownloads` 以两个工作线程处理大歌单，逐首保存结果，暂停保留待下载项。`PlaylistWorkspace` 在后台执行目录扫描、数据库操作及导入。`PlaylistSongMatcher` 在本软件既有渠道中匹配歌曲，优先酷我、咪咕；歌名、歌手、版本相同才自动切换，其他结果可人工确认。批量搜索独立于交互搜索的 latest 请求，避免两首并发时互相取消。保存原歌单来源与实际下载来源；原在线搜索单曲下载仍沿用已有回退行为。
+- 桌面 `PlaylistWindow` / `DesktopPlaylistFiles`；Android `PlaylistActivity` / `AndroidPlaylistFiles`，通过应用级 `PlaylistRuntime` 保持离开页面后下载继续。Android 默认写入 `Music/music/`（API 28 使用应用外部音乐目录），其他目录使用持久 SAF 授权。完成下载后刷新曲库，不自动切歌；播放歌单会保留歌单顺序及重复行。
+- 第一版范围、在线样本、验证命令及已知边界见 `docs/playlist-import.md`；桌面新增真实界面验证入口 `scripts/playlist-desktop-smoke.ps1`。
 
 - 第三轮（4.1.12）：`BoundedExpiringCache` / `ResolutionCache` 限制下载解析缓存；`GeneratedFileCache` 用租约保护在用封面和播放修正文件；`LyricTimeline` 双端共用，Android `AndroidLyricsPresenter` 保持全文并更新高亮；`AndroidLibraryImporter` 按 50 首事务导入、按 URI 去重并清理失败副本，`AndroidTrackFiles` 原子预留文件名。性能和完整验证范围见 `docs/performance-4.1.12.md`。
 - 三组独立进程性能对照已完成。长歌词稳定堆增加 0.566MiB / 15.257%，用户于 2026-10-05 明确接受，以保留约 99.5% 的高亮耗时下降；该例外不扩大到其他指标。真机候选覆盖升级与 24 项功能回归通过，保留 102 首歌曲、4 条歌词缓存。最终附件来源、全部 CI 与散列以 Release 的构建记录为准。
@@ -126,3 +130,18 @@ Android assembleDebug/assembleDebugAndroidTest/lintDebug 成功，lint 为 0 err
 - 保持两端 UI 与业务逻辑；Windows 沿用原 UpgradeCode、安装目录和数据目录。未执行个人主应用卸载或清除数据。
 - 本地桌面回归、共享 Java 17/25 测试、桌面真实播放烟测及正式 APK lint 通过。真机旧版→轮换正式包→更高版本正式包均成功，两个正式包各通过 4 项播放回归；最终包再次核对升级前数据散列一致，102 首歌曲及 3 条歌词缓存保留。临时测试 APK 和数据快照已删除。
 - 个人曲库歌曲实际播放并确认进度增长；亮屏设置已恢复原值。生产密钥 ZIP 中的加密 PKCS12 已使用独立恢复密码解密并导出证书核对，恢复校验通过。
+
+## 2026-10-08 歌单导入暂停点（4.2.0 开发中）
+
+用户要求保存断点，明天继续。代码保留在当前工作区，尚未提交、推送或公开发布。支持三平台歌单导入及两端管理，下载使用本软件渠道，优先酷我、咪咕；真实酷狗歌单读取和酷我下载已验证。最后的 Android 勾选状态修复已构建通过，尚待安装验证；还需最终独立审查。
+
+完整进度、已通过检查、未完成项和续做命令见 [歌单导入暂停点](docs/playlist-import-checkpoint.md)。模拟器已关闭，隔离测试数据保留。
+
+## 2026-10-09 歌单导入完成（4.2.0 本地预览）
+
+- Windows / Android 导入酷狗、网易云、QQ 的公开歌单，独立保存和管理；可选通过本软件渠道下载，优先酷我、咪咕。批量重复确认、唯一文件名、本地复用、暂停取消重试、离开页面后继续及完成不自动播放均已接入。
+- 原歌单信息、实际下载信息和人工选版标记分别保存；重试保留人工版本，重复检查及本地复用针对所选版本。修正桌面首次追加新歌重复入队、两端删除歌单后的失效选择、Android 原生 ListView 清除自有勾选及酷我歌手转义显示。
+- 用户酷狗分享 9 / 9 读取成功；真实并发下载两首均为酷我渠道，Android 也在授权目录完成真实酷我下载。人工测试 WAV 只用于复用与播放验证，不算在线下载证据。
+- 共享 Java 25 / 17 各 113 项通过；桌面 43 项通过、1 项既有基准跳过；Android lint 0 Error / 33 Warning。JavaFX 实际页面烟测、已有 / 空队列追加和重复行播放、删除后清理选择均通过；API 35 最新 5 项持久化及播放检查通过，SAF 用例有真实授权，没有跳过。
+- check-work 独立审查首轮发现三项功能错误，修复后第二轮 VERDICT: PASS。主要说明与边界见 [歌单导入](docs/playlist-import.md)。未进行本轮真实手机验证；API 35 使用独立 QA AVD，不操作个人应用数据。
+- 本地预览安装包使用既有 Windows 安装身份和 Android 签名轮换；实际产物、源码提交、校验与签名事实以对应 build.json 为准。未推送或公开发布 4.2.0，不沿用此前 4.1.12 的发布批准。

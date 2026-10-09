@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="namedPlaylistSelector" type="id"/>
+    <item name="namedPlaylistEntries" type="id"/>
+    <item name="namedPlaylistStatus" type="id"/>
+    <item name="playlistShareLink" type="id"/>
+    <item name="playlistPreviewEntries" type="id"/>
+    <item name="playlistDownloadOption" type="id"/>
+</resources>

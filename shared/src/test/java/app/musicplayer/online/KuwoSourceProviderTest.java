@@ -46,6 +46,17 @@ class KuwoSourceProviderTest {
     }
 
     @Test
+    void decodesEscapedSearchMetadataForCollaboratorMatching() {
+        String body = "{'abslist':[{'MUSICRID':'MUSIC_1','NAME':'像我这样的人',"
+                + "'ARTIST':'毛不易" + "\\".repeat(4) + "u0026徐航','ALBUM':'演出\\u0024'}]}";
+        var track = KuwoSourceProvider.parseSearchResponse(body).get(0);
+        assertEquals("毛不易&徐航", track.artist());
+        assertEquals("演出$", track.album());
+        var requested = new OnlineTrackInfo("酷狗音乐", "像我这样的人", "毛不易、徐航", "", "", "original", "");
+        org.junit.jupiter.api.Assertions.assertTrue(app.musicplayer.playlist.PlaylistSongMatcher.matches(requested, track));
+    }
+
+    @Test
     void deduplicatesByRid() {
         List<OnlineTrackInfo> results = KuwoSourceProvider.parseSearchResponse(SEARCH_BODY);
 

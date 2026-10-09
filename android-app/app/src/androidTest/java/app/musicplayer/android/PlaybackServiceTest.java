@@ -382,6 +382,20 @@ public class PlaybackServiceTest {
             assertEquals(1, controller.getMediaItemCount());
         });
     }
+    @Test public void libraryRefreshDoesNotReplaceNamedPlaylistOrderOrRepeatedRows() throws Exception {
+        var first=audio("named-first",20);var second=audio("named-second",20);
+        android.os.Bundle extras=new android.os.Bundle();extras.putBoolean("namedPlaylistQueue",true);
+        first=first.buildUpon().setMediaMetadata(new androidx.media3.common.MediaMetadata.Builder().setExtras(extras).build()).build();
+        var queue=List.of(second,first,first);start(queue,Player.REPEAT_MODE_ALL);
+        main(() -> {
+            try{var method=MainActivity.class.getDeclaredMethod("syncPlaybackQueue");method.setAccessible(true);method.invoke(activity);}
+            catch(Exception error){throw new AssertionError(error);}
+            assertEquals(3,controller.getMediaItemCount());
+            for(int i=0;i<queue.size();i++)assertEquals(queue.get(i).mediaId,controller.getMediaItemAt(i).mediaId);
+        });
+        closeActivity();activity=openActivity();
+        main(() -> {assertEquals(3,controller.getMediaItemCount());assertEquals("named-second",controller.getCurrentMediaItem().mediaId);assertTrue(controller.isPlaying());});
+    }
 
     @Test public void personalLibraryAudioAdvancesInBackground() throws Exception {
         app.musicplayer.android.data.TrackEntry entry;

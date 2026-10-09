@@ -15,8 +15,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class AndroidMusicDatabase extends SQLiteOpenHelper {
-    private static final int DATABASE_VERSION = 3;
+public final class AndroidMusicDatabase extends SQLiteOpenHelper implements app.musicplayer.playlist.PlaylistStore {
+    private static final int DATABASE_VERSION = 4;
     public static final int IMPORT_BATCH_SIZE = 50;
     private static final String IMPORT_LOOKUP = "select (select imports.path from imports join tracks on tracks.path=imports.path where source_uri=? limit 1)";
     public record ImportedTrack(String sourceUri, TrackEntry entry) { }
@@ -39,6 +39,7 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
         database.execSQL("create table tracks(path text primary key,title text not null,artist text not null,created_at integer not null,storage_type text not null default 'FILE',file_name text)");
         database.execSQL("create table lyrics(path text primary key,source text not null,raw_text text not null,artwork_url text)");
         createImports(database);
+        createPlaylists(database);
     }
 
     @Override
@@ -48,6 +49,44 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
             database.execSQL("alter table tracks add column file_name text");
         }
         if (oldVersion < 3) createImports(database);
+        if (oldVersion < 4) createPlaylists(database);
+    }
+    private static void createPlaylists(SQLiteDatabase database) {
+        database.execSQL("create table named_playlists(id text primary key,metadata text not null)");
+        database.execSQL("create table named_playlist_items(playlist_id text not null,item_id text not null,position integer not null,payload text not null,primary key(playlist_id,item_id))");
+    }
+    @Override public synchronized List<app.musicplayer.playlist.NamedPlaylist> loadPlaylists() {
+        var result=new ArrayList<app.musicplayer.playlist.NamedPlaylist>();SQLiteDatabase db=getReadableDatabase();
+        try(var rows=db.rawQuery("select id,metadata from named_playlists order by rowid",null)){
+            while(rows.moveToNext()){
+                var entries=new ArrayList<app.musicplayer.playlist.NamedPlaylist.Entry>();
+                try(var items=db.rawQuery("select payload from named_playlist_items where playlist_id=? order by position",new String[]{rows.getString(0)})){
+                    while(items.moveToNext())entries.add(app.musicplayer.playlist.PlaylistCodec.entry(items.getString(0)));
+                }
+                result.add(app.musicplayer.playlist.PlaylistCodec.header(rows.getString(1),entries));
+            }
+        }return List.copyOf(result);
+    }
+    @Override public synchronized void savePlaylist(app.musicplayer.playlist.NamedPlaylist playlist){
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();
+        try{
+            ContentValues header=new ContentValues();header.put("id",playlist.id());header.put("metadata",app.musicplayer.playlist.PlaylistCodec.header(playlist));
+            if(db.insertWithOnConflict("named_playlists",null,header,SQLiteDatabase.CONFLICT_REPLACE)==-1)throw new IllegalStateException("保存歌单失败");
+            db.delete("named_playlist_items","playlist_id=?",new String[]{playlist.id()});int position=0;
+            try(var insert=db.compileStatement("insert into named_playlist_items(playlist_id,item_id,position,payload) values(?,?,?,?)")){
+                for(var e:playlist.entries()){insert.bindString(1,playlist.id());insert.bindString(2,e.id());insert.bindLong(3,position++);insert.bindString(4,app.musicplayer.playlist.PlaylistCodec.entry(e));insert.executeInsert();}
+            }db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
+    }
+    @Override public synchronized void updatePlaylistEntry(String playlistId,app.musicplayer.playlist.NamedPlaylist.Entry entry){
+        ContentValues value=new ContentValues();value.put("payload",app.musicplayer.playlist.PlaylistCodec.entry(entry));
+        if(getWritableDatabase().update("named_playlist_items",value,"playlist_id=? and item_id=?",new String[]{playlistId,entry.id()})!=1)
+            throw new IllegalStateException("歌单条目已移除");
+    }
+    @Override public synchronized void deletePlaylist(String playlistId){
+        SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try{
+            db.delete("named_playlist_items","playlist_id=?",new String[]{playlistId});db.delete("named_playlists","id=?",new String[]{playlistId});db.setTransactionSuccessful();
+        }finally{db.endTransaction();}
     }
     private static void createImports(SQLiteDatabase database) {
         database.execSQL("create table imports(source_uri text primary key,path text not null)");
@@ -121,7 +160,8 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
     }
 
     public void saveTrack(TrackEntry entry) {
-        getWritableDatabase().insertWithOnConflict("tracks", null, trackValues(entry), SQLiteDatabase.CONFLICT_REPLACE);
+        if(getWritableDatabase().insertWithOnConflict("tracks", null, trackValues(entry), SQLiteDatabase.CONFLICT_REPLACE)==-1)
+            throw new android.database.sqlite.SQLiteException("保存歌曲记录失败");
     }
     private static ContentValues trackValues(TrackEntry entry) {
         ContentValues values = new ContentValues();
@@ -165,10 +205,9 @@ public final class AndroidMusicDatabase extends SQLiteOpenHelper {
         if (storageType == TrackEntry.StorageType.FILE) {
             return Paths.get(location).toFile().isFile();
         }
-        try (Cursor cursor = context.getContentResolver().query(
-                Uri.parse(location), new String[]{"_id"}, null, null, null)) {
-            return cursor != null && cursor.moveToFirst();
-        } catch (RuntimeException ignored) {
+        try (var descriptor = context.getContentResolver().openFileDescriptor(Uri.parse(location), "r")) {
+            return descriptor != null;
+        } catch (java.io.IOException | RuntimeException ignored) {
             return false;
         }
     }

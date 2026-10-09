@@ -111,6 +111,12 @@
                     android:clipToPadding="false"
                     android:paddingBottom="8dp" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/namedPlaylistsButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="我的歌单 / 导入歌单" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="56dp"

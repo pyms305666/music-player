@@ -42,8 +42,11 @@ public final class MusicCrawler implements AutoCloseable {
     private final List<OnlineSourceProvider> providers;
     private final Map<String, OnlineSourceProvider> providersByName;
     private final long searchBudgetNanos;
+    private final boolean allowFallback;
 
-    public MusicCrawler() {
+    public MusicCrawler() { this(true); }
+    public MusicCrawler(boolean allowFallback) {
+        this.allowFallback = allowFallback;
         providers = List.of(new KugouSourceProvider(session), new KuwoSourceProvider(session),
                 new MiguSourceProvider(session), new QqSourceProvider(session), new NeteaseSourceProvider(session));
         providersByName = indexProviders(providers);
@@ -51,6 +54,7 @@ public final class MusicCrawler implements AutoCloseable {
     }
 
     MusicCrawler(List<OnlineSourceProvider> providers, long budgetMillis) {
+        this.allowFallback = true;
         this.providers = List.copyOf(providers);
         this.providersByName = indexProviders(providers);
         this.searchBudgetNanos = TimeUnit.MILLISECONDS.toNanos(budgetMillis);
@@ -216,12 +220,13 @@ public final class MusicCrawler implements AutoCloseable {
                             + " - " + candidate.title() + " : " + exception.getMessage());
                 }
             }
-            if (round == 0) {
+            if (round == 0 && allowFallback) {
                 candidates = fallbackCandidates(track, failedDownloadKeys);
                 if (candidates.isEmpty()) {
                     break;
                 }
             }
+            if (!allowFallback) break;
         }
         throw lastError != null ? lastError : new IOException(track.source() + ": cannot download track");
     }

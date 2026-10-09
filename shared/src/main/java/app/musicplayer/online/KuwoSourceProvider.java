@@ -23,6 +23,7 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
 
     private static final Pattern FIELD_PATTERN =
             Pattern.compile("'(NAME|SONGNAME|ARTIST|ALBUM|ALBUMID|MUSICRID)':'([^']*)'");
+    private static final Pattern TEXT_ESCAPE = Pattern.compile("\\\\+u([0-9a-fA-F]{4})");
 
     private final CrawlerSession session;
 
@@ -119,12 +120,24 @@ final class KuwoSourceProvider implements OnlineSourceProvider {
         String albumId = field(item, "ALBUMID");
         return new OnlineTrackInfo(
                 SOURCE,
-                OnlineTextSupport.stripHtml(title),
-                OnlineTextSupport.stripHtml(artist),
-                album == null ? "" : OnlineTextSupport.stripHtml(album),
+                searchText(title),
+                searchText(artist),
+                album == null ? "" : searchText(album),
                 null,
                 rid,
                 albumId);
+    }
+
+    /** Search metadata sometimes contains several layers of escaped Unicode. */
+    private static String searchText(String text) {
+        Matcher escapes = TEXT_ESCAPE.matcher(text);
+        StringBuffer decoded = new StringBuffer();
+        while (escapes.find()) {
+            escapes.appendReplacement(decoded, Matcher.quoteReplacement(
+                    String.valueOf((char) Integer.parseInt(escapes.group(1), 16))));
+        }
+        escapes.appendTail(decoded);
+        return OnlineTextSupport.stripHtml(OnlineTextSupport.unescape(decoded.toString()));
     }
 
     /** 在单引号伪 JSON 中寻找深度闭合的 } 的下标。 */

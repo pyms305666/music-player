@@ -281,7 +281,14 @@ public final class MainActivity extends AppCompatActivity {
                 () -> localTrackList.search(localSearch.getText().toString())));
     }
 
+    private final ActivityResultLauncher<Intent> namedPlaylistLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> reloadTracks());
+    private final java.util.function.Consumer<String> playlistDownloadListener = id -> {
+        if (!isDestroyed() && uiVisible) reloadTracks();
+    };
+
     private void configureActions() {
+        findViewById(R.id.namedPlaylistsButton).setOnClickListener(view -> namedPlaylistLauncher.launch(new Intent(this, PlaylistActivity.class)));
         bottomNavigation.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.nav_playlist) showPage(playlistPage);
             else if (item.getItemId() == R.id.nav_online) showPage(onlinePage);
@@ -381,6 +388,10 @@ public final class MainActivity extends AppCompatActivity {
 
     private void syncPlaybackQueue() {
         if (player == null || player.getMediaItemCount() == 0 || player.getCurrentMediaItem() == null) return;
+        for (int i = 0; i < player.getMediaItemCount(); i++) {
+            Bundle extras = player.getMediaItemAt(i).mediaMetadata.extras;
+            if (extras != null && extras.getBoolean("namedPlaylistQueue", false)) return;
+        }
         boolean equal = player.getMediaItemCount() == tracks.size();
         for (int i = 0; equal && i < tracks.size(); i++) equal = player.getMediaItemAt(i).mediaId.equals(tracks.get(i).key());
         if (equal) return;
@@ -1098,6 +1109,7 @@ public final class MainActivity extends AppCompatActivity {
     @Override protected void onStart() {
         super.onStart();
         uiVisible = true;
+        PlaylistRuntime.get(this).workspace.downloads.listenPublished(playlistDownloadListener);
         syncCurrentTrack();
         progressHandler.removeCallbacks(progressUpdater);
         progressHandler.post(progressUpdater);
@@ -1105,6 +1117,7 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override protected void onStop() {
         uiVisible = false;
+        PlaylistRuntime.get(this).workspace.downloads.unlistenPublished(playlistDownloadListener);
         progressHandler.removeCallbacks(progressUpdater);
         super.onStop();
     }
