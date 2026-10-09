@@ -1,0 +1,119 @@
+/* Shared by playlist windows and their owned dialogs. Keep app content effects out of dialogs. */
+.playlist-root {
+    -fx-background-color: #101318;
+    -fx-font-size: 13px;
+}
+.playlist-root .label,
+.playlist-root .check-box,
+.playlist-root .text-field {
+    -fx-text-fill: #f4f7fb;
+}
+.playlist-root .muted-label {
+    -fx-text-fill: #b1bdcb;
+    -fx-font-size: 12px;
+}
+.playlist-root .playlist-heading {
+    -fx-font-size: 23px;
+    -fx-font-weight: bold;
+}
+.playlist-root .playlist-operation {
+    -fx-text-fill: #9bc4ff;
+}
+.playlist-root .playlist-error {
+    -fx-text-fill: #ffb4a9;
+}
+.playlist-root .text-field {
+    -fx-background-color: #222a35;
+    -fx-border-color: #46556a;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 9px 11px;
+    -fx-prompt-text-fill: #a6b3c4;
+    -fx-highlight-fill: #345c8d;
+    -fx-highlight-text-fill: white;
+}
+.playlist-root .text-field:focused {
+    -fx-border-color: #70aaff;
+}
+.playlist-root .combo-box > .list-cell {
+    -fx-padding: 0;
+}
+.playlist-root .combo-box-popup .list-view {
+    -fx-background-color: #191e26;
+    -fx-control-inner-background: #191e26;
+    -fx-border-color: #46556a;
+}
+.playlist-root .combo-box-popup .list-cell {
+    -fx-background-color: #191e26;
+    -fx-text-fill: #f4f7fb;
+    -fx-padding: 10px;
+}
+.playlist-root .combo-box-popup .list-cell:hover,
+.playlist-root .combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: #29405c;
+}
+.playlist-root .playlist-entries {
+    -fx-background-color: #191e26;
+    -fx-border-color: #303947;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 6px;
+}
+.playlist-root .playlist-entries .list-cell:filled:selected {
+    -fx-background-color: #29405c;
+}
+.playlist-root .check-box .box {
+    -fx-background-color: #222a35;
+    -fx-border-color: #8294aa;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+.playlist-root .check-box:selected .box {
+    -fx-background-color: #4f8fe8;
+    -fx-border-color: #70aaff;
+}
+.playlist-root .check-box:selected .mark {
+    -fx-background-color: white;
+}
+.playlist-root .playlist-empty {
+    -fx-alignment: center;
+    -fx-padding: 30px;
+}
+.playlist-root .empty-title {
+    -fx-font-size: 19px;
+    -fx-text-fill: #dce6f1;
+}
+.playlist-root .playlist-footer {
+    -fx-padding: 12px 0 0 0;
+    -fx-border-color: #303947 transparent transparent transparent;
+}
+.playlist-root .danger-button {
+    -fx-text-fill: #ffb4a9;
+}
+.playlist-root .button:disabled,
+.playlist-root .combo-box:disabled {
+    -fx-opacity: 1;
+    -fx-background-color: #1b222c;
+    -fx-border-color: #303b4a;
+    -fx-text-fill: #8796aa;
+}
+.playlist-dialog {
+    -fx-padding: 16px;
+}
+.playlist-dialog > .header-panel,
+.playlist-dialog > .button-bar,
+.playlist-dialog .content,
+.playlist-dialog .scroll-pane,
+.playlist-dialog .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+.playlist-dialog > .header-panel .label {
+    -fx-text-fill: #f4f7fb;
+    -fx-font-size: 15px;
+}
+.playlist-dialog .button:default {
+    -fx-background-color: #4f8fe8;
+    -fx-border-color: #70aaff;
+}

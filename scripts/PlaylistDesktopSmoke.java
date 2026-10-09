@@ -15,7 +15,7 @@ import java.util.*;
 public class PlaylistDesktopSmoke extends DesktopSmoke {
     static Object read(Object target,String name)throws Exception{var f=target.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(target);}
     static Object invoke(Object target,String name,Class<?>[] types,Object...args)throws Exception{var m=target.getClass().getDeclaredMethod(name,types);m.setAccessible(true);return m.invoke(target,args);}
-    static Window window(String title){return Window.getWindows().stream().filter(w -> w instanceof Stage s&&s.getTitle().equals(title)&&w.isShowing()).findFirst().orElse(null);}
+    static Window window(String title){return Window.getWindows().stream().filter(w -> w instanceof Stage s&&title.equals(s.getTitle())&&w.isShowing()).findFirst().orElse(null);}
     static Button findButton(Window w,String text){return w.getScene().getRoot().lookupAll(".button").stream().filter(n -> n instanceof Button b&&b.getText().equals(text)).map(n -> (Button)n).findFirst().orElseThrow();}
     public static void main(String[]args)throws Exception{
         Path data=Path.of(System.getProperty("musicplayer.data-dir"));Files.createDirectories(data);
