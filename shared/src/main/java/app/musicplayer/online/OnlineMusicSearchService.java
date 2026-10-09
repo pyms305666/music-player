@@ -56,11 +56,15 @@ public final class OnlineMusicSearchService implements AutoCloseable {
     }
     /** Independent batch searches must not cancel one another through the interactive search coordinator. */
     public java.util.List<OnlineTrackInfo> playlistCandidates(OnlineTrackInfo requested,RequestCancellation cancellation){
+        return playlistSearch(requested,cancellation).tracks();
+    }
+    public OnlineSearchSnapshot playlistSearch(OnlineTrackInfo requested,RequestCancellation cancellation){
         String query=(requested.artist()+" "+requested.title()).trim();
-        var results=new java.util.ArrayList<>(crawler.searchIncrementally(query,ignored -> {},cancellation).tracks());
+        var snapshot=crawler.searchIncrementally(query,ignored -> {},cancellation);
+        var results=new java.util.ArrayList<>(snapshot.tracks());
         cancellation.check();
         if(!requested.primaryId().isBlank())results.add(requested.withAvailability(OnlineTrackInfo.Availability.TENTATIVE,"待下载"));
-        return app.musicplayer.playlist.PlaylistSongMatcher.ranked(requested,results,false);
+        return new OnlineSearchSnapshot(query,app.musicplayer.playlist.PlaylistSongMatcher.ranked(requested,results,false),snapshot.sources(),snapshot.state(),false);
     }
 
     // ---- lyrics preview (reuses crawler's HTTP session) ----

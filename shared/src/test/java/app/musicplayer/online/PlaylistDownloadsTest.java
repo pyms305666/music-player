@@ -117,6 +117,37 @@ class PlaylistDownloadsTest {
         var expectedAttempt=chosen.withAvailability(OnlineTrackInfo.Availability.TENTATIVE,"待下载");
         assertEquals(List.of(expectedAttempt,expectedAttempt),attempted);assertEquals(0,searches.get());
     }
+    @Test void automaticRetryResearchesOtherChannelsInsteadOfPinningLastFailedChannel() throws Exception {
+        var store=new MemoryStore();var p=playlist(1);var original=p.entries().get(0).track();
+        var prior=new OnlineTrackInfo("酷狗音乐",original.title(),original.artist(),"","","old","");
+        var available=new OnlineTrackInfo("咪咕音乐",original.title(),original.artist(),"","","new","");
+        p=p.withEntries(List.of(p.entries().get(0).downloadFrom(prior).status(NamedPlaylist.State.FAILED,"old failure")));store.savePlaylist(p);
+        AtomicInteger searches=new AtomicInteger();List<String> attempted=new ArrayList<>();
+        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
+            attempted.add(track.source());Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
+        });
+        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/song";},Runnable::run,service,(entry,token) -> {searches.incrementAndGet();return List.of(available);});
+        try{downloads.start(p,ids(p));await(() -> !downloads.active("playlist"));var result=store.findPlaylist("playlist").orElseThrow().entries().get(0);
+            assertEquals(1,searches.get());assertEquals(List.of("咪咕音乐"),attempted);assertFalse(result.userSelectedVersion());assertEquals(NamedPlaylist.State.READY,result.state());
+        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
+    }
+    @Test void failureReportsEachSearchOutcomeAndAllAttemptedChannels() throws Exception {
+        var store=new MemoryStore();var p=playlist(1);store.savePlaylist(p);var original=p.entries().get(0).track();
+        var kuwo=new OnlineTrackInfo("酷我音乐",original.title(),original.artist(),"","","kw","");
+        var otherVersion=new OnlineTrackInfo("咪咕音乐",original.title()+" (Live)",original.artist(),"","","mg","");
+        var providers=List.of(OnlineTestFixtures.provider("酷我音乐",() -> List.of(kuwo)),
+                OnlineTestFixtures.provider("咪咕音乐",() -> List.of(otherVersion)),
+                OnlineTestFixtures.provider("QQ音乐",List::of),
+                OnlineTestFixtures.provider("网易云音乐",() -> {throw new IllegalStateException("offline");}));
+        var service=new OnlineMusicSearchService(new MusicCrawler(providers,1000),System::nanoTime,(track,dir,cancel,progress) -> {throw new java.io.IOException("cannot resolve URL");});
+        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {throw new AssertionError("No publication expected");},Runnable::run,service);
+        try{downloads.start(p,ids(p));await(() -> !downloads.active(p.id()));var result=store.findPlaylist(p.id()).orElseThrow().entries().get(0);
+            assertEquals(NamedPlaylist.State.FAILED,result.state());assertEquals("QQ音乐",result.downloadTrack().source());
+            assertTrue(result.message().contains("酷我音乐：同版候选 1"));assertTrue(result.message().contains("咪咕音乐：同版候选 0"));
+            assertTrue(result.message().contains("网易云音乐：搜索失败"));assertTrue(result.message().contains("已尝试：酷我音乐、QQ音乐"));
+            assertEquals(result,PlaylistCodec.entry(PlaylistCodec.entry(result)));
+        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
+    }
     private NamedPlaylist playlist(int count){List<NamedPlaylist.Entry> entries=new ArrayList<>();for(int i=0;i<count;i++)entries.add(NamedPlaylist.Entry.create(new OnlineTrackInfo("QQ音乐","歌"+i,"歌手","","",Integer.toString(i),""),0));
         return new NamedPlaylist("playlist","歌单","QQ音乐","1","https://y.qq.com/n/ryqq/playlist/1","","我",count,"destination",false,entries);}
     private Set<String> ids(NamedPlaylist p){Set<String> ids=new HashSet<>();p.entries().forEach(e -> ids.add(e.id()));return ids;}

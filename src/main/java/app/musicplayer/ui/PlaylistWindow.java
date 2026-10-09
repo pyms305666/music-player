@@ -76,10 +76,10 @@ public final class PlaylistWindow {
     private static void theme(Dialog<?> dialog){dialog.initModality(Modality.WINDOW_MODAL);dialog.getDialogPane().getStyleClass().addAll("desktop-root","playlist-root","playlist-dialog");styles(dialog.getDialogPane().getStylesheets());}
     private ListCell<NamedPlaylist.Entry> checkCell(Set<String> selection){return new ListCell<>(){
         private final CheckBox check=new CheckBox();
-        {check.setWrapText(true);check.setMaxWidth(Double.MAX_VALUE);check.setOnAction(e -> {if(getItem()!=null){if(check.isSelected())selection.add(getItem().id());else selection.remove(getItem().id());
+        {check.setWrapText(true);check.setMinWidth(0);check.prefWidthProperty().bind(widthProperty().subtract(24));check.setMaxWidth(Double.MAX_VALUE);check.setOnAction(e -> {if(getItem()!=null){if(check.isSelected())selection.add(getItem().id());else selection.remove(getItem().id());
             if(selection==selected){entries.getSelectionModel().select(getItem());updateControls();}}});}
         @Override protected void updateItem(NamedPlaylist.Entry item,boolean empty){super.updateItem(item,empty);if(empty||item==null){setGraphic(null);return;}
-            check.setText(item.toString());check.setSelected(selection.contains(item.id()));check.setTooltip(new Tooltip(item.toString()+"\n"+item.location()));setGraphic(check);}
+            check.setText(item.toString());check.setSelected(selection.contains(item.id()));var hint=new Tooltip(item.toString()+"\n"+item.location());hint.setWrapText(true);hint.setMaxWidth(640);check.setTooltip(hint);setGraphic(check);}
     };}
     private void reload(){long version=++request;workspace.list().whenComplete((values,error) -> Platform.runLater(() -> {
         if(version!=request||!window.isShowing())return;if(error!=null){fail(error);return;}

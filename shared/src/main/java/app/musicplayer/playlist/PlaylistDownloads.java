@@ -16,11 +16,13 @@ public final class PlaylistDownloads implements AutoCloseable {
     @FunctionalInterface public interface CandidateSearch {
         List<OnlineTrackInfo> find(NamedPlaylist.Entry entry,RequestCancellation cancellation);
     }
+    private record CandidateResult(List<OnlineTrackInfo> tracks,String summary) { }
+    @FunctionalInterface private interface CandidateLookup {CandidateResult find(NamedPlaylist.Entry entry,RequestCancellation cancellation);}
     private record Job(String playlist, NamedPlaylist.Entry entry, String destination,List<NamedPlaylist.Entry> aliases) { }
     private final PlaylistStore store;
     private final OnlineMusicSearchService service;
     private final Publisher publisher;
-    private final CandidateSearch search;
+    private final CandidateLookup search;
     private final Path scratch;
     private final Executor ui;
     private final ExecutorService workers=Executors.newFixedThreadPool(2,r -> new Thread(r,"playlist-download"));
@@ -36,12 +38,23 @@ public final class PlaylistDownloads implements AutoCloseable {
         this(store,scratch,publisher,ui,new OnlineMusicSearchService(false));
     }
     public PlaylistDownloads(PlaylistStore store,Path scratch,Publisher publisher,Executor ui,OnlineMusicSearchService service){
-        this(store,scratch,publisher,ui,service,(entry,cancellation) -> service.playlistCandidates(entry.track(),cancellation));
+        this(store,scratch,publisher,ui,service,(CandidateLookup)(entry,cancellation) -> {
+            var result=service.playlistSearch(entry.track(),cancellation);
+            String summary=result.sources().stream().map(source -> {
+                long matches=result.tracks().stream().filter(t -> t.source().equals(source.name())&&PlaylistSongMatcher.matches(entry.track(),t)).count();
+                String state=switch(source.outcome()){case COMPLETE -> "同版候选 "+matches;case TIMED_OUT -> "搜索超时";case SUSPENDED -> "暂时暂停";case CANCELLED -> "已取消";default -> "搜索失败";};
+                return source.name()+"："+state;
+            }).collect(java.util.stream.Collectors.joining("；"));
+            return new CandidateResult(result.tracks(),summary);
+        });
     }
     public PlaylistDownloads(PlaylistStore store,Path scratch,Publisher publisher,Executor ui,OnlineMusicSearchService service,CandidateSearch search){
+        this(store,scratch,publisher,ui,service,(CandidateLookup)(entry,cancellation) -> new CandidateResult(search.find(entry,cancellation),""));
+    }
+    private PlaylistDownloads(PlaylistStore store,Path scratch,Publisher publisher,Executor ui,OnlineMusicSearchService service,CandidateLookup search){
         this.store=store;this.scratch=scratch;this.publisher=publisher;this.ui=ui;this.service=service;this.search=search;
     }
-    public List<OnlineTrackInfo> candidates(NamedPlaylist.Entry entry){try(var cancellation=new RequestCancellation()){return search.find(entry,cancellation);}}
+    public List<OnlineTrackInfo> candidates(NamedPlaylist.Entry entry){try(var cancellation=new RequestCancellation()){return search.find(entry,cancellation).tracks();}}
     public void listen(Consumer<String> listener){listeners.add(listener);}
     public void unlisten(Consumer<String> listener){listeners.remove(listener);}
     public void listenPublished(Consumer<String> listener){publishedListeners.add(listener);}
@@ -57,9 +70,9 @@ public final class PlaylistDownloads implements AutoCloseable {
             Map<String,List<NamedPlaylist.Entry>> groups=new LinkedHashMap<>();
             Map<String,NamedPlaylist.Entry> waitingItems=new HashMap<>();
             for(var entry:latest.entries())if(items.contains(entry.id()) && !occupied.contains(key(playlist.id(),entry.id()))){
-                var waiting=entry.status(WAITING,"");waitingItems.put(entry.id(),waiting);
+                var waiting=entry.prepareDownload().status(WAITING,"");waitingItems.put(entry.id(),waiting);
                 // Preserve repeated playlist rows, while downloading a new recording once.
-                String group=entry.state()==REDOWNLOAD ? entry.id() : entry.track().identity()+"|"+(entry.downloadTrack()==null?"":entry.downloadTrack().identity());
+                String group=entry.state()==REDOWNLOAD ? entry.id() : entry.track().identity()+"|"+(!entry.userSelectedVersion()||entry.downloadTrack()==null?"":entry.downloadTrack().identity());
                 groups.computeIfAbsent(group,k -> new ArrayList<>()).add(waiting);
             }
             if(!waitingItems.isEmpty()){
@@ -89,17 +102,19 @@ public final class PlaylistDownloads implements AutoCloseable {
     private void run(Job job){
         String key=key(job.playlist,job.entry.id());Path file=null;OnlineTrackInfo actual=job.entry.downloadTrack();
         RequestCancellation cancellation=new RequestCancellation();
+        String searchSummary="";Set<String> attempted=new LinkedHashSet<>();
         try{
             synchronized(this){if(closed||cancelled.contains(job.playlist))throw new CancellationException();
                 searches.put(key,cancellation);
                 for(var entry:job.aliases)store.updatePlaylistEntry(job.playlist,entry.status(DOWNLOADING,actual==null?"正在匹配下载渠道":""));
             }
             changed(job.playlist);
-            var candidates=actual==null?PlaylistSongMatcher.ranked(job.entry.track(),search.find(job.entry,cancellation),true):List.of(actual);
+            var found=actual==null?search.find(job.entry,cancellation):new CandidateResult(List.of(actual),"已固定手动选择的版本和渠道");
+            searchSummary=found.summary();var candidates=PlaylistSongMatcher.ranked(actual==null?job.entry.track():actual,found.tracks(),true);
             if(candidates.isEmpty())throw new java.io.IOException("未匹配到歌名、歌手及版本一致的歌曲，请选择下载版本");
             Exception lastError=null;
             for(var candidate:candidates){
-                cancellation.check();actual=candidate;
+                cancellation.check();actual=candidate;attempted.add(candidate.source());
                 for(var entry:job.aliases)store.updatePlaylistEntry(job.playlist,entry.downloadFrom(actual).status(DOWNLOADING,""));
                 changed(job.playlist);
                 var task=service.download(candidate.withAvailability(OnlineTrackInfo.Availability.TENTATIVE,"待下载"),scratch.resolve(job.entry.id()),Runnable::run,event -> {});
@@ -119,7 +134,7 @@ public final class PlaylistDownloads implements AutoCloseable {
             Throwable cause=error;while(cause.getCause()!=null)cause=cause.getCause();
             boolean stopped=cause instanceof CancellationException || cause instanceof InterruptedException;
             for(var entry:job.aliases)try{store.updatePlaylistEntry(job.playlist,entry.downloadFrom(actual).status(stopped?CANCELLED:FAILED,
-                    stopped?"":errorMessage(cause)));}catch(RuntimeException ignored){ }
+                    stopped?"":errorMessage(cause)+(searchSummary.isBlank()?"":"；"+searchSummary)+(attempted.isEmpty()?"":"；已尝试："+String.join("、",attempted))));}catch(RuntimeException ignored){ }
             if(error instanceof InterruptedException)Thread.currentThread().interrupt();
         }finally{
             if(file!=null)try{Files.deleteIfExists(file);}catch(Exception ignored){ }

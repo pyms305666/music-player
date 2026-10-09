@@ -1,4 +1,4 @@
-# ZA音乐 4.2.1
+# ZA音乐 4.2.2
 
 ZA音乐是一款支持 Windows 桌面和 Android 手机的本地音乐播放器。项目使用 Java 编写；Windows 桌面端采用 JavaFX，Android 端采用原生 Android UI 和 Media3。两个版本共享歌曲模型、排序、歌词解析和在线音乐来源实现。
 
