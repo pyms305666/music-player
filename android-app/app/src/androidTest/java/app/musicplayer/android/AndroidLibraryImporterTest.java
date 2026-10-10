@@ -147,6 +147,7 @@ public class AndroidLibraryImporterTest {
         database = new AndroidMusicDatabase(BenchmarkSupport.databaseContext(context, legacy));
         assertEquals("中文歌曲", database.loadTracks().get(0).track().title());
         assertEquals("[00:00]歌词", database.loadLyrics(database.loadTracks().get(0)).rawText());
-        assertFalse(database.hasImported("content://qa-import/legacy")); assertEquals(3, database.getReadableDatabase().getVersion());
+        assertFalse(database.hasImported("content://qa-import/legacy")); assertEquals(4, database.getReadableDatabase().getVersion());
+        assertTrue(database.loadPlaylists().isEmpty());
     }
 }
