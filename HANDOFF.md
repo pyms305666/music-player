@@ -5,7 +5,7 @@
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 开发版本：Windows 桌面版与原生 Android 版均为 `4.2.3`，此次歌单功能尚未公开发布。
+- 当前版本：Windows 桌面版与原生 Android 版均为 `4.2.3`。用户已授权公开发布；发布状态、源码、CI 与附件以 GitHub Release 的构建记录为准，发布说明见 `docs/release-4.2.3.md`。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
 - 数据库保持兼容：`tracks`、`lyrics`、Android `imports` 均保留；Android schema 4 与桌面新增 `named_playlists` / `named_playlist_items`，记录歌单和本地音频关联。删除歌单不会删除音频、曲库记录或歌词缓存。
 
