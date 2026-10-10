@@ -60,7 +60,7 @@ public class PlaylistPersistenceTest {
             for(int i=0;i<2;i++)locations.add(files.publish(Files.write(new File(root,name).toPath(),wav.array()),entry,AndroidPlaylistFiles.DEFAULT));
             assertNotEquals(locations.get(0),locations.get(1));assertEquals(2,database.loadTracks().size());
             for(String location:locations){assertTrue(files.readable(location));
-                if(location.startsWith("content:"))try(var input=context.getContentResolver().openInputStream(android.net.Uri.parse(location))){assertArrayEquals(wav.array(),input.readAllBytes());}
+                if(location.startsWith("content:"))try(var input=context.getContentResolver().openInputStream(android.net.Uri.parse(location))){assertArrayEquals(wav.array(),readBytes(input));}
                 else assertArrayEquals(wav.array(),Files.readAllBytes(java.nio.file.Path.of(location)));
             }
             var p=new NamedPlaylist("p","测试","QQ音乐","fixture","","","",1,AndroidPlaylistFiles.DEFAULT,false,List.of(entry.local(locations.get(0))));
@@ -79,9 +79,15 @@ public class PlaylistPersistenceTest {
             assertFalse(files.scan(target,false).isEmpty());
             for(int i=0;i<2;i++)created.add(files.publish(Files.write(new File(root,name).toPath(),bytes),e,target));
             assertNotEquals(created.get(0),created.get(1));assertEquals(2,database.loadTracks().size());
-            for(String location:created){assertTrue(files.readable(location));try(var input=context.getContentResolver().openInputStream(android.net.Uri.parse(location))){assertArrayEquals(bytes,input.readAllBytes());}}
+            for(String location:created){assertTrue(files.readable(location));try(var input=context.getContentResolver().openInputStream(android.net.Uri.parse(location))){assertArrayEquals(bytes,readBytes(input));}}
             var p=new NamedPlaylist("p","SAF测试","QQ音乐","fixture","","","",1,target,false,List.of(e.local(created.get(0))));database.savePlaylist(p);
             var match=new PlaylistDuplicates(files.scan(target,false)).match(List.of(e));assertEquals(1,match.size());assertTrue(match.get(0).confirmed());
         }finally{for(String location:created)android.provider.DocumentsContract.deleteDocument(context.getContentResolver(),android.net.Uri.parse(location));}
+    }
+    private static byte[] readBytes(java.io.InputStream input) throws java.io.IOException {
+        assertNotNull(input);
+        var output=new java.io.ByteArrayOutputStream();byte[] buffer=new byte[8192];int count;
+        while((count=input.read(buffer))!=-1)output.write(buffer,0,count);
+        return output.toByteArray();
     }
 }

@@ -15,14 +15,16 @@ import java.security.MessageDigest;
 import java.util.*;
 import static org.junit.Assert.*;
 
-/** Explicit emulator-only, read-only verification of a playlist created through the actual UI. */
+/** Explicitly opted-in, read-only verification of a uniquely named playlist created through the actual UI. */
 @RunWith(AndroidJUnit4.class)
 public class PlaylistLiveCheck {
     @Test public void downloadedQaPlaylistSurvivesRestartWithReadableAudio() throws Exception {
         var args=InstrumentationRegistry.getArguments();
         String suffix=args.getString("playlistQaNameSuffix","");
-        org.junit.Assume.assumeTrue("Use an explicitly named QA playlist on a disposable emulator",
-                suffix.startsWith("_QA")&&(Build.MODEL.startsWith("sdk_gphone")||Build.MODEL.contains("Emulator")));
+        boolean emulator=Build.MODEL.startsWith("sdk_gphone")||Build.MODEL.contains("Emulator");
+        boolean ownedPhoneFixture="true".equals(args.getString("playlistQaPhysicalDevice"))&&suffix.startsWith("_QAphone");
+        org.junit.Assume.assumeTrue("Use an explicitly named QA playlist; real phones require a separate opt-in",
+                suffix.startsWith("_QA")&&(emulator||ownedPhoneFixture));
         var context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         List<NamedPlaylist> playlists=new ArrayList<>();
         try(var db=SQLiteDatabase.openDatabase(context.getDatabasePath("music-player.db").toString(),null,SQLiteDatabase.OPEN_READONLY);
