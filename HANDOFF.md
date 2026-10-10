@@ -1,13 +1,15 @@
-# 项目交接：ZA音乐 4.2.0
+# 项目交接：ZA音乐 4.2.3
 
 ## 当前状态
 
 - Java 25 + JavaFX 25.0.1 + Gradle 9.6.1 + SQLite。
 - 主入口：`app.musicplayer.MusicPlayerLauncher`。
 - 应用控制器：`app.musicplayer.MusicPlayerApp`。
-- 开发版本：Windows 桌面版与原生 Android 版均为 `4.2.0`，此次歌单功能尚未公开发布。
+- 开发版本：Windows 桌面版与原生 Android 版均为 `4.2.3`，此次歌单功能尚未公开发布。
 - Windows 安装版数据：`%LOCALAPPDATA%/ZA-Music-Data`；开发版：`downloads/`；Android：设备私有数据库和用户媒体目录。
 - 数据库保持兼容：`tracks`、`lyrics`、Android `imports` 均保留；Android schema 4 与桌面新增 `named_playlists` / `named_playlist_items`，记录歌单和本地音频关联。删除歌单不会删除音频、曲库记录或歌词缓存。
+
+2026-10-10 最新本地验收：Windows 4.2.3 安装包已包含完整歌名与批量搜索容量修复，15 个按钮及确认 / 取消烟测、随包运行、真实 9 首歌单导入通过。已连接的 vivo V1962A / Android 10 完成首次安装，12 项原生回归全部通过、无跳过；实际 9 首导入、7 首酷我下载及原生音频解析通过，指定 2018 现场和 3D 版本仍无可用地址。测试 APK 和测试 WAV 已移除，主程序与 QA 歌单 / 7 个实际音频保留。详见 docs/playlist-import.md 最新小节及本地 build/verification/4.2.3-phone-20261010、4.2.3-desktop-20261010。本轮不代表真机旧版升级数据保留验证；该手机此前未安装 ZA音乐。
 
 ## 主要模块
 
