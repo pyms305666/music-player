@@ -447,9 +447,39 @@ public final class MusicDatabase implements AutoCloseable, app.musicplayer.playl
                         normalized.put(
                                 oldPath.toAbsolutePath().normalize(),
                                 newPath.toAbsolutePath().normalize()));
+        // 同一个源文件可能以短路径或链接路径保存在曲库中；保留它的真实路径供匹配。
+        for (var entry : List.copyOf(normalized.entrySet())) {
+            try {
+                normalized.putIfAbsent(entry.getKey().toRealPath(), entry.getValue());
+            } catch (java.io.IOException ignored) {
+                // 源文件不可用时仍保留原始路径映射，由上层迁移校验处理。
+            }
+        }
         transaction(
                 () -> {
                     Map<String, Path> records = new java.util.LinkedHashMap<>();
+                    // 曲库中同一目标文件可能通过 Windows 短路径或目录链接登记。
+                    // 复用已有记录的实际键，避免为同一音频插入第二条记录。
+                    Map<Path, Path> existingTargets = new java.util.HashMap<>();
+                    var destinations = new java.util.HashSet<>(normalized.values());
+                    try (var query = connection.createStatement();
+                            var rows = query.executeQuery("select path from tracks")) {
+                        while (rows.next()) {
+                            Path stored = localPath(rows.getString(1));
+                            if (stored == null || normalized.containsKey(stored)) continue;
+                            try {
+                                Path actual = stored.toRealPath();
+                                if (destinations.contains(actual)) {
+                                    if (stored.equals(actual)) existingTargets.put(actual, stored);
+                                    else existingTargets.putIfAbsent(actual, stored);
+                                }
+                            } catch (java.io.IOException ignored) {
+                                // 已失效的外部歌曲不参与目标文件合并，保留原有记录。
+                            }
+                        }
+                    }
+                    normalized.replaceAll(
+                            (source, target) -> existingTargets.getOrDefault(target, target));
                     try (var query = connection.createStatement();
                             var rows = query.executeQuery("select path from tracks")) {
                         while (rows.next()) {
@@ -569,7 +599,14 @@ public final class MusicDatabase implements AutoCloseable, app.musicplayer.playl
     /** 只匹配明确的旧文件路径，目录外的导入歌曲保持原位置。 */
     private static Path mapped(String value, Map<Path, Path> paths) {
         Path path = localPath(value);
-        return path == null ? null : paths.get(path);
+        if (path == null) return null;
+        Path direct = paths.get(path);
+        if (direct != null) return direct;
+        try {
+            return paths.get(path.toRealPath());
+        } catch (java.io.IOException ignored) {
+            return null;
+        }
     }
 
     /** URI、空值和损坏路径不会被当作本地迁移对象。 */

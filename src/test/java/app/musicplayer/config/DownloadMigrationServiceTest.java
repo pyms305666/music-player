@@ -25,6 +25,12 @@ import java.util.prefs.Preferences;
 class DownloadMigrationServiceTest {
     @TempDir Path root;
 
+    /** 临时路径先展开 Windows 短路径，便于断言保存的规范目录。 */
+    @org.junit.jupiter.api.BeforeEach
+    void resolveTemporaryRoot() throws Exception {
+        root = root.toRealPath();
+    }
+
     /** 重启后完整迁移歌曲及 LRC，并保留外部歌曲、缓存、歌单状态和顺序。 */
     @Test
     void migratesFilesLyricsAndAllPlaylistReferences() throws Exception {
@@ -145,6 +151,93 @@ class DownloadMigrationServiceTest {
                     fixture.database.loadLyrics(existing).orElseThrow().rawText().contains("目标歌词"));
             assertFalse(Files.exists(old));
             assertFalse(Files.exists(fixture.target.resolve("song (2).wav")));
+        }
+    }
+
+    /** 已有目标音频通过目录别名入库时，迁移应合并到已有记录并保留歌词。 */
+    @Test
+    void identicalTargetThroughDirectoryAliasReusesExistingRecord() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            Path old = fixture.audio("song.wav", 1);
+            Path alias = root.resolve("target-alias");
+            if (System.getProperty("os.name").startsWith("Windows")) {
+                var process =
+                        new ProcessBuilder(
+                                        "cmd.exe",
+                                        "/c",
+                                        "mklink",
+                                        "/J",
+                                        alias.toString(),
+                                        fixture.target.toString())
+                                .redirectErrorStream(true)
+                                .start();
+                process.getInputStream().readAllBytes();
+                assertEquals(0, process.waitFor());
+            } else Files.createSymbolicLink(alias, fixture.target);
+            try {
+                Path existingPath = alias.resolve("song.wav");
+                Files.copy(old, existingPath);
+                Track existing = new Track(existingPath);
+                existing.updateMetadata("目标标题", "目标歌手");
+                fixture.database.saveTracks(List.of(new Track(old), existing));
+                fixture.database.saveLyrics(existing, LrcParser.parse("目标", "[00:00.00]目标歌词"));
+                fixture.service.schedule(fixture.source, fixture.target);
+                fixture.execute(new AtomicBoolean());
+                assertEquals(1, fixture.database.loadTracks().size());
+                assertEquals(existingPath, fixture.database.loadTracks().getFirst().path());
+                assertEquals("目标标题", fixture.database.loadTracks().getFirst().title());
+                assertTrue(fixture.database.loadLyrics(existing).isPresent());
+                assertFalse(Files.exists(old));
+            } finally {
+                Files.delete(alias);
+            }
+        }
+    }
+
+    /** 歌曲和歌单通过源目录别名引用同一音频时，迁移后这些引用也应更新。 */
+    @Test
+    void sourceDirectoryAliasReferencesFollowTheMigratedFile() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            Path old = fixture.audio("song.wav", 1);
+            Path alias = root.resolve("source-alias");
+            if (System.getProperty("os.name").startsWith("Windows")) {
+                var process =
+                        new ProcessBuilder(
+                                        "cmd.exe",
+                                        "/c",
+                                        "mklink",
+                                        "/J",
+                                        alias.toString(),
+                                        fixture.source.toString())
+                                .redirectErrorStream(true)
+                                .start();
+                process.getInputStream().readAllBytes();
+                assertEquals(0, process.waitFor());
+            } else Files.createSymbolicLink(alias, fixture.source);
+            try {
+                Path referenced = alias.resolve("song.wav");
+                fixture.database.saveTracks(List.of(new Track(referenced)));
+                fixture.database.savePlaylist(
+                        playlist(
+                                "alias",
+                                root,
+                                List.of(entry("song", referenced, NamedPlaylist.State.READY, ""))));
+                fixture.service.schedule(fixture.source, fixture.target);
+                fixture.execute(new AtomicBoolean());
+                Path moved = fixture.target.resolve("song.wav");
+                assertEquals(moved, fixture.database.loadTracks().getFirst().path());
+                assertEquals(
+                        moved.toString(),
+                        fixture.database
+                                .loadPlaylists()
+                                .getFirst()
+                                .entries()
+                                .getFirst()
+                                .location());
+                assertFalse(Files.exists(old));
+            } finally {
+                Files.delete(alias);
+            }
         }
     }
 
@@ -453,7 +546,7 @@ class DownloadMigrationServiceTest {
                                         () ->
                                                 query.executeUpdate(
                                                         "update download_migrations set"
-                                                            + " status=status"));
+                                                                + " status=status"));
                             }
                         });
                 assertTrue(checked.get());
@@ -521,13 +614,14 @@ class DownloadMigrationServiceTest {
                                                             : "java")
                                             .toString(),
                                     "--enable-native-access=ALL-UNNAMED",
+                                    "-Dfile.encoding=windows-1252",
                                     "-cp",
                                     classPath,
                                     DownloadMigrationCrashProbe.class.getName(),
-                                    fixture.data.toString(),
-                                    fixture.source.toString(),
-                                    fixture.preferenceNode,
-                                    phase)
+                                    encodeArgument(fixture.data.toString()),
+                                    encodeArgument(fixture.source.toString()),
+                                    encodeArgument(fixture.preferenceNode),
+                                    encodeArgument(phase))
                             .redirectErrorStream(true)
                             .start();
             try {
@@ -557,6 +651,12 @@ class DownloadMigrationServiceTest {
             assertTrue(fixture.database.pendingDownloadMigration().isEmpty());
             assertEquals(1, fixture.database.loadTracks().size());
         }
+    }
+
+    /** 用 ASCII 参数传递路径和阶段，避免 Windows 英文环境丢失中文命令行字符。 */
+    private static String encodeArgument(String value) {
+        return java.util.Base64.getEncoder()
+                .encodeToString(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /** 真实目标子目录变为外部链接后拒绝复制，不写入或清理确认范围以外的文件。 */

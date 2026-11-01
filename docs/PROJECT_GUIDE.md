@@ -3560,7 +3560,7 @@ Java 包层级目录。路径与源码 package 对应；真正职责见下一层
 
 关联与使用：直接引用项目类型：LrcParser（shared/src/main/java/app/musicplayer/lyrics/LrcParser.java）；LyricLine（shared/src/main/java/app/musicplayer/model/LyricLine.java）；Lyrics（shared/src/main/java/app/musicplayer/model/Lyrics.java）；LyricsLookupResult（shared/src/main/java/app/musicplayer/model/LyricsLookupResult.java）；Track（shared/src/main/java/app/musicplayer/model/Track.java）；NamedPlaylist（shared/src/main/java/app/musicplayer/playlist/NamedPlaylist.java）；PlaylistCodec（shared/src/main/java/app/musicplayer/playlist/PlaylistCodec.java）；PlaylistStore（shared/src/main/java/app/musicplayer/playlist/PlaylistStore.java）。
 
-补充职责与关系：4.2.4 新增兼容的 download_migrations 表及单个活动计划索引。backup 使用 VACUUM INTO 一致性快照；migrateDownloadPaths 在一个事务更新 tracks.path、lyrics.track_path、歌单条目 location、实际旧根内的歌单 directory 和 COMMITTED 标记，保留其他 JSON 内容。合并目标主键时保留目标歌词；SQLite 独占锁同时阻止旧版写入。
+补充职责与关系：4.2.4 新增兼容的 download_migrations 表及单个活动计划索引。backup 使用 VACUUM INTO 一致性快照；migrateDownloadPaths 在一个事务更新 tracks.path、lyrics.track_path、歌单条目 location、实际旧根内的歌单 directory 和 COMMITTED 标记，保留其他 JSON 内容。合并目标主键时保留目标歌词；SQLite 独占锁同时阻止旧版写入；按真实文件匹配 Windows 短路径及目录链接，复用已有目标记录并更新源文件的别名引用。
 
 ### `src/main/java/app/musicplayer/lyrics`
 
@@ -3832,7 +3832,7 @@ GeneratedFileCache 的回归测试。使用可控夹具验证正常流程、边�
 
 迁移硬中断测试的子进程入口，在复制发布后或数据库提交后直接终止自己。
 
-核心内容与使用场景：main 读取父测试传入的 data、source、独立偏好节点和阶段，打开真实数据库继续待办；阶段匹配时 Runtime.halt(91)，跳过正常关闭以模拟进程崩溃。不能作为正式应用入口。
+核心内容与使用场景：main 将父测试传入的 Base64 参数按 UTF-8 还原为 data、source、独立偏好节点和阶段，打开真实数据库继续待办；阶段匹配时 Runtime.halt(91)，跳过正常关闭以模拟进程崩溃。不能作为正式应用入口。
 
 关联、调用和资源约定：只由 DownloadMigrationServiceTest 启动，父测试核对退出码、持久化状态、源和目标文件，再恢复迁移。不操作任何用户进程。
 
@@ -3840,7 +3840,7 @@ GeneratedFileCache 的回归测试。使用可控夹具验证正常流程、边�
 
 用真实音频、SQLite 与偏好设置验证迁移成功、失败、冲突、取消、事务一致性和进程恢复。
 
-核心内容与使用场景：覆盖子目录和 LRC、未登记音频、外部文件和缓存保留、歌单重复引用与状态、目标主键和歌词合并、相同音频但歌词冲突、缺失记录、源内容改变、目标离线、目录链接、路径重叠、唯一待办和旧版数据库写入锁。跨卷用例实际使用 C 盘临时根和 E 盘专用输出；两个崩溃用例启动子进程并直接终止，在重新打开数据库后恢复。
+核心内容与使用场景：覆盖子目录和 LRC、未登记音频、外部文件和缓存保留、歌单重复引用与状态、目标主键和歌词合并、相同音频但歌词冲突、缺失记录、源内容改变、目标离线、目录链接、路径重叠、唯一待办和旧版数据库写入锁。跨卷用例实际使用 C 盘临时根和 E 盘专用输出；两个崩溃用例启动子进程并直接终止，在重新打开数据库后恢复；另覆盖源和目标目录链接别名及已有目标记录合并。
 
 关联、调用和资源约定：被测 DownloadMigrationService 调用 MusicDatabase 和 DownloadDirectorySettings；DownloadMigrationCrashProbe 是子进程入口。Fixture 只管理本用例数据；正常重载与硬中断分别验证。
 
@@ -4520,7 +4520,7 @@ HTML 内嵌所有条目的 JSON，离线即可搜索路径、用途或组件，�
 | `src/main/java/app/musicplayer/config/LayoutMode.java` | 文件 | 桌面端 | 解析桌面或手机比例布局选项。控制 JavaFX 窗口布局，与原生 Android 应用是不同的运行入口。 | 由所属模块编译；通过此类型的接口、数据或测试职责参与同包及上层组件，具体成员说明见源码 Javadoc。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
 | `src/main/java/app/musicplayer/config/LegacyInstallMigration.java` | 文件 | 桌面端 | 迁移旧安装目录中的桌面曲库和缓存。保留原文件，处理 SQLite 快照、路径重写和目标冲突，失败时可再次尝试。 | 由所属模块编译；通过此类型的接口、数据或测试职责参与同包及上层组件，具体成员说明见源码 Javadoc。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
 | `src/main/java/app/musicplayer/config/SqliteNativeTemp.java` | 文件 | 桌面端 | 为 SQLite JDBC 创建进程独立的原生库临时目录。在加载 JDBC 驱动前设置路径，避免不同进程争用或安装目录权限问题。 | 由所属模块编译；通过此类型的接口、数据或测试职责参与同包及上层组件，具体成员说明见源码 Javadoc。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
-| `src/main/java/app/musicplayer/data/MusicDatabase.java` | 文件 | 桌面端 | 桌面 SQLite 存储实现。保存歌曲、歌词缓存和独立歌单，通过事务保持批量写入一致，并实现共享的 PlaylistStore 接口。 | 直接引用项目类型：LrcParser（shared/src/main/java/app/musicplayer/lyrics/LrcParser.java）；LyricLine（shared/src/main/java/app/musicplayer/model/LyricLine.java）；Lyrics（shared/src/main/java/app/musicplayer/model/Lyrics.java）；LyricsLookupResult（shared/src/main/java/app/musicplayer/model/LyricsLookupResult.java）；Track（shared/src/main/java/app/musicplayer/model/Track.java）；NamedPlaylist（shared/src/main/java/app/musicplayer/playlist/NamedPlaylist.java）；PlaylistCodec（shared/src/main/java/app/musicplayer/playlist/PlaylistCodec.java）；PlaylistStore（shared/src/main/java/app/musicplayer/playlist/PlaylistStore.java）。 4.2.4 新增兼容的 download_migrations 表及单个活动计划索引。backup 使用 VACUUM INTO 一致性快照；migrateDownloadPaths 在一个事务更新 tracks.path、lyrics.track_path、歌单条目 location、实际旧根内的歌单 directory 和 COMMITTED 标记，保留其他 JSON 内容。合并目标主键时保留目标歌词；SQLite 独占锁同时阻止旧版写入。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
+| `src/main/java/app/musicplayer/data/MusicDatabase.java` | 文件 | 桌面端 | 桌面 SQLite 存储实现。保存歌曲、歌词缓存和独立歌单，通过事务保持批量写入一致，并实现共享的 PlaylistStore 接口。 | 直接引用项目类型：LrcParser（shared/src/main/java/app/musicplayer/lyrics/LrcParser.java）；LyricLine（shared/src/main/java/app/musicplayer/model/LyricLine.java）；Lyrics（shared/src/main/java/app/musicplayer/model/Lyrics.java）；LyricsLookupResult（shared/src/main/java/app/musicplayer/model/LyricsLookupResult.java）；Track（shared/src/main/java/app/musicplayer/model/Track.java）；NamedPlaylist（shared/src/main/java/app/musicplayer/playlist/NamedPlaylist.java）；PlaylistCodec（shared/src/main/java/app/musicplayer/playlist/PlaylistCodec.java）；PlaylistStore（shared/src/main/java/app/musicplayer/playlist/PlaylistStore.java）。 4.2.4 新增兼容的 download_migrations 表及单个活动计划索引。backup 使用 VACUUM INTO 一致性快照；migrateDownloadPaths 在一个事务更新 tracks.path、lyrics.track_path、歌单条目 location、实际旧根内的歌单 directory 和 COMMITTED 标记，保留其他 JSON 内容。合并目标主键时保留目标歌词；SQLite 独占锁同时阻止旧版写入；按真实文件匹配 Windows 短路径及目录链接，复用已有目标记录并更新源文件的别名引用。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
 | `src/main/java/app/musicplayer/lyrics/DesktopLyricsController.java` | 文件 | 桌面端 | 桌面歌词请求与重试控制。用请求编号丢弃切歌前的结果，按 10、20、30、60 秒间隔继续查词，并管理自己的重试调度器。 | 直接引用项目类型：Lyrics（shared/src/main/java/app/musicplayer/model/Lyrics.java）；LyricsLookupResult（shared/src/main/java/app/musicplayer/model/LyricsLookupResult.java）；Track（shared/src/main/java/app/musicplayer/model/Track.java）。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
 | `src/main/java/app/musicplayer/lyrics/LyricsService.java` | 文件 | 桌面端 | 桌面歌词获取与缓存。按本地歌词文件、缓存及在线渠道获取结果，保存原始歌词与封面地址，用 LatestRequest 管理异步查询。 | 直接引用项目类型：KugouMusicProvider（shared/src/main/java/app/musicplayer/lyrics/KugouMusicProvider.java）；LrcParser（shared/src/main/java/app/musicplayer/lyrics/LrcParser.java）；LrclibLyricsProvider（shared/src/main/java/app/musicplayer/lyrics/LrclibLyricsProvider.java）；LyricsHttp（shared/src/main/java/app/musicplayer/lyrics/LyricsHttp.java）；NeteaseMusicProvider（shared/src/main/java/app/musicplayer/lyrics/NeteaseMusicProvider.java）；OnlineLyricsProvider（shared/src/main/java/app/musicplayer/lyrics/OnlineLyricsProvider.java）；QqMusicProvider（shared/src/main/java/app/musicplayer/lyrics/QqMusicProvider.java）；Lyrics（shared/src/main/java/app/musicplayer/model/Lyrics.java）；LyricsLookupResult（shared/src/main/java/app/musicplayer/model/LyricsLookupResult.java）；OnlineLyricsResult（shared/src/main/java/app/musicplayer/model/OnlineLyricsResult.java）；Track（shared/src/main/java/app/musicplayer/model/Track.java）；Hashing（shared/src/main/java/app/musicplayer/util/Hashing.java）；LatestRequest（shared/src/main/java/app/musicplayer/util/LatestRequest.java）；MusicDatabase（src/main/java/app/musicplayer/data/MusicDatabase.java）。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
 | `src/main/java/app/musicplayer/playback/AudioFileInspector.java` | 文件 | 桌面端 | 根据文件头识别音频实际编码。区分 MP3、AAC、MP4 等格式，辅助处理扩展名与内容不一致及 JavaFX 不支持的音频。 | 直接引用项目类型：AudioFormat（src/main/java/app/musicplayer/playback/AudioFormat.java）。 | 人工核实：当前源码、配置、资源引用或现有文档。 |
