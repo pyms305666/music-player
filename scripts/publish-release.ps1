@@ -42,7 +42,9 @@ Invoke-ZaReleaseUtf8 {
     if ($LASTEXITCODE -or $remote.object.sha -ne $sha) {
         throw 'Remote branch does not match source commit'
     }
-    $runs = gh run list --repo $repo --workflow build.yml --commit $sha --limit 20 --json databaseId, conclusion, status, url | ConvertFrom-Json
+    # GitHub CLI 的 --json 参数只接收一个字段列表；逗号后不能有空格，
+    # 否则 PowerShell 会把字段拆成多个命令参数。
+    $runs = gh run list --repo $repo --workflow build.yml --commit $sha --limit 20 --json databaseId,conclusion,status,url | ConvertFrom-Json
     if ($LASTEXITCODE) {
         throw 'Unable to query build workflow'
     }
