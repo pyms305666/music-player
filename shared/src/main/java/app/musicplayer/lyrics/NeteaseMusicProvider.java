@@ -7,12 +7,15 @@ import app.musicplayer.util.JsonSupport;
 import java.time.Duration;
 import java.util.Optional;
 
+/** 网易云歌词渠道。搜索歌曲后读取并解码歌词与封面，将结果交给共享歌词服务。 */
 public final class NeteaseMusicProvider implements OnlineLyricsProvider {
+    /** 按查询文字搜索歌曲，返回本来源或当前搜索组件的结果。 */
     @Override
     public Optional<OnlineLyricsResult> search(Track track, Duration duration, LyricsHttp http) {
         try {
-            String searchUrl = "https://music.163.com/api/search/get/web?csrf_token=&type=1&offset=0&limit=5&s="
-                    + JsonSupport.encode(JsonSupport.queryText(track));
+            String searchUrl =
+                    "https://music.163.com/api/search/get/web?csrf_token=&type=1&offset=0&limit=5&s="
+                            + JsonSupport.encode(JsonSupport.queryText(track));
             String searchJson = http.fetch(searchUrl, "https://music.163.com/");
             String songs = JsonSupport.arrayValue(searchJson, "songs");
 
@@ -22,11 +25,15 @@ public final class NeteaseMusicProvider implements OnlineLyricsProvider {
                     continue;
                 }
 
-                String lyricJson = http.fetch(
-                        "https://music.163.com/api/song/lyric?id=" + JsonSupport.encode(id) + "&lv=1&kv=1&tv=-1",
-                        "https://music.163.com/");
+                String lyricJson =
+                        http.fetch(
+                                "https://music.163.com/api/song/lyric?id="
+                                        + JsonSupport.encode(id)
+                                        + "&lv=1&kv=1&tv=-1",
+                                "https://music.163.com/");
                 String lrcObject = JsonSupport.objectValue(lyricJson, "lrc");
-                String lyric = JsonSupport.stringValue(lrcObject == null ? lyricJson : lrcObject, "lyric");
+                String lyric =
+                        JsonSupport.stringValue(lrcObject == null ? lyricJson : lrcObject, "lyric");
                 if (lyric == null || lyric.isBlank()) {
                     continue;
                 }
@@ -35,8 +42,9 @@ public final class NeteaseMusicProvider implements OnlineLyricsProvider {
                 String artist = firstArtist(song, "artists");
                 String album = JsonSupport.objectValue(song, "album");
                 String artworkUrl = JsonSupport.stringValue(album == null ? song : album, "picUrl");
-                return Optional.of(new OnlineLyricsResult(
-                        "网易云音乐：" + readableName(name, artist), lyric, artworkUrl, 40));
+                return Optional.of(
+                        new OnlineLyricsResult(
+                                "网易云音乐：" + readableName(name, artist), lyric, artworkUrl, 40));
             }
         } catch (Exception ignored) {
             return Optional.empty();
@@ -45,12 +53,14 @@ public final class NeteaseMusicProvider implements OnlineLyricsProvider {
         return Optional.empty();
     }
 
+    /** 从来源返回的歌手列表中提取主要歌手名称。 */
     private static String firstArtist(String songJson, String arrayField) {
         String firstArtist = JsonSupport.firstObject(JsonSupport.arrayValue(songJson, arrayField));
         String name = JsonSupport.stringValue(firstArtist, "name");
         return name == null || name.isBlank() ? null : name;
     }
 
+    /** 返回该歌词渠道用于界面显示的名称。 */
     private static String readableName(String trackName, String artistName) {
         if (trackName == null || trackName.isBlank()) {
             return "搜索结果";

@@ -1,69 +1,159 @@
 import app.musicplayer.MusicPlayerApp;
 import app.musicplayer.data.MusicDatabase;
 import app.musicplayer.model.Track;
+
 import javafx.application.Platform;
 import javafx.stage.Stage;
+
 import java.lang.management.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-/** Actual JavaFX application initialization and library readiness, with an already initialized runtime. */
+/**
+ * JavaFX 启动基准。构造不同规模曲库，测量主界面和列表准备时间，记录启动性能数据。
+ *
+ * <p>Actual JavaFX application initialization and library readiness, with an already initialized
+ * runtime.
+ */
 public final class DesktopStartupBenchmark {
     private static Object retained;
     private static Path ROOT;
+
+    /** 命令行或应用启动入口，准备运行环境并启动本文件的主流程。 */
     public static void main(String[] args) throws Exception {
         int count = Integer.parseInt(args[0]);
-        ROOT = Files.createTempDirectory(Path.of(args[1]).toAbsolutePath().normalize(), "desktop-startup-");
+        ROOT =
+                Files.createTempDirectory(
+                        Path.of(args[1]).toAbsolutePath().normalize(), "desktop-startup-");
         System.setProperty("musicplayer.data-dir", ROOT.toString());
-        System.setProperty("musicplayer.preferences-node", "/app/musicplayer/qa/round3-startup-" + UUID.randomUUID());
+        System.setProperty(
+                "musicplayer.preferences-node",
+                "/app/musicplayer/qa/round3-startup-" + UUID.randomUUID());
         List<Track> tracks = new ArrayList<>();
-        for (int i = 0; i < count; i++) tracks.add(new Track(Files.createFile(ROOT.resolve("Artist " + i + " - 歌曲 " + i + ".mp3"))));
-        try (var database = new MusicDatabase(ROOT.resolve("music-player.db"))) { database.saveTracks(tracks); }
-        tracks.clear(); Platform.startup(() -> Platform.setImplicitExit(false));
+        for (int i = 0; i < count; i++)
+            tracks.add(
+                    new Track(
+                            Files.createFile(ROOT.resolve("Artist " + i + " - 歌曲 " + i + ".mp3"))));
+        try (var database = new MusicDatabase(ROOT.resolve("music-player.db"))) {
+            database.saveTracks(tracks);
+        }
+        tracks.clear();
+        Platform.startup(() -> Platform.setImplicitExit(false));
         try {
-            for (int batch = 1; batch <= 3; batch++) { retained = null; System.gc(); Thread.sleep(100); measure(count, batch); }
+            for (int batch = 1; batch <= 3; batch++) {
+                retained = null;
+                System.gc();
+                Thread.sleep(100);
+                measure(count, batch);
+            }
         } finally {
             Platform.exit();
-            java.util.prefs.Preferences.userRoot().node(System.getProperty("musicplayer.preferences-node")).removeNode();
+            java.util.prefs.Preferences.userRoot()
+                    .node(System.getProperty("musicplayer.preferences-node"))
+                    .removeNode();
         }
     }
+
+    /** 测量本基准构造的启动、曲库或交互工作负载并记录结果。 */
     private static void measure(int count, int batch) throws Exception {
-        var pools = ManagementFactory.getMemoryPoolMXBeans().stream().filter(pool -> pool.getType() == MemoryType.HEAP).toList();
-        pools.forEach(MemoryPoolMXBean::resetPeakUsage); long started = System.nanoTime();
-        Object[] running = fx(() -> {
-            MusicPlayerApp app = new MusicPlayerApp();
-            Class<?> parameters = Class.forName("com.sun.javafx.application.ParametersImpl");
-            Object value = parameters.getConstructor(List.class).newInstance(List.of());
-            parameters.getMethod("registerParameters", javafx.application.Application.class, javafx.application.Application.Parameters.class).invoke(null, app, value);
-            Stage stage = new Stage(); stage.setOpacity(0); app.start(stage); return new Object[]{app, stage};
-        });
+        var pools =
+                ManagementFactory.getMemoryPoolMXBeans().stream()
+                        .filter(pool -> pool.getType() == MemoryType.HEAP)
+                        .toList();
+        pools.forEach(MemoryPoolMXBean::resetPeakUsage);
+        long started = System.nanoTime();
+        Object[] running =
+                fx(
+                        () -> {
+                            MusicPlayerApp app = new MusicPlayerApp();
+                            Class<?> parameters =
+                                    Class.forName("com.sun.javafx.application.ParametersImpl");
+                            Object value =
+                                    parameters.getConstructor(List.class).newInstance(List.of());
+                            parameters
+                                    .getMethod(
+                                            "registerParameters",
+                                            javafx.application.Application.class,
+                                            javafx.application.Application.Parameters.class)
+                                    .invoke(null, app, value);
+                            Stage stage = new Stage();
+                            stage.setOpacity(0);
+                            app.start(stage);
+                            return new Object[] {app, stage};
+                        });
         try {
-            MusicPlayerApp app = (MusicPlayerApp)running[0]; Stage stage = (Stage)running[1];
+            MusicPlayerApp app = (MusicPlayerApp) running[0];
+            Stage stage = (Stage) running[1];
             boolean ready = false;
             for (int attempt = 0; attempt < 1_500 && !ready; attempt++) {
-                ready = fx(() -> ((List<?>)field(app, "tracks")).size() == count && ((List<?>)field(app, "filteredTracks")).size() == count);
+                ready =
+                        fx(
+                                () ->
+                                        ((List<?>) field(app, "tracks")).size() == count
+                                                && ((List<?>) field(app, "filteredTracks")).size()
+                                                        == count);
                 if (!ready) Thread.sleep(20);
             }
             if (!ready) throw new AssertionError("Application library did not become ready");
-            fx(() -> { stage.getScene().getRoot().applyCss(); stage.getScene().getRoot().layout(); return null; });
+            fx(
+                    () -> {
+                        stage.getScene().getRoot().applyCss();
+                        stage.getScene().getRoot().layout();
+                        return null;
+                    });
             double elapsed = (System.nanoTime() - started) / 1e6;
             long peak = pools.stream().mapToLong(pool -> pool.getPeakUsage().getUsed()).sum();
-            retained = app; System.gc(); Thread.sleep(100);
+            retained = app;
+            System.gc();
+            Thread.sleep(100);
             long stable = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
-            System.out.printf(Locale.ROOT, "tracks=%d batch=%d applicationLibraryReadyMs=%.3f peakHeapBytes=%d stableHeapBytes=%d%n", count, batch, elapsed, peak, stable);
+            System.out.printf(
+                    Locale.ROOT,
+                    "tracks=%d batch=%d applicationLibraryReadyMs=%.3f peakHeapBytes=%d"
+                            + " stableHeapBytes=%d%n",
+                    count,
+                    batch,
+                    elapsed,
+                    peak,
+                    stable);
         } finally {
-            fx(() -> { ((MusicPlayerApp)running[0]).stop(); ((Stage)running[1]).close(); return null; });
-            ((ExecutorService)field(running[0], "libraryExecutor")).awaitTermination(30, TimeUnit.SECONDS);
+            fx(
+                    () -> {
+                        ((MusicPlayerApp) running[0]).stop();
+                        ((Stage) running[1]).close();
+                        return null;
+                    });
+            ((ExecutorService) field(running[0], "libraryExecutor"))
+                    .awaitTermination(30, TimeUnit.SECONDS);
         }
     }
+
+    /** 提取指定字段或当前控件的值，缺失值使用本组件约定的备用结果。 */
     private static Object field(Object app, String name) throws Exception {
-        var field = MusicPlayerApp.class.getDeclaredField(name); field.setAccessible(true); return field.get(app);
+        var field = MusicPlayerApp.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(app);
     }
-    @FunctionalInterface private interface Work<T> { T run() throws Exception; }
+
+    /** 约定性能测量中执行的工作，使同一测量流程可替换工作负载。 */
+    @FunctionalInterface
+    private interface Work<T> {
+        /** 执行当前任务的实际工作；调度方决定所在线程。 */
+        T run() throws Exception;
+    }
+
+    /** 将检查操作投递到 JavaFX 线程并等待结果。 */
     private static <T> T fx(Work<T> work) throws Exception {
         var result = new CompletableFuture<T>();
-        Platform.runLater(() -> { try { result.complete(work.run()); } catch (Throwable error) { result.completeExceptionally(error); } });
+        Platform.runLater(
+                () -> {
+                    try {
+                        result.complete(work.run());
+                    } catch (Throwable error) {
+                        result.completeExceptionally(error);
+                    }
+                });
         return result.get(30, TimeUnit.SECONDS);
     }
 }

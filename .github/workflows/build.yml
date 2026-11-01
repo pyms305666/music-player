@@ -1,3 +1,5 @@
+# GitHub Actions 构建验证工作流。分别验证 Windows、Android、Linux 缓存保护及 Android 签名轮换，并上传测试和构建附件。
+
 name: Build and verify
 on:
   workflow_dispatch:
@@ -52,6 +54,7 @@ jobs:
         run: |
           dotnet tool install wix --version 5.0.2 --tool-path .tools/wix
           ./.tools/wix/wix.exe extension add --global WixToolset.Util.wixext/5.0.2
+          ./.tools/wix/wix.exe extension add --global WixToolset.UI.wixext/5.0.2
       - name: Test and package Windows
         shell: pwsh
         run: ./package.ps1

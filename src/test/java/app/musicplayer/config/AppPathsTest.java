@@ -1,17 +1,21 @@
 package app.musicplayer.config;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+/**
+ * AppPaths
+ * 的回归测试。使用可控夹具验证正常流程、边界输入及资源或失败处理。被测职责：集中确定桌面应用的数据、曲库数据库和缓存路径。支持开发运行、安装后运行及旧版数据迁移，避免把用户数据放在程序安装目录。
+ */
 class AppPathsTest {
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
+    /** 验证打包运行时识别程序目录。 */
     @Test
     void usesPackagedExecutableDirectoryWhenAvailable() {
         String previous = System.getProperty("jpackage.app-path");
@@ -20,7 +24,9 @@ class AppPathsTest {
             AppPaths paths = AppPaths.resolve(AppPathsTest.class);
 
             assertEquals(tempDir.toAbsolutePath().normalize(), paths.baseDir());
-            assertTrue(!paths.dataDir().equals(tempDir.resolve("downloads").toAbsolutePath().normalize()));
+            assertTrue(
+                    !paths.dataDir()
+                            .equals(tempDir.resolve("downloads").toAbsolutePath().normalize()));
         } finally {
             if (previous == null) {
                 System.clearProperty("jpackage.app-path");
@@ -30,6 +36,7 @@ class AppPathsTest {
         }
     }
 
+    /** 验证开发散装类运行时使用工作目录。 */
     @Test
     void usesWorkingDirectoryForExplodedDevelopmentClasses() {
         String previous = System.getProperty("jpackage.app-path");
@@ -46,7 +53,10 @@ class AppPathsTest {
             }
         }
     }
-    @Test void dataDirectoryNeverMatchesEitherInstallerDirectory() {
+
+    /** 验证应用数据目录与两种安装目录均分离。 */
+    @Test
+    void dataDirectoryNeverMatchesEitherInstallerDirectory() {
         String previous = System.getProperty("jpackage.app-path");
         String local = System.getenv("LOCALAPPDATA");
         if (local == null) return;
@@ -61,5 +71,4 @@ class AppPathsTest {
             else System.setProperty("jpackage.app-path", previous);
         }
     }
-
 }

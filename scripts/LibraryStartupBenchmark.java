@@ -1,25 +1,35 @@
 import app.musicplayer.data.MusicDatabase;
 import app.musicplayer.model.Track;
 import app.musicplayer.playlist.*;
+
 import java.lang.management.*;
 import java.nio.file.*;
 import java.util.*;
 
-/** Measures database restore + sorting + index construction in a disposable directory. */
+/**
+ * 曲库数据库启动基准。构造大量歌曲与标签，测量持久化恢复及相关准备工作的耗时。 Measures database restore + sorting + index construction
+ * in a disposable directory.
+ */
 public final class LibraryStartupBenchmark {
     private static volatile Object retained;
+
+    /** 命令行或应用启动入口，准备运行环境并启动本文件的主流程。 */
     public static void main(String[] args) throws Exception {
-        Path root = Files.createTempDirectory(Path.of(args[0]).toAbsolutePath(), "library-startup-");
+        Path root =
+                Files.createTempDirectory(Path.of(args[0]).toAbsolutePath(), "library-startup-");
         System.out.println("disposableData=" + root);
-        for (int count : new int[]{100, 1_000, 10_000}) {
+        for (int count : new int[] {100, 1_000, 10_000}) {
             Path directory = Files.createDirectory(root.resolve(Integer.toString(count)));
             List<Track> fixtures = new ArrayList<>();
             for (int i = 0; i < count; i++) {
-                Path path = Files.createFile(directory.resolve("Artist " + i + " - 歌曲 " + i + ".mp3"));
+                Path path =
+                        Files.createFile(directory.resolve("Artist " + i + " - 歌曲 " + i + ".mp3"));
                 fixtures.add(new Track(path));
             }
             Path databasePath = directory.resolve("library.db");
-            try (var database = new MusicDatabase(databasePath)) { database.saveTracks(fixtures); }
+            try (var database = new MusicDatabase(databasePath)) {
+                database.saveTracks(fixtures);
+            }
             fixtures.clear();
             // File system and JDBC are warm, consistently for both source versions.
             restore(databasePath);
@@ -31,10 +41,16 @@ public final class LibraryStartupBenchmark {
         }
         // Retained temporary data allows inspecting the measurement, never touches app data.
     }
-    private record State(SearchSnapshot<Track> snapshot, TrackLibraryService library) { }
+
+    /** 表示任务状态。 */
+    private record State(SearchSnapshot<Track> snapshot, TrackLibraryService library) {}
+
+    /** 测量本基准构造的启动、曲库或交互工作负载并记录结果。 */
     private static void measure(int count, int batch, Path databasePath) throws Exception {
-        var pools = ManagementFactory.getMemoryPoolMXBeans().stream()
-                .filter(pool -> pool.getType() == MemoryType.HEAP).toList();
+        var pools =
+                ManagementFactory.getMemoryPoolMXBeans().stream()
+                        .filter(pool -> pool.getType() == MemoryType.HEAP)
+                        .toList();
         pools.forEach(MemoryPoolMXBean::resetPeakUsage);
         long started = System.nanoTime();
         var state = restore(databasePath);
@@ -47,21 +63,36 @@ public final class LibraryStartupBenchmark {
         retained = state;
         System.gc();
         long stable = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
-        System.out.printf(Locale.ROOT,
-                "tracks=%d batch=%d startupMs=%.3f queryMs=%.4f peakHeapBytes=%d stableHeapBytes=%d%n",
-                count, batch, startupMs, queryMs, peak, stable);
+        System.out.printf(
+                Locale.ROOT,
+                "tracks=%d batch=%d startupMs=%.3f queryMs=%.4f peakHeapBytes=%d"
+                        + " stableHeapBytes=%d%n",
+                count,
+                batch,
+                startupMs,
+                queryMs,
+                peak,
+                stable);
     }
+
+    /** 恢复已保存的数据或界面状态，并应用当前可用性检查。 */
     private static State restore(Path file) throws Exception {
         List<Track> tracks;
         var library = new TrackLibraryService();
         try (var database = new MusicDatabase(file)) {
-            tracks = new ArrayList<>(database.loadTracks().stream().filter(t -> Files.isRegularFile(t.path()))
-                    .filter(t -> library.isSupportedAudio(t.path())).toList());
+            tracks =
+                    new ArrayList<>(
+                            database.loadTracks().stream()
+                                    .filter(t -> Files.isRegularFile(t.path()))
+                                    .filter(t -> library.isSupportedAudio(t.path()))
+                                    .toList());
         }
         library.primeCreationTimes(tracks);
         tracks.sort(library.comparator(PlaylistSort.TITLE, SortDirection.ASCENDING));
         return new State(SearchSnapshot.ofTracks(tracks), library);
     }
+
+    /** 执行本测试的数据库、ContentProvider 或查询测量。 */
     private static void query(SearchSnapshot<Track> snapshot) {
         for (String text : List.of("歌曲", "ARTIST 9", ".mp3", "找不到", "歌曲 99"))
             retained = snapshot.filter(text);

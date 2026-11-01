@@ -7,14 +7,17 @@ import app.musicplayer.util.JsonSupport;
 import java.time.Duration;
 import java.util.Optional;
 
+/** QQ 音乐歌词渠道。搜索匹配歌曲，读取歌词与封面，处理返回的编码文本。 */
 public final class QqMusicProvider implements OnlineLyricsProvider {
+    /** 按查询文字搜索歌曲，返回本来源或当前搜索组件的结果。 */
     @Override
     public Optional<OnlineLyricsResult> search(Track track, Duration duration, LyricsHttp http) {
         try {
-            String searchUrl = "https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
-                    + "?format=json&n=5&p=1&cr=1&g_tk=5381&t=0&loginUin=0&hostUin=0"
-                    + "&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0&w="
-                    + JsonSupport.encode(JsonSupport.queryText(track));
+            String searchUrl =
+                    "https://c.y.qq.com/soso/fcgi-bin/client_search_cp"
+                        + "?format=json&n=5&p=1&cr=1&g_tk=5381&t=0&loginUin=0&hostUin=0"
+                        + "&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0&w="
+                            + JsonSupport.encode(JsonSupport.queryText(track));
             String searchJson = http.fetch(searchUrl, "https://y.qq.com/");
             String songData = JsonSupport.objectValue(searchJson, "song");
             String list = JsonSupport.arrayValue(songData == null ? searchJson : songData, "list");
@@ -25,10 +28,12 @@ public final class QqMusicProvider implements OnlineLyricsProvider {
                     continue;
                 }
 
-                String lyricUrl = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg"
-                        + "?format=json&nobase64=1&g_tk=5381&loginUin=0&hostUin=0"
-                        + "&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0"
-                        + "&songmid=" + JsonSupport.encode(songMid);
+                String lyricUrl =
+                        "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg"
+                            + "?format=json&nobase64=1&g_tk=5381&loginUin=0&hostUin=0"
+                            + "&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0"
+                            + "&songmid="
+                                + JsonSupport.encode(songMid);
                 String lyricJson = http.fetch(lyricUrl, "https://y.qq.com/");
                 String lyric = JsonSupport.htmlDecode(JsonSupport.stringValue(lyricJson, "lyric"));
                 String decoded = JsonSupport.decodeBase64Text(lyric);
@@ -42,12 +47,15 @@ public final class QqMusicProvider implements OnlineLyricsProvider {
                 String songName = JsonSupport.stringValue(song, "songname");
                 String singer = firstSinger(song);
                 String albumMid = JsonSupport.stringValue(song, "albummid");
-                String artworkUrl = albumMid == null || albumMid.isBlank()
-                        ? null
-                        : "https://y.gtimg.cn/music/photo_new/T002R800x800M000" + albumMid
-                        + ".jpg?max_age=2592000";
-                return Optional.of(new OnlineLyricsResult(
-                        "QQ音乐：" + readableName(songName, singer), lyric, artworkUrl, 35));
+                String artworkUrl =
+                        albumMid == null || albumMid.isBlank()
+                                ? null
+                                : "https://y.gtimg.cn/music/photo_new/T002R800x800M000"
+                                        + albumMid
+                                        + ".jpg?max_age=2592000";
+                return Optional.of(
+                        new OnlineLyricsResult(
+                                "QQ音乐：" + readableName(songName, singer), lyric, artworkUrl, 35));
             }
         } catch (Exception ignored) {
             return Optional.empty();
@@ -56,12 +64,14 @@ public final class QqMusicProvider implements OnlineLyricsProvider {
         return Optional.empty();
     }
 
+    /** 从来源返回的歌手列表中提取主要歌手名称。 */
     private static String firstSinger(String songJson) {
         String first = JsonSupport.firstObject(JsonSupport.arrayValue(songJson, "singer"));
         String name = JsonSupport.stringValue(first, "name");
         return name == null || name.isBlank() ? null : name;
     }
 
+    /** 返回该歌词渠道用于界面显示的名称。 */
     private static String readableName(String trackName, String artistName) {
         if (trackName == null || trackName.isBlank()) {
             return "搜索结果";

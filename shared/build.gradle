@@ -1,11 +1,18 @@
-plugins { id "java-library" }
+// 两端共用的 Java 17 类库；含在线来源、歌词解析及歌单领域逻辑。
+
+plugins {
+    id "java-library"
+}
 group = "app.musicplayer"
 def versions = new Properties()
 file("../version.properties").withInputStream { versions.load(it) }
 version = versions.getProperty("versionName")
-// Two independent Gradle builds consume this project; never share their task outputs.
+// 桌面和 Android 是独立构建，用工程名隔离输出，避免两种工具链互相覆盖。
 layout.buildDirectory = file("build/${rootProject.name}")
-java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 dependencies {
     implementation "com.google.code.gson:gson:2.11.0"
     implementation "org.jsoup:jsoup:1.18.3"
@@ -14,6 +21,14 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
-tasks.withType(JavaCompile).configureEach { options.encoding = "UTF-8"; options.release = 17 }
-tasks.withType(Test).configureEach { useJUnitPlatform() }
-tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = 17
+}
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}

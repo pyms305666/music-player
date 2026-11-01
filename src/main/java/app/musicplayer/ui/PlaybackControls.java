@@ -1,13 +1,14 @@
 package app.musicplayer.ui;
 
-import app.musicplayer.model.Track;
 import app.musicplayer.model.PlayMode;
+import app.musicplayer.model.Track;
+
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -33,6 +34,7 @@ public final class PlaybackControls extends VBox {
     private final Label trackArtistLabel = new Label("选择歌曲开始播放");
     private boolean seeking;
 
+    /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
     public PlaybackControls(
             ObservableList<Track> tracks,
             Runnable previousAction,
@@ -41,8 +43,7 @@ public final class PlaybackControls extends VBox {
             Runnable seekAction,
             DoubleConsumer volumeAction,
             boolean mobileMode,
-            ComboBox<PlayMode> playModeBox
-    ) {
+            ComboBox<PlayMode> playModeBox) {
         super(8);
 
         Button previousButton = controlButton("上一首", previousAction);
@@ -84,8 +85,11 @@ public final class PlaybackControls extends VBox {
         volumeSlider.setMinWidth(72);
         volumeSlider.setPrefWidth(96);
         volumeSlider.setMaxWidth(96);
-        volumeSlider.valueProperty().addListener((observable, oldValue, newValue) ->
-                volumeAction.accept(newValue.doubleValue()));
+        volumeSlider
+                .valueProperty()
+                .addListener(
+                        (observable, oldValue, newValue) ->
+                                volumeAction.accept(newValue.doubleValue()));
         enableDirectPointerInput(volumeSlider, false, null);
 
         HBox volumeGroup = new HBox(8, volumeLabel, volumeSlider);
@@ -95,8 +99,8 @@ public final class PlaybackControls extends VBox {
         volumeGroup.setPrefWidth(156);
         volumeGroup.setMaxWidth(164);
 
-        HBox controlRow = new HBox(
-                14, transportGroup, new Separator(Orientation.VERTICAL), volumeGroup);
+        HBox controlRow =
+                new HBox(14, transportGroup, new Separator(Orientation.VERTICAL), volumeGroup);
         controlRow.getStyleClass().add("control-row");
         controlRow.setAlignment(Pos.CENTER_LEFT);
         controlRow.setMinHeight(56);
@@ -149,8 +153,15 @@ public final class PlaybackControls extends VBox {
             HBox.setHgrow(leadingSpacer, Priority.ALWAYS);
             HBox.setHgrow(trailingSpacer, Priority.ALWAYS);
             playModeBox.getStyleClass().add("desktop-play-mode");
-            controlRow.getChildren().setAll(
-                    trackInfo, leadingSpacer, transportGroup, trailingSpacer, playModeBox, volumeGroup);
+            controlRow
+                    .getChildren()
+                    .setAll(
+                            trackInfo,
+                            leadingSpacer,
+                            transportGroup,
+                            trailingSpacer,
+                            playModeBox,
+                            volumeGroup);
             controlRow.setMinHeight(48);
             controlRow.setPrefHeight(48);
             controlRow.setMaxHeight(48);
@@ -165,70 +176,86 @@ public final class PlaybackControls extends VBox {
         nextButton.disableProperty().bind(Bindings.isEmpty(tracks));
     }
 
+    /** 返回播放控件的对应子控件，供主界面连接事件。 */
     public Button playPauseButton() {
         return playPauseButton;
     }
 
+    /** 返回播放控件的对应子控件，供主界面连接事件。 */
     public Slider progressSlider() {
         return progressSlider;
     }
 
+    /** 返回播放控件的对应子控件，供主界面连接事件。 */
     public Slider volumeSlider() {
         return volumeSlider;
     }
 
+    /** 返回播放控件的对应子控件，供主界面连接事件。 */
     public Label timeLabel() {
         return timeLabel;
     }
 
+    /** 更新控制栏显示的歌名与歌手。 */
     public void setTrackInfo(String title, String artist) {
         trackTitleLabel.setText(title == null || title.isBlank() ? "未播放歌曲" : title);
         trackArtistLabel.setText(artist == null || artist.isBlank() ? "选择歌曲开始播放" : artist);
     }
 
+    /** 根据实际播放状态切换播放或暂停按钮外观。 */
     public void setPlaying(boolean playing) {
         playPauseButton.setText(playing ? "暂停" : "播放");
     }
 
+    /** 检查用户是否正在拖动进度，避免自动刷新覆盖手动操作。 */
     public boolean isSeeking() {
         return seeking;
     }
 
-    private void enableDirectPointerInput(Slider slider, boolean marksSeeking, Runnable commitAction) {
-        slider.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
-            if (event.getButton() != MouseButton.PRIMARY) {
-                return;
-            }
-            if (marksSeeking) {
-                seeking = true;
-            }
-            updateSliderFromPointer(slider, event);
-            event.consume();
-        });
+    /** 让点击轨道可直接定位滑块，不必先拖动滑块手柄。 */
+    private void enableDirectPointerInput(
+            Slider slider, boolean marksSeeking, Runnable commitAction) {
+        slider.addEventFilter(
+                MouseEvent.MOUSE_PRESSED,
+                event -> {
+                    if (event.getButton() != MouseButton.PRIMARY) {
+                        return;
+                    }
+                    if (marksSeeking) {
+                        seeking = true;
+                    }
+                    updateSliderFromPointer(slider, event);
+                    event.consume();
+                });
 
-        slider.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
-            if (!event.isPrimaryButtonDown()) {
-                return;
-            }
-            updateSliderFromPointer(slider, event);
-            event.consume();
-        });
+        slider.addEventFilter(
+                MouseEvent.MOUSE_DRAGGED,
+                event -> {
+                    if (!event.isPrimaryButtonDown()) {
+                        return;
+                    }
+                    updateSliderFromPointer(slider, event);
+                    event.consume();
+                });
 
-        slider.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
-            if (event.getButton() != MouseButton.PRIMARY) {
-                return;
-            }
-            updateSliderFromPointer(slider, event);
-            if (marksSeeking) {
-                seeking = false;
-            }
-            if (commitAction != null) {
-                commitAction.run();
-            }
-            event.consume();
-        });
+        slider.addEventFilter(
+                MouseEvent.MOUSE_RELEASED,
+                event -> {
+                    if (event.getButton() != MouseButton.PRIMARY) {
+                        return;
+                    }
+                    updateSliderFromPointer(slider, event);
+                    if (marksSeeking) {
+                        seeking = false;
+                    }
+                    if (commitAction != null) {
+                        commitAction.run();
+                    }
+                    event.consume();
+                });
     }
 
+    /** 将指针位置映射到滑块范围并更新对应值。 */
     private static void updateSliderFromPointer(Slider slider, MouseEvent event) {
         Node visibleTrack = slider.lookup(".track");
         Bounds trackBounds;
@@ -244,21 +271,22 @@ public final class PlaybackControls extends VBox {
             trackStart = trackBounds.getMinX() + capRadius;
             trackLength = Math.max(0, trackBounds.getWidth() - capRadius * 2.0);
         }
-        slider.setValue(valueAtPosition(
-                event.getSceneX(),
-                trackStart,
-                trackLength,
-                slider.getMin(),
-                slider.getMax()));
+        slider.setValue(
+                valueAtPosition(
+                        event.getSceneX(),
+                        trackStart,
+                        trackLength,
+                        slider.getMin(),
+                        slider.getMax()));
     }
 
+    /** 将指针位置映射到滑块范围并更新对应值。 */
     static double valueAtPosition(
             double pointerPosition,
             double trackStart,
             double trackLength,
             double minimum,
-            double maximum
-    ) {
+            double maximum) {
         if (!Double.isFinite(pointerPosition)
                 || !Double.isFinite(trackStart)
                 || !Double.isFinite(trackLength)
@@ -270,6 +298,7 @@ public final class PlaybackControls extends VBox {
         return minimum + fraction * (maximum - minimum);
     }
 
+    /** 创建统一外观及提示的播放控制按钮。 */
     private Button controlButton(String text, Runnable action) {
         Button button = new Button(text);
         button.getStyleClass().add("control-button");

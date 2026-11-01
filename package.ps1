@@ -1,3 +1,5 @@
+﻿# Windows 安装包生成入口。先验证项目，再使用 JDK jpackage 和 WiX 创建安装包，并生成可核对的构建记录。
+
 param(
     [string] $Version
 )
@@ -7,10 +9,12 @@ $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 . (Join-Path $projectRoot 'scripts/build-common.ps1')
 $sourceSnapshot = Get-ZaSourceSnapshot $projectRoot
 $canonicalVersion = (Get-ZaVersion $projectRoot).versionName
-if ($Version -and $Version -ne $canonicalVersion) { throw 'Package version must match version.properties' }
+if ($Version -and $Version -ne $canonicalVersion) {
+    throw 'Package version must match version.properties'
+}
 $Version = $canonicalVersion
 $appName = -join @([char]90, [char]65, [char]38899, [char]20048)
-# Keep the renamed app separate from the old MSI, whose uninstaller removes its install directory.
+# 保留现有升级身份，避免与更早且会删除安装目录的旧应用混用。
 $upgradeUuid = "c75b70d9-e17e-4b11-81b3-64f1ba87c760"
 
 & (Join-Path $projectRoot "verify.ps1") -SkipClean
@@ -27,13 +31,27 @@ if (Test-Path $projectJpackage) {
 } else {
     $jpackage = (Get-Command jpackage.exe -ErrorAction SilentlyContinue).Source
 }
-if (-not $jpackage) { throw "jpackage.exe was not found; install JDK 25.0.2" }
+if (-not $jpackage) {
+    throw "jpackage.exe was not found; install JDK 25.0.2"
+}
 $jpackageVersion = (& $jpackage --version | Out-String).Trim()
-if ($LASTEXITCODE -or $jpackageVersion -notmatch '^25[.]') { throw "Windows packaging requires JDK 25; selected jpackage is $jpackageVersion" }
+if ($LASTEXITCODE -or $jpackageVersion -notmatch '^25[.]') {
+    throw "Windows packaging requires JDK 25; selected jpackage is $jpackageVersion"
+}
 
 $wixDirectory = Join-Path $projectRoot ".tools\wix"
 if (-not (Test-Path (Join-Path $wixDirectory "wix.exe"))) {
     throw "Local WiX was not found. Install wix 5.0.2 into .tools\wix first."
+}
+# 安装目录选择页需要 UI 扩展；提前报告依赖，避免等待运行时打包后才失败。
+$wixExtensions = & (Join-Path $wixDirectory 'wix.exe') extension list --global
+if ($LASTEXITCODE) {
+    throw 'Could not inspect WiX extensions'
+}
+foreach ($requiredExtension in @('WixToolset.Util.wixext', 'WixToolset.UI.wixext')) {
+    if (-not ($wixExtensions | Where-Object { $_ -eq "$requiredExtension 5.0.2" })) {
+        throw "Missing WiX extension. Run .tools\wix\wix.exe extension add --global $requiredExtension/5.0.2"
+    }
 }
 $env:PATH = $wixDirectory + ';' + $env:PATH
 
@@ -50,11 +68,14 @@ if (-not (Test-Path -LiteralPath $iconPath)) {
 }
 
 # UTF-8 arguments preserve the name; a fixed Chinese locale selects MSI codepage 936.
+# 将同一组选项写入响应文件后调用 jpackage，避免中文路径及参数转义影响打包。
 function Invoke-JpackageOptions([string[]] $Options, [string] $OptionFile) {
     $lines = $Options | ForEach-Object { '"' + $_.Replace('\', '\\').Replace('"', '\"') + '"' }
     [IO.File]::WriteAllLines($OptionFile, [string[]]$lines, [Text.UTF8Encoding]::new($false))
     & $jpackage '-J-Dfile.encoding=UTF-8' '-J-Duser.language=zh' '-J-Duser.country=CN' "@$OptionFile"
-    if ($LASTEXITCODE) { throw "jpackage failed with exit code $LASTEXITCODE" }
+    if ($LASTEXITCODE) {
+        throw "jpackage failed with exit code $LASTEXITCODE"
+    }
 }
 Invoke-JpackageOptions @(
     '--type', 'app-image', '--dest', $destination, '--name', $appName,
@@ -70,8 +91,9 @@ if ($LASTEXITCODE -ne 0) {
 
 Invoke-JpackageOptions @(
     '--type', 'exe', '--dest', $destination, '--app-image', $appImage, '--name', $appName,
+    '--temp', (Join-Path $destination 'installer-work'),
     '--app-version', $Version, '--vendor', 'pyms305666', '--win-menu', '--win-shortcut',
-    '--win-per-user-install', '--install-dir', 'ZA-Music', '--win-upgrade-uuid', $upgradeUuid
+    '--win-per-user-install', '--win-dir-chooser', '--install-dir', 'ZA-Music', '--win-upgrade-uuid', $upgradeUuid
 ) (Join-Path $destination 'installer.args')
 if ($LASTEXITCODE -ne 0) {
     throw "Installer creation failed with exit code $LASTEXITCODE."

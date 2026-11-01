@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 歌单页面资源 ID。为程序创建的歌单控件提供稳定标识，供页面和 UI 测试定位。 -->
+
 <resources>
     <item name="namedPlaylistSelector" type="id"/>
     <item name="namedPlaylistEntries" type="id"/>

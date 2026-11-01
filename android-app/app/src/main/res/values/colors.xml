@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 共用颜色资源。由主题、布局与 drawable 引用，集中定义界面配色。 -->
+
 <resources>
     <color name="background">#0F1115</color>
     <color name="surface">#181B20</color>

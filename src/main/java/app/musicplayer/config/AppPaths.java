@@ -9,10 +9,10 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * 集中管理应用运行目录和所有持久化数据目录。
+ * 集中管理应用运行目录、数据库和缓存目录。
  *
- * <p>安装版数据位于用户目录 ZA-Music-Data，开发版默认使用项目 downloads。
- * 数据库、下载与各类缓存统一由 dataDir 管理，旧安装数据在初始化时迁移。</p>
+ * <p>安装版数据位于用户目录 ZA-Music-Data，开发版默认使用项目 downloads。音乐下载位置由 DownloadDirectorySettings 独立保存，dataDir
+ * 只作为旧下载目录和首次选择的建议。旧安装数据在初始化时迁移。
  */
 public record AppPaths(
         Path baseDir,
@@ -21,17 +21,23 @@ public record AppPaths(
         Path lyricsCacheDir,
         Path artworkCacheDir,
         Path playbackCacheDir,
-        Path databasePath
-) {
+        Path databasePath) {
+    /** 准备或解析可实际使用的地址、路径或运行配置。 */
     public static AppPaths resolve(Class<?> applicationClass) {
         Path baseDir = resolveBaseDir(applicationClass);
         String override = System.getProperty("musicplayer.data-dir");
         String local = System.getenv("LOCALAPPDATA");
         boolean packaged = System.getProperty("jpackage.app-path") != null;
-        Path userData = local == null || local.isBlank()
-                ? Path.of(System.getProperty("user.home"), ".za-music") : Path.of(local, "ZA-Music-Data");
-        Path dataDir = (override != null && !override.isBlank() ? Path.of(override)
-                : packaged ? userData : baseDir.resolve("downloads")).toAbsolutePath().normalize();
+        Path userData =
+                local == null || local.isBlank()
+                        ? Path.of(System.getProperty("user.home"), ".za-music")
+                        : Path.of(local, "ZA-Music-Data");
+        Path dataDir =
+                (override != null && !override.isBlank()
+                                ? Path.of(override)
+                                : packaged ? userData : baseDir.resolve("downloads"))
+                        .toAbsolutePath()
+                        .normalize();
         Path cacheDir = dataDir.resolve("cache");
         return new AppPaths(
                 baseDir,
@@ -40,10 +46,10 @@ public record AppPaths(
                 cacheDir.resolve("lyrics"),
                 cacheDir.resolve("artwork"),
                 cacheDir.resolve("playback"),
-                dataDir.resolve("music-player.db")
-        );
+                dataDir.resolve("music-player.db"));
     }
 
+    /** 初始化应用目录或数据库结构，失败时交给启动流程处理。 */
     public void initialize() {
         try {
             LegacyInstallMigration.migrateIfNeeded(baseDir, dataDir, databasePath);
@@ -57,6 +63,7 @@ public record AppPaths(
         }
     }
 
+    /** 在新数据目录尚无曲库时尝试旧版迁移。 */
     private void migrateLegacyDatabaseIfNeeded() throws IOException {
         if (Files.exists(databasePath)) {
             return;
@@ -74,6 +81,7 @@ public record AppPaths(
         }
     }
 
+    /** 判断开发运行与安装运行的基础目录，供路径配置使用。 */
     private static Path resolveBaseDir(Class<?> applicationClass) {
         if ("android".equalsIgnoreCase(System.getProperty("javafx.platform"))) {
             String userHome = System.getProperty("user.home");
@@ -93,20 +101,24 @@ public record AppPaths(
         try {
             var codeSource = applicationClass.getProtectionDomain().getCodeSource();
             if (codeSource != null && codeSource.getLocation() != null) {
-                Path location = Path.of(codeSource.getLocation().toURI()).toAbsolutePath().normalize();
+                Path location =
+                        Path.of(codeSource.getLocation().toURI()).toAbsolutePath().normalize();
                 if (!Files.isRegularFile(location)) {
                     return Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
                 }
                 Path container = location.getParent();
-                if (container != null && "app".equalsIgnoreCase(String.valueOf(container.getFileName()))) {
+                if (container != null
+                        && "app".equalsIgnoreCase(String.valueOf(container.getFileName()))) {
                     Path installRoot = container.getParent();
                     if (installRoot != null && Files.isDirectory(installRoot.resolve("runtime"))) {
                         return installRoot;
                     }
                 }
-                if (container != null && "lib".equalsIgnoreCase(String.valueOf(container.getFileName()))) {
+                if (container != null
+                        && "lib".equalsIgnoreCase(String.valueOf(container.getFileName()))) {
                     Path distributionRoot = container.getParent();
-                    if (distributionRoot != null && Files.isDirectory(distributionRoot.resolve("bin"))) {
+                    if (distributionRoot != null
+                            && Files.isDirectory(distributionRoot.resolve("bin"))) {
                         return distributionRoot;
                     }
                 }

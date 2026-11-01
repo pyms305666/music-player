@@ -1,12 +1,5 @@
 package app.musicplayer.android;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import app.musicplayer.lyrics.KugouMusicProvider;
 import app.musicplayer.lyrics.LrcParser;
 import app.musicplayer.lyrics.LrclibLyricsProvider;
@@ -20,28 +13,37 @@ import app.musicplayer.model.OnlineLyricsResult;
 import app.musicplayer.model.Track;
 import app.musicplayer.online.CrawlerSession;
 
-/**
- * Android 端独立歌词查询：与桌面 LyricsService 相同的在线渠道
- * （网易云 → QQ → 酷狗 → LRCLIB），不再借用在线下载搜索的结果。
- */
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Android 端独立歌词查询：与桌面 LyricsService 相同的在线渠道 （网易云 → QQ → 酷狗 → LRCLIB），不再借用在线下载搜索的结果。 */
 public final class AndroidLyricsService {
-    private final app.musicplayer.util.LatestRequest<LyricsLookupResult> requests = new app.musicplayer.util.LatestRequest<>();
+    private final app.musicplayer.util.LatestRequest<LyricsLookupResult> requests =
+            new app.musicplayer.util.LatestRequest<>();
     private final CrawlerSession session = new CrawlerSession();
-    private final ExecutorService executor = Executors.newFixedThreadPool(2, runnable -> {
-        Thread thread = new Thread(runnable, "android-lyrics");
-        thread.setDaemon(true);
-        return thread;
-    });
-    private final List<OnlineLyricsProvider> providers = List.of(
-            new NeteaseMusicProvider(),
-            new QqMusicProvider(),
-            new KugouMusicProvider(),
-            new LrclibLyricsProvider()
-    );
-    private final LyricsHttp http = (url, referer) -> {
-        session.ensurePrimed();
-        return session.fetch(url, referer);
-    };
+    private final ExecutorService executor =
+            Executors.newFixedThreadPool(
+                    2,
+                    runnable -> {
+                        Thread thread = new Thread(runnable, "android-lyrics");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
+    private final List<OnlineLyricsProvider> providers =
+            List.of(
+                    new NeteaseMusicProvider(),
+                    new QqMusicProvider(),
+                    new KugouMusicProvider(),
+                    new LrclibLyricsProvider());
+    private final LyricsHttp http =
+            (url, referer) -> {
+                session.ensurePrimed();
+                return session.fetch(url, referer);
+            };
 
     /** 在线四连查，返回 null 表示所有渠道都没有歌词。 */
     public LyricsLookupResult searchOnline(Track track, long durationMillis) {
@@ -58,10 +60,15 @@ public final class AndroidLyricsService {
         return null;
     }
 
-    public CompletableFuture<LyricsLookupResult> searchOnlineAsync(Track track, long durationMillis) {
-        return requests.submit(executor, () -> session.withinTimeout(15_000, () -> searchOnline(track, durationMillis)));
+    /** 在后台查询在线歌词，使用异步结果通知调用者。 */
+    public CompletableFuture<LyricsLookupResult> searchOnlineAsync(
+            Track track, long durationMillis) {
+        return requests.submit(
+                executor,
+                () -> session.withinTimeout(15_000, () -> searchOnline(track, durationMillis)));
     }
 
+    /** 结束本组件或句柄的使用；具体资源归属见所属类型的说明。 */
     public void close() {
         requests.close();
         executor.shutdownNow();

@@ -1,3 +1,5 @@
+/* JavaFX 手机比例布局样式。调整窄窗口导航、页面间距和控件尺寸，与 Android XML 资源分开。 */
+
 .mobile-root {
     -fx-background-color: #0d1117;
 }

@@ -1,42 +1,53 @@
 package app.musicplayer.android;
 
+import static org.junit.Assert.*;
+
 import android.content.Context;
 import android.os.Build;
 import android.os.Debug;
-import android.os.SystemClock;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+
 import app.musicplayer.android.data.AndroidMusicDatabase;
 import app.musicplayer.android.data.TrackEntry;
 import app.musicplayer.model.Track;
 import app.musicplayer.playlist.SearchSnapshot;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
-import static org.junit.Assert.*;
 
-/** Opt-in measurement on disposable emulators; never opens the application's database. */
+/**
+ * 测量 Android 大曲库恢复、搜索、排序及页面交互。 Opt-in measurement on disposable emulators; never opens the
+ * application's database.
+ */
 @RunWith(AndroidJUnit4.class)
 public class LargeLibraryBenchmarkTest {
     private static volatile Object retained;
 
-    @Test public void measureLibraryRestoreAndSearch() throws Exception {
+    /** 测量本基准构造的启动、曲库或交互工作负载并记录结果。 */
+    @Test
+    public void measureLibraryRestoreAndSearch() throws Exception {
         var arguments = InstrumentationRegistry.getArguments();
         Context context = BenchmarkSupport.requireEmulator();
         File root = new File(context.getCacheDir(), "qa-large-library-" + UUID.randomUUID());
         assertTrue(root.mkdir());
         JSONArray results = new JSONArray();
         try {
-            for (int count : new int[]{100, 1_000, 10_000}) {
+            for (int count : new int[] {100, 1_000, 10_000}) {
                 File directory = new File(root, Integer.toString(count));
                 assertTrue(directory.mkdir());
-                Context isolated = BenchmarkSupport.databaseContext(context, new File(directory, "fixture.db"));
+                Context isolated =
+                        BenchmarkSupport.databaseContext(
+                                context, new File(directory, "fixture.db"));
                 try (var database = new AndroidMusicDatabase(isolated)) {
                     var sql = database.getWritableDatabase();
                     sql.beginTransaction();
@@ -47,9 +58,12 @@ public class LargeLibraryBenchmarkTest {
                             database.saveTrack(new TrackEntry(new Track(file.toPath()), i));
                         }
                         sql.setTransactionSuccessful();
-                    } finally { sql.endTransaction(); }
+                    } finally {
+                        sql.endTransaction();
+                    }
                 }
-                // Warm identical restore/search branches in each independently started comparison process.
+                // Warm identical restore/search branches in each independently started comparison
+                // process.
                 warmup(isolated);
                 for (int batch = 1; batch <= BenchmarkSupport.batches(); batch++) {
                     retained = null;
@@ -57,9 +71,14 @@ public class LargeLibraryBenchmarkTest {
                     results.put(measure(isolated, count, batch));
                 }
             }
-            JSONObject report = new JSONObject().put("label", arguments.getString("benchmarkLabel", "unspecified"))
-                    .put("api", Build.VERSION.SDK_INT).put("model", Build.MODEL).put("results", results);
-            Files.write(new File(context.getCacheDir(), "qa-large-library-results.json").toPath(),
+            JSONObject report =
+                    new JSONObject()
+                            .put("label", arguments.getString("benchmarkLabel", "unspecified"))
+                            .put("api", Build.VERSION.SDK_INT)
+                            .put("model", Build.MODEL)
+                            .put("results", results);
+            Files.write(
+                    new File(context.getCacheDir(), "qa-large-library-results.json").toPath(),
                     report.toString(2).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         } finally {
             retained = null;
@@ -67,15 +86,26 @@ public class LargeLibraryBenchmarkTest {
         }
     }
 
+    /** 恢复已保存的数据或界面状态，并应用当前可用性检查。 */
     private static SearchSnapshot<TrackEntry> restore(Context isolated) {
         try (var database = new AndroidMusicDatabase(isolated)) {
             var tracks = new ArrayList<>(database.loadTracks());
-            tracks.sort(Comparator.comparing(entry -> entry.track().title().toLowerCase(Locale.ROOT)));
-            return new SearchSnapshot<>(tracks.stream().map(entry -> new SearchSnapshot.Entry<>(entry,
-                    entry.track().title(), entry.track().artist(), entry.fileName())).toList());
+            tracks.sort(
+                    Comparator.comparing(entry -> entry.track().title().toLowerCase(Locale.ROOT)));
+            return new SearchSnapshot<>(
+                    tracks.stream()
+                            .map(
+                                    entry ->
+                                            new SearchSnapshot.Entry<>(
+                                                    entry,
+                                                    entry.track().title(),
+                                                    entry.track().artist(),
+                                                    entry.fileName()))
+                            .toList());
         }
     }
 
+    /** 预热待测流程，减少首次运行对后续测量的影响。 */
     private static void warmup(Context isolated) {
         // Returning removes the warmup frame and its snapshot roots even under ART's interpreter.
         for (int iteration = 0; iteration < 3; iteration++) {
@@ -84,11 +114,13 @@ public class LargeLibraryBenchmarkTest {
         }
     }
 
+    /** 测量本基准构造的启动、曲库或交互工作负载并记录结果。 */
     private static JSONObject measure(Context isolated, int count, int batch) throws Exception {
         JSONObject beforeStats = BenchmarkSupport.runtimeStats();
         AtomicLong peak = new AtomicLong(heap());
         var sampler = Executors.newSingleThreadScheduledExecutor();
-        sampler.scheduleAtFixedRate(() -> peak.accumulateAndGet(heap(), Math::max), 0, 10, TimeUnit.MILLISECONDS);
+        sampler.scheduleAtFixedRate(
+                () -> peak.accumulateAndGet(heap(), Math::max), 0, 10, TimeUnit.MILLISECONDS);
         try {
             long started = System.nanoTime();
             var snapshot = restore(isolated);
@@ -100,20 +132,38 @@ public class LargeLibraryBenchmarkTest {
             double queryMs = (System.nanoTime() - started) / 1e6 / 500;
             peak.accumulateAndGet(heap(), Math::max);
             retained = snapshot;
-            sampler.shutdownNow(); assertTrue(sampler.awaitTermination(5, TimeUnit.SECONDS));
+            sampler.shutdownNow();
+            assertTrue(sampler.awaitTermination(5, TimeUnit.SECONDS));
             JSONObject afterWorkStats = BenchmarkSupport.runtimeStats();
             BenchmarkSupport.settleHeap();
             Debug.MemoryInfo memory = new Debug.MemoryInfo();
             Debug.getMemoryInfo(memory);
-            return new JSONObject().put("tracks", count).put("batch", batch).put("startupMs", startupMs)
-                    .put("queryMs", queryMs).put("observedPeakHeapBytes", peak.get())
-                    .put("stableHeapBytes", heap()).put("stablePssKiB", memory.getTotalPss())
-                    .put("gcBeforeWork", beforeStats).put("gcAfterWork", afterWorkStats)
-                    .put("gcAfterSettle", BenchmarkSupport.runtimeStats()).put("heapAccounting", BenchmarkSupport.heapAccounting());
-        } finally { sampler.shutdownNow(); assertTrue(sampler.awaitTermination(5, TimeUnit.SECONDS)); }
+            return new JSONObject()
+                    .put("tracks", count)
+                    .put("batch", batch)
+                    .put("startupMs", startupMs)
+                    .put("queryMs", queryMs)
+                    .put("observedPeakHeapBytes", peak.get())
+                    .put("stableHeapBytes", heap())
+                    .put("stablePssKiB", memory.getTotalPss())
+                    .put("gcBeforeWork", beforeStats)
+                    .put("gcAfterWork", afterWorkStats)
+                    .put("gcAfterSettle", BenchmarkSupport.runtimeStats())
+                    .put("heapAccounting", BenchmarkSupport.heapAccounting());
+        } finally {
+            sampler.shutdownNow();
+            assertTrue(sampler.awaitTermination(5, TimeUnit.SECONDS));
+        }
     }
-    private static long heap() { return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory(); }
+
+    /** 读取运行时堆内存占用，用于比较测量前后变化。 */
+    private static long heap() {
+        return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    }
+
+    /** 执行本测试的数据库、ContentProvider 或查询测量。 */
     private static void query(SearchSnapshot<TrackEntry> snapshot) {
-        for (String query : List.of("歌曲", "ARTIST 9", ".mp3", "找不到", "歌曲 99")) retained = snapshot.filter(query);
+        for (String query : List.of("歌曲", "ARTIST 9", ".mp3", "找不到", "歌曲 99"))
+            retained = snapshot.filter(query);
     }
 }

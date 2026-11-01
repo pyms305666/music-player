@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 歌单页面主题补充。定义歌单界面使用的颜色、尺寸或主题属性。 -->
+
 <resources>
     <style name="Theme.SimpleMusicPlayer.Playlists" parent="Theme.SimpleMusicPlayer">
         <item name="android:textColorPrimary">@color/text_primary</item>

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 底部导航菜单。将曲库、歌词与在线页面的资源 ID、文字和图标关联。 -->
+
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_playlist"

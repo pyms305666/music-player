@@ -10,35 +10,41 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/** QQ 音乐歌曲来源适配器。解析搜索响应与音频标识，获取可用播放地址，区分接口缺字段与没有下载地址。 */
 final class QqSourceProvider implements OnlineSourceProvider {
     static final String SOURCE = "QQ音乐";
     private static final String REFERER = "https://y.qq.com/";
 
     private final CrawlerSession session;
 
+    /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
     QqSourceProvider(CrawlerSession session) {
         this.session = session;
     }
 
+    /** 返回来源的稳定名称，用于结果标记、去重与渠道选择。 */
     @Override
     public String sourceName() {
         return SOURCE;
     }
 
+    /** 取得来源要求的 Referer 请求头，供 HTTP 请求使用。 */
     @Override
     public String referer() {
         return REFERER;
     }
 
+    /** 按查询文字搜索歌曲，返回本来源或当前搜索组件的结果。 */
     @Override
     public List<OnlineTrackInfo> search(String query) {
         try {
-            String json = session.fetch(
-                    "https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg?format=json&key="
-                            + JsonSupport.encode(query)
-                            + "&g_tk=5381&loginUin=0&hostUin=0&inCharset=utf8&outCharset=utf-8"
-                            + "&notice=0&platform=yqq.json&needNewCode=0",
-                    REFERER);
+            String json =
+                    session.fetch(
+                            "https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg?format=json&key="
+                                    + JsonSupport.encode(query)
+                                    + "&g_tk=5381&loginUin=0&hostUin=0&inCharset=utf8&outCharset=utf-8"
+                                    + "&notice=0&platform=yqq.json&needNewCode=0",
+                            REFERER);
             return parseSearchResponse(json);
         } catch (Exception exception) {
             if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
@@ -46,6 +52,7 @@ final class QqSourceProvider implements OnlineSourceProvider {
         }
     }
 
+    /** 校验来源响应并逐条转换歌曲，区分合法空结果与解析失败。 */
     static List<OnlineTrackInfo> parseSearchResponse(String json) {
         SearchResponse.requireObject(json);
         SearchResponse.requireSuccess(json, "code", "0");
@@ -71,22 +78,30 @@ final class QqSourceProvider implements OnlineSourceProvider {
         return results;
     }
 
+    /** 准备或解析可实际使用的地址、路径或运行配置。 */
     @Override
     public String resolve(OnlineTrackInfo track) {
         try {
-            String requestBody = "{\"req_0\":{\"module\":\"vkey.GetVkeyServer\",\"method\":\"CgiGetVkey\","
-                    + "\"param\":{\"guid\":\"" + session.randomGuid() + "\",\"songmid\":[\""
-                    + track.primaryId() + "\"],\"songtype\":[0],\"uin\":\"0\",\"loginflag\":0,\"platform\":\"20\"}}}";
-            String json = session.fetch(
-                    "https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data=" + JsonSupport.encode(requestBody),
-                    REFERER);
+            String requestBody =
+                    "{\"req_0\":{\"module\":\"vkey.GetVkeyServer\",\"method\":\"CgiGetVkey\","
+                            + "\"param\":{\"guid\":\""
+                            + session.randomGuid()
+                            + "\",\"songmid\":[\""
+                            + track.primaryId()
+                            + "\"],\"songtype\":[0],\"uin\":\"0\",\"loginflag\":0,\"platform\":\"20\"}}}";
+            String json =
+                    session.fetch(
+                            "https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data="
+                                    + JsonSupport.encode(requestBody),
+                            REFERER);
             Matcher pathMatcher = Pattern.compile("\"purl\"\\s*:\\s*\"([^\"]+)\"").matcher(json);
             if (!pathMatcher.find() || pathMatcher.group(1).isBlank()) {
                 return null;
             }
             String path = OnlineTextSupport.unescapeUnicode(pathMatcher.group(1));
             String server = "http://aqqmusic.tc.qq.com/";
-            Matcher serverMatcher = Pattern.compile("\"sip\"\\s*:\\s*\\[\"([^\"]+)\"").matcher(json);
+            Matcher serverMatcher =
+                    Pattern.compile("\"sip\"\\s*:\\s*\\[\"([^\"]+)\"").matcher(json);
             if (serverMatcher.find()) {
                 server = serverMatcher.group(1);
             }

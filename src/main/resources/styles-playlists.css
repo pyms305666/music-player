@@ -1,3 +1,5 @@
+/* JavaFX 独立歌单窗口样式。定义歌单列表、条目、选择与操作控件的外观。 */
+
 /* Shared by playlist windows and their owned dialogs. Keep app content effects out of dialogs. */
 .playlist-root {
     -fx-background-color: #101318;

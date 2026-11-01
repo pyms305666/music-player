@@ -1,29 +1,33 @@
 package app.musicplayer.online;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 import app.musicplayer.model.OnlineTrackInfo;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-
+/**
+ * KuwoSourceProvider
+ * 的回归测试。使用可控夹具验证正常流程、边界输入及资源或失败处理。被测职责：酷我歌曲来源适配器。解析搜索元数据及歌曲版本信息，处理下载地址格式，供优先软件渠道搜索与下载使用。
+ */
 class KuwoSourceProviderTest {
     /** 基于 2026-09 实测 r.s 响应裁剪的单引号伪 JSON（条目内含嵌套花括号对象）。 */
     private static final String SEARCH_BODY =
-            "{'HIT':'3600','HITMODE':'song','PN':'0','RN':'2','TOTAL':'3600',"
-                    + "'abslist':["
-                    + "{'AARTIST':'Jay&nbsp;Chou','ALBUM':'叶惠美','ALBUMID':'1293','ARTIST':'周杰伦',"
-                    + "'ARTISTID':'336','DURATION':'269','MUSICRID':'MUSIC_228908','NAME':'晴天','PAY':'16711935',"
-                    + "'payInfo':{'down':'1','download':'1','play':'1','vid':'8132306'},"
-                    + "'quality':{'AR501':8,'DB':7,'F':3,'H':1,'S':2}},"
-                    + "{'AARTIST':'','ALBUM':'','ALBUMID':'0','ARTIST':'蓝心羽','ARTISTID':'1122778',"
-                    + "'DURATION':'232','MUSICRID':'MUSIC_78932517','SONGNAME':'晴天&nbsp;Cover','PAY':'8913032',"
-                    + "'payInfo':{'down':'0','download':'0','play':'0','vid':'0'}},"
-                    + "{'AARTIST':'','ALBUM':'叶惠美','ALBUMID':'1293','ARTIST':'周杰伦',"
-                    + "'DURATION':'269','MUSICRID':'MUSIC_228908','NAME':'晴天','PAY':'16711935'}"
-                    + "]}";
+            "{'HIT':'3600','HITMODE':'song','PN':'0','RN':'2','TOTAL':'3600','abslist':["
+                + "{'AARTIST':'Jay&nbsp;Chou','ALBUM':'叶惠美','ALBUMID':'1293','ARTIST':'周杰伦',"
+                + "'ARTISTID':'336','DURATION':'269','MUSICRID':'MUSIC_228908','NAME':'晴天','PAY':'16711935',"
+                + "'payInfo':{'down':'1','download':'1','play':'1','vid':'8132306'},"
+                + "'quality':{'AR501':8,'DB':7,'F':3,'H':1,'S':2}},"
+                + "{'AARTIST':'','ALBUM':'','ALBUMID':'0','ARTIST':'蓝心羽','ARTISTID':'1122778',"
+                + "'DURATION':'232','MUSICRID':'MUSIC_78932517','SONGNAME':'晴天&nbsp;Cover','PAY':'8913032',"
+                + "'payInfo':{'down':'0','download':'0','play':'0','vid':'0'}},"
+                + "{'AARTIST':'','ALBUM':'叶惠美','ALBUMID':'1293','ARTIST':'周杰伦',"
+                + "'DURATION':'269','MUSICRID':'MUSIC_228908','NAME':'晴天','PAY':'16711935'}]}";
 
+    /** 验证来源类 JSON 响应的已有后备解析。 */
     @Test
     void parsesPseudoJsonSearchResults() {
         List<OnlineTrackInfo> results = KuwoSourceProvider.parseSearchResponse(SEARCH_BODY);
@@ -38,6 +42,7 @@ class KuwoSourceProviderTest {
         assertEquals("1293", first.secondaryId());
     }
 
+    /** 验证来源文字中的 HTML 实体被还原。 */
     @Test
     void stripsHtmlEntitiesFromText() {
         List<OnlineTrackInfo> results = KuwoSourceProvider.parseSearchResponse(SEARCH_BODY);
@@ -45,17 +50,23 @@ class KuwoSourceProviderTest {
         assertEquals("晴天 Cover", results.get(1).title());
     }
 
+    /** 验证转义搜索元数据可被解码并用于合作歌手匹配。 */
     @Test
     void decodesEscapedSearchMetadataForCollaboratorMatching() {
-        String body = "{'abslist':[{'MUSICRID':'MUSIC_1','NAME':'像我这样的人',"
-                + "'ARTIST':'毛不易" + "\\".repeat(4) + "u0026徐航','ALBUM':'演出\\u0024'}]}";
+        String body =
+                "{'abslist':[{'MUSICRID':'MUSIC_1','NAME':'像我这样的人',"
+                        + "'ARTIST':'毛不易"
+                        + "\\".repeat(4)
+                        + "u0026徐航','ALBUM':'演出\\u0024'}]}";
         var track = KuwoSourceProvider.parseSearchResponse(body).get(0);
         assertEquals("毛不易&徐航", track.artist());
         assertEquals("演出$", track.album());
         var requested = new OnlineTrackInfo("酷狗音乐", "像我这样的人", "毛不易、徐航", "", "", "original", "");
-        org.junit.jupiter.api.Assertions.assertTrue(app.musicplayer.playlist.PlaylistSongMatcher.matches(requested, track));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                app.musicplayer.playlist.PlaylistSongMatcher.matches(requested, track));
     }
 
+    /** 验证按来源稳定歌曲身份去重。 */
     @Test
     void deduplicatesByRid() {
         List<OnlineTrackInfo> results = KuwoSourceProvider.parseSearchResponse(SEARCH_BODY);
@@ -63,43 +74,55 @@ class KuwoSourceProviderTest {
         assertEquals(2, results.stream().map(OnlineTrackInfo::primaryId).distinct().count());
     }
 
+    /** 验证来源完整歌名保留版本信息而非使用缩略名。 */
     @Test
     void preservesSongnameVersionsInsteadOfAbbreviatedName() {
-        String body = "{'abslist':[{'MUSICRID':'MUSIC_28573071','NAME':'追光者',"
-                + "'SONGNAME':'追光者&nbsp;(Exclusive&nbsp;Remix)','ARTIST':'岑宁儿','ALBUM':'追光者'},"
-                + "{'MUSICRID':'MUSIC_152720313','NAME':'追光者','SONGNAME':'追光者&nbsp;(3d环绕)','ARTIST':'岑宁儿'}]}";
+        String body =
+                "{'abslist':[{'MUSICRID':'MUSIC_28573071','NAME':'追光者',"
+                    + "'SONGNAME':'追光者&nbsp;(Exclusive&nbsp;Remix)','ARTIST':'岑宁儿','ALBUM':'追光者'},"
+                    + "{'MUSICRID':'MUSIC_152720313','NAME':'追光者','SONGNAME':'追光者&nbsp;(3d环绕)','ARTIST':'岑宁儿'}]}";
         var results = KuwoSourceProvider.parseSearchResponse(body);
         assertEquals("追光者 (Exclusive Remix)", results.get(0).title());
         assertEquals("追光者 (3d环绕)", results.get(1).title());
-        var requested = new OnlineTrackInfo("酷狗音乐", "追光者", "岑宁儿", "夏至未至 电视剧原声带", "", "original", "");
-        assertEquals(List.of(), app.musicplayer.playlist.PlaylistSongMatcher.ranked(requested, results, true));
+        var requested =
+                new OnlineTrackInfo("酷狗音乐", "追光者", "岑宁儿", "夏至未至 电视剧原声带", "", "original", "");
+        assertEquals(
+                List.of(),
+                app.musicplayer.playlist.PlaylistSongMatcher.ranked(requested, results, true));
     }
 
+    /** 验证只移除单独声明的原声署名，保留歌曲版本。 */
     @Test
     void removesOnlySeparatelyDeclaredSoundtrackCreditAndKeepsVersion() {
-        String body = "{'abslist':[{'MUSICRID':'MUSIC_25371883','NAME':'追光者-《夏至未至》电视剧插曲',"
-                + "'SONGNAME':'追光者-《夏至未至》电视剧插曲','SUBTITLE':'《夏至未至》电视剧插曲','ARTIST':'岑宁儿'},"
-                + "{'MUSICRID':'MUSIC_2','SONGNAME':'追光者 (Live)-《夏至未至》电视剧插曲','SUBTITLE':'《夏至未至》电视剧插曲'},"
-                + "{'MUSICRID':'MUSIC_3','SONGNAME':'追光者-Exclusive Remix','SUBTITLE':'Exclusive Remix'}]}";
+        String body =
+                "{'abslist':[{'MUSICRID':'MUSIC_25371883','NAME':'追光者-《夏至未至》电视剧插曲',"
+                    + "'SONGNAME':'追光者-《夏至未至》电视剧插曲','SUBTITLE':'《夏至未至》电视剧插曲','ARTIST':'岑宁儿'},{'MUSICRID':'MUSIC_2','SONGNAME':'追光者"
+                    + " (Live)-《夏至未至》电视剧插曲','SUBTITLE':'《夏至未至》电视剧插曲'},{'MUSICRID':'MUSIC_3','SONGNAME':'追光者-Exclusive"
+                    + " Remix','SUBTITLE':'Exclusive Remix'}]}";
         var results = KuwoSourceProvider.parseSearchResponse(body);
         assertEquals("追光者", results.get(0).title());
         assertEquals("追光者 (Live)", results.get(1).title());
         assertEquals("追光者-Exclusive Remix", results.get(2).title());
     }
 
+    /** 验证空白响应被视为解析失败。 */
     @Test
     void rejectsBlankBody() {
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse(null));
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse("  "));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse(null));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, () -> KuwoSourceProvider.parseSearchResponse("  "));
     }
 
+    /** 验证来源播放地址响应解析。 */
     @Test
     void parsesCarPlayerPlayUrl() {
-        String json = "{\"code\":200,\"data\":{\"bitrate\":320,\"duration\":269,\"format\":\"mp3\","
-                + "\"p2p_audiosourceid\":\"2066566530106trackmediaM500000s9OL31Pcu9omp3\",\"rid\":22965611,"
-                + "\"sig\":\"8314206873599217931\",\"type\":0,"
-                + "\"url\":\"http://kw-er.kuwo.cn/9e3942e98c48c15d70b9b1930158a0ab/6aa4f2e8/resource/30106"
-                + "/trackmedia/M500000s9OL31Pcu9o.mp3?bitrate$128\\u0026format$mp3\\u0026source$\"}}";
+        String json =
+                "{\"code\":200,\"data\":{\"bitrate\":320,\"duration\":269,\"format\":\"mp3\","
+                    + "\"p2p_audiosourceid\":\"2066566530106trackmediaM500000s9OL31Pcu9omp3\",\"rid\":22965611,"
+                    + "\"sig\":\"8314206873599217931\",\"type\":0,"
+                    + "\"url\":\"http://kw-er.kuwo.cn/9e3942e98c48c15d70b9b1930158a0ab/6aa4f2e8/resource/30106"
+                    + "/trackmedia/M500000s9OL31Pcu9o.mp3?bitrate$128\\u0026format$mp3\\u0026source$\"}}";
 
         assertEquals(
                 "http://kw-er.kuwo.cn/9e3942e98c48c15d70b9b1930158a0ab/6aa4f2e8/resource/30106"
@@ -107,6 +130,7 @@ class KuwoSourceProviderTest {
                 KuwoSourceProvider.parsePlayUrl(json));
     }
 
+    /** 验证缺少数据或播放地址时返回空值。 */
     @Test
     void returnsNullWhenPlayUrlMissing() {
         assertNull(KuwoSourceProvider.parsePlayUrl("{\"code\":500,\"msg\":\"error\"}"));

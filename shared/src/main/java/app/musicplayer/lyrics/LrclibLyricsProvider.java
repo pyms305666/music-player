@@ -8,15 +8,19 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.Optional;
 
+/** LRCLIB 歌词渠道。按名称、歌手及可选时长匹配同步或纯文本歌词，是在线歌词查询的后续来源。 */
 public final class LrclibLyricsProvider implements OnlineLyricsProvider {
     private static final String SEARCH_URL = "https://lrclib.net/api/search";
 
+    /** 按查询文字搜索歌曲，返回本来源或当前搜索组件的结果。 */
     @Override
     public Optional<OnlineLyricsResult> search(Track track, Duration duration, LyricsHttp http) {
         try {
             StringBuilder query = new StringBuilder();
             appendQuery(query, "track_name", track.title());
-            if (track.artist() != null && !track.artist().isBlank() && !"未知歌手".equals(track.artist())) {
+            if (track.artist() != null
+                    && !track.artist().isBlank()
+                    && !"未知歌手".equals(track.artist())) {
                 appendQuery(query, "artist_name", track.artist());
             }
             if (duration != null && !duration.isNegative() && !duration.isZero()) {
@@ -33,6 +37,7 @@ public final class LrclibLyricsProvider implements OnlineLyricsProvider {
         }
     }
 
+    /** 向请求地址追加正确编码的查询参数。 */
     private static void appendQuery(StringBuilder query, String key, String value) {
         if (query.length() > 0) {
             query.append('&');
@@ -42,6 +47,7 @@ public final class LrclibLyricsProvider implements OnlineLyricsProvider {
         query.append(JsonSupport.encode(value));
     }
 
+    /** 将歌词接口的单条数据转为可比较的歌词候选。 */
     private Optional<OnlineLyricsResult> toCandidate(String objectJson) {
         String syncedLyrics = JsonSupport.stringValue(objectJson, "syncedLyrics");
         String plainLyrics = JsonSupport.stringValue(objectJson, "plainLyrics");
@@ -59,6 +65,7 @@ public final class LrclibLyricsProvider implements OnlineLyricsProvider {
         return Optional.empty();
     }
 
+    /** 返回该歌词渠道用于界面显示的名称。 */
     private static String readableName(String trackName, String artistName) {
         if (trackName == null || trackName.isBlank()) {
             return "搜索结果";

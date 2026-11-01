@@ -1,3 +1,5 @@
+/* JavaFX 桌面布局样式。为宽窗口下的主界面、曲库、封面与播放控件设置尺寸及外观。 */
+
 /* Desktop-only visual system. Loaded after styles.css so the mobile preview keeps its layout. */
 .desktop-root {
     -app-background: #101318;

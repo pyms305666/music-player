@@ -1,3 +1,5 @@
+// Android 根构建固定 Android Gradle 插件版本，实际应用配置在 app/build.gradle。
+
 plugins {
     id "com.android.application" version "8.9.2" apply false
 }

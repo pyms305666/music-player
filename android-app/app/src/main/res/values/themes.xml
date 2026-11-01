@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 应用主题。组合 Material/AppCompat 主题、状态栏和应用配色，由清单及页面使用。 -->
+
 <resources>
     <style name="Theme.SimpleMusicPlayer" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:fontFamily">sans</item>

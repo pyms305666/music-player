@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 底部导航文字与图标颜色选择器。按选中状态切换颜色，由底部导航使用。 -->
+
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:color="@color/accent" android:state_checked="true" />
     <item android:color="@color/text_secondary" />

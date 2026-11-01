@@ -1,63 +1,109 @@
 package app.musicplayer.artwork;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.sun.net.httpserver.HttpServer;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
 import java.net.InetSocketAddress;
 import java.nio.file.*;
 import java.util.concurrent.TimeUnit;
-import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * ArtworkService
+ * 的回归测试。使用可控夹具验证正常流程、边界输入及资源或失败处理。被测职责：桌面封面文件缓存。将网络图片保存到应用缓存，通过引用计数保护仍在使用的文件，提供可关闭的封面句柄。
+ */
 class ArtworkServiceTest {
     @TempDir Path cache;
-    @Test void completedConsumerProtectsFileUntilPresentationReleasesIt() throws Exception {
-        var disk = new app.musicplayer.cache.GeneratedFileCache(cache,
-                app.musicplayer.cache.GeneratedFileCache.Kind.ARTWORK, 0, System::currentTimeMillis);
-        HttpServer server = server(new byte[]{1, 2, 3});
+
+    /** 验证完成任务后仍由显示使用者保护文件，直到释放句柄。 */
+    @Test
+    void completedConsumerProtectsFileUntilPresentationReleasesIt() throws Exception {
+        var disk =
+                new app.musicplayer.cache.GeneratedFileCache(
+                        cache,
+                        app.musicplayer.cache.GeneratedFileCache.Kind.ARTWORK,
+                        0,
+                        System::currentTimeMillis);
+        HttpServer server = server(new byte[] {1, 2, 3});
         try (var service = new ArtworkService(cache, disk)) {
-            var request = service.acquire("http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png");
+            var request =
+                    service.acquire(
+                            "http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png");
             Path path = request.result().get(5, TimeUnit.SECONDS);
-            disk.cleanAsync().get(3, TimeUnit.SECONDS); assertTrue(Files.exists(path));
-            request.close(); disk.cleanAsync().get(3, TimeUnit.SECONDS); assertFalse(Files.exists(path));
-        } finally { server.stop(0); }
+            disk.cleanAsync().get(3, TimeUnit.SECONDS);
+            assertTrue(Files.exists(path));
+            request.close();
+            disk.cleanAsync().get(3, TimeUnit.SECONDS);
+            assertFalse(Files.exists(path));
+        } finally {
+            server.stop(0);
+        }
     }
 
-    @Test void downloadsWithoutExecutorDeadlockAndReusesCompleteCache() throws Exception {
+    /** 验证下载没有执行器相互等待，并复用完整缓存。 */
+    @Test
+    void downloadsWithoutExecutorDeadlockAndReusesCompleteCache() throws Exception {
         HttpServer server = server(new byte[] {1, 2, 3});
         String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png";
         try (var service = new ArtworkService(cache)) {
             Path file = service.cache(url).get(5, TimeUnit.SECONDS);
             assertNotNull(file);
-            assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(file));
+            assertArrayEquals(new byte[] {1, 2, 3}, Files.readAllBytes(file));
             server.stop(0);
             assertEquals(file, service.cache(url).get(2, TimeUnit.SECONDS));
-            try (var entries = Files.list(cache)) { assertEquals(1, entries.count()); }
-        } finally { server.stop(0); }
+            try (var entries = Files.list(cache)) {
+                assertEquals(1, entries.count());
+            }
+        } finally {
+            server.stop(0);
+        }
     }
 
-    @Test void rejectsOversizedImageWithoutPublishingPartialCache() throws Exception {
+    /** 验证超大封面被拒绝且不发布部分缓存。 */
+    @Test
+    void rejectsOversizedImageWithoutPublishingPartialCache() throws Exception {
         HttpServer server = server(new byte[12 * 1024 * 1024 + 1]);
         try (var service = new ArtworkService(cache)) {
-            assertNull(service.cache("http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png").get(5, TimeUnit.SECONDS));
-            try (var entries = Files.list(cache)) { assertEquals(0, entries.count()); }
-        } finally { server.stop(0); }
+            assertNull(
+                    service.cache(
+                                    "http://127.0.0.1:"
+                                            + server.getAddress().getPort()
+                                            + "/cover.png")
+                            .get(5, TimeUnit.SECONDS));
+            try (var entries = Files.list(cache)) {
+                assertEquals(0, entries.count());
+            }
+        } finally {
+            server.stop(0);
+        }
     }
 
-    @Test void mergesInFlightConsumersAndCancelsOnlyAbandonedWork() throws Exception {
+    /** 验证在途使用者共享工作，只有全部放弃后才取消。 */
+    @Test
+    void mergesInFlightConsumersAndCancelsOnlyAbandonedWork() throws Exception {
         var hits = new java.util.concurrent.atomic.AtomicInteger();
         var started = new java.util.concurrent.CountDownLatch(1);
         var release = new java.util.concurrent.CountDownLatch(1);
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", exchange -> {
-            hits.incrementAndGet(); started.countDown();
-            try {
-                release.await(5, TimeUnit.SECONDS);
-                exchange.getResponseHeaders().add("Content-Type", "image/png");
-                exchange.sendResponseHeaders(200, 3);
-                exchange.getResponseBody().write(new byte[]{1, 2, 3});
-            } catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); }
-            finally { exchange.close(); }
-        });
+        server.createContext(
+                "/",
+                exchange -> {
+                    hits.incrementAndGet();
+                    started.countDown();
+                    try {
+                        release.await(5, TimeUnit.SECONDS);
+                        exchange.getResponseHeaders().add("Content-Type", "image/png");
+                        exchange.sendResponseHeaders(200, 3);
+                        exchange.getResponseBody().write(new byte[] {1, 2, 3});
+                    } catch (InterruptedException cancelled) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        exchange.close();
+                    }
+                });
         server.start();
         try (var service = new ArtworkService(cache)) {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png";
@@ -69,30 +115,50 @@ class ArtworkServiceTest {
             release.countDown();
             assertNotNull(second.result().get(5, TimeUnit.SECONDS));
             assertEquals(1, hits.get());
-        } finally { release.countDown(); server.stop(0); }
+        } finally {
+            release.countDown();
+            server.stop(0);
+        }
     }
 
-    @Test void cancellingAllConsumersDoesNotPublishOrLeaveTemporaryFiles() throws Exception {
+    /** 验证所有使用者取消后不发布结果且不残留临时文件。 */
+    @Test
+    void cancellingAllConsumersDoesNotPublishOrLeaveTemporaryFiles() throws Exception {
         var started = new java.util.concurrent.CountDownLatch(1);
         var release = new java.util.concurrent.CountDownLatch(1);
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", exchange -> {
-            started.countDown();
-            try { release.await(5, TimeUnit.SECONDS); }
-            catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); }
-            finally { exchange.close(); }
-        });
+        server.createContext(
+                "/",
+                exchange -> {
+                    started.countDown();
+                    try {
+                        release.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException cancelled) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        exchange.close();
+                    }
+                });
         server.start();
         try (var service = new ArtworkService(cache)) {
-            var request = service.acquire("http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png");
+            var request =
+                    service.acquire(
+                            "http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png");
             assertTrue(started.await(2, TimeUnit.SECONDS));
             request.close();
             assertTrue(request.result().isCancelled());
-        } finally { release.countDown(); server.stop(0); }
-        try (var entries = Files.list(cache)) { assertEquals(0, entries.count()); }
+        } finally {
+            release.countDown();
+            server.stop(0);
+        }
+        try (var entries = Files.list(cache)) {
+            assertEquals(0, entries.count());
+        }
     }
 
-    @Test void reacquiringCancelledUrlDoesNotLoseOrCancelReplacementConsumers() throws Exception {
+    /** 验证取消后重新取得同一地址不会丢失或误取消新使用者。 */
+    @Test
+    void reacquiringCancelledUrlDoesNotLoseOrCancelReplacementConsumers() throws Exception {
         var hits = new java.util.concurrent.atomic.AtomicInteger();
         var firstStarted = new java.util.concurrent.CountDownLatch(1);
         var nextStarted = new java.util.concurrent.CountDownLatch(1);
@@ -101,17 +167,23 @@ class ArtworkServiceTest {
         var handlers = java.util.concurrent.Executors.newCachedThreadPool();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.setExecutor(handlers);
-        server.createContext("/", exchange -> {
-            boolean abandoned = hits.incrementAndGet() == 1;
-            (abandoned ? firstStarted : nextStarted).countDown();
-            try {
-                (abandoned ? firstRelease : nextRelease).await(5, TimeUnit.SECONDS);
-                exchange.getResponseHeaders().add("Content-Type", "image/png");
-                exchange.sendResponseHeaders(200, 3);
-                exchange.getResponseBody().write(abandoned ? new byte[]{9, 9, 9} : new byte[]{1, 2, 3});
-            } catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); }
-            finally { exchange.close(); }
-        });
+        server.createContext(
+                "/",
+                exchange -> {
+                    boolean abandoned = hits.incrementAndGet() == 1;
+                    (abandoned ? firstStarted : nextStarted).countDown();
+                    try {
+                        (abandoned ? firstRelease : nextRelease).await(5, TimeUnit.SECONDS);
+                        exchange.getResponseHeaders().add("Content-Type", "image/png");
+                        exchange.sendResponseHeaders(200, 3);
+                        exchange.getResponseBody()
+                                .write(abandoned ? new byte[] {9, 9, 9} : new byte[] {1, 2, 3});
+                    } catch (InterruptedException cancelled) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        exchange.close();
+                    }
+                });
         server.start();
         try (var service = new ArtworkService(cache)) {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/cover.png";
@@ -125,26 +197,35 @@ class ArtworkServiceTest {
             nextRelease.countDown();
             Path published = replacement.result().get(5, TimeUnit.SECONDS);
             assertNotNull(published);
-            assertArrayEquals(new byte[]{1, 2, 3}, Files.readAllBytes(published));
+            assertArrayEquals(new byte[] {1, 2, 3}, Files.readAllBytes(published));
             assertEquals(published, coalesced.result().get(5, TimeUnit.SECONDS));
             assertEquals(2, hits.get());
             assertTrue(abandoned.result().isCancelled());
-            try (var entries = Files.list(cache)) { assertEquals(1, entries.count()); }
+            try (var entries = Files.list(cache)) {
+                assertEquals(1, entries.count());
+            }
         } finally {
-            firstRelease.countDown(); nextRelease.countDown();
-            server.stop(0); handlers.shutdownNow();
+            firstRelease.countDown();
+            nextRelease.countDown();
+            server.stop(0);
+            handlers.shutdownNow();
         }
     }
 
+    /** 创建或取得本测试使用的可控 HTTP 服务。 */
     private HttpServer server(byte[] bytes) throws Exception {
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", exchange -> {
-            try {
-                exchange.getResponseHeaders().add("Content-Type", "image/png");
-                exchange.sendResponseHeaders(200, bytes.length);
-                exchange.getResponseBody().write(bytes);
-            } finally { exchange.close(); }
-        });
+        server.createContext(
+                "/",
+                exchange -> {
+                    try {
+                        exchange.getResponseHeaders().add("Content-Type", "image/png");
+                        exchange.sendResponseHeaders(200, bytes.length);
+                        exchange.getResponseBody().write(bytes);
+                    } finally {
+                        exchange.close();
+                    }
+                });
         server.start();
         return server;
     }

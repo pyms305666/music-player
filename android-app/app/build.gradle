@@ -1,3 +1,5 @@
+// 原生 Android 应用构建：SDK 35、Java 17、媒体播放、仪器测试及签名渠道。
+
 plugins {
     id "com.android.application"
 }
@@ -74,7 +76,7 @@ dependencies {
     implementation "com.github.bumptech.glide:glide:4.16.0"
 }
 
-// Fail closed when requesting a release APK without the formal key configuration.
+// 正式 APK 必须具备完整签名配置；开发调试 APK 沿用原有渠道。
 tasks.configureEach {
     if (name == "packageRelease") {
         doFirst {

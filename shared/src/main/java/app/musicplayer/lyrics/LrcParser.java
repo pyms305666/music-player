@@ -4,7 +4,6 @@ import app.musicplayer.model.LyricLine;
 import app.musicplayer.model.Lyrics;
 
 import java.time.Duration;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -12,14 +11,17 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/** LRC 歌词解析器。处理时间标签、偏移、同一行多个时间点及无时间文本，输出共享歌词模型。 */
 public final class LrcParser {
     // 匹配常见 LRC 时间标签：[mm:ss]、[mm:ss.xx]、[mm:ss.xxx]。
     // 一行歌词可能带多个时间标签，例如副歌复用：[01:10.00][02:40.00]歌词。
-    private static final Pattern TIME_TAG = Pattern.compile("\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,3}))?\\]");
+    private static final Pattern TIME_TAG =
+            Pattern.compile("\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,3}))?\\]");
 
-    private LrcParser() {
-    }
+    /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
+    private LrcParser() {}
 
+    /** 解析输入文本或链接，生成本组件使用的结构化结果。 */
     public static Lyrics parse(String source, String rawLyrics) {
         if (rawLyrics == null || rawLyrics.isBlank()) {
             return Lyrics.empty("暂无歌词");
@@ -46,7 +48,9 @@ public final class LrcParser {
         return Lyrics.empty("暂无歌词");
     }
 
-    private static void parseLine(String line, List<LyricLine> timedLines, List<LyricLine> plainLines) {
+    /** 解析一行歌词中的时间标签、偏移及文本。 */
+    private static void parseLine(
+            String line, List<LyricLine> timedLines, List<LyricLine> plainLines) {
         Matcher matcher = TIME_TAG.matcher(line);
         List<Duration> timestamps = new ArrayList<>();
         int lastTagEnd = 0;
@@ -71,13 +75,17 @@ public final class LrcParser {
         String lowerPlain = plain.toLowerCase(Locale.ROOT);
         // 没有时间标签时，把普通文本作为纯文本歌词；
         // 常见的 LRC 元信息标签不显示给用户。
-        if (!plain.isBlank() && !lowerPlain.startsWith("[ti:") && !lowerPlain.startsWith("[ar:")
-                && !lowerPlain.startsWith("[al:") && !lowerPlain.startsWith("[by:")
+        if (!plain.isBlank()
+                && !lowerPlain.startsWith("[ti:")
+                && !lowerPlain.startsWith("[ar:")
+                && !lowerPlain.startsWith("[al:")
+                && !lowerPlain.startsWith("[by:")
                 && !lowerPlain.startsWith("[offset:")) {
             plainLines.add(new LyricLine(null, plain));
         }
     }
 
+    /** 将歌词时间标签换算为时长，供时间轴使用。 */
     private static Duration toDuration(String minutes, String seconds, String fraction) {
         int minuteValue = Integer.parseInt(minutes);
         int secondValue = Integer.parseInt(seconds);

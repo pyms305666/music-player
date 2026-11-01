@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 字符串资源。保存应用名称和可复用的界面文字，由布局和清单引用。 -->
+
 <resources>
     <string name="app_name">ZA音乐</string>
     <string name="import_audio">导入</string>

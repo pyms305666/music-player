@@ -11,60 +11,99 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 咪咕音乐：pd.musicapp.migu.cn 搜索（免登录），
- * app.c.nf.migu.cn listen-url 解析直链，免费曲库大、音质好。
- */
+/** 咪咕音乐：pd.musicapp.migu.cn 搜索（免登录）， app.c.nf.migu.cn listen-url 解析直链，免费曲库大、音质好。 */
 final class MiguSourceProvider implements OnlineSourceProvider {
     static final String SOURCE = "咪咕音乐";
     private static final String REFERER = "http://music.migu.cn/";
+    private static final String SEARCH_URL =
+            "http://pd.musicapp.migu.cn/MIGUM2.0/v1.0/content/search_all.do";
+    // 咪咕每页最多返回 20 首，查询前三页可以覆盖更多歌手作品。
+    private static final int SEARCH_PAGE_SIZE = 20;
+    private static final int SEARCH_PAGES = 3;
+
     /** 咪咕接口按 UA 区分客户端：移动端 UA 返回普通 MP3，桌面 UA 可能返回加密流变体。 */
     private static final String MOBILE_UA =
             "Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46"
                     + " (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1";
+
     private static final Map<String, String> SEARCH_HEADERS = Map.of("User-Agent", MOBILE_UA);
     private static final Map<String, String> LISTEN_HEADERS =
             Map.of("User-Agent", MOBILE_UA, "channel", "0146832", "version", "7.41.13");
-    private static final String LISTEN_URL = "https://app.c.nf.migu.cn/MIGUM2.0/v2.1/content/listen-url";
+    private static final String LISTEN_URL =
+            "https://app.c.nf.migu.cn/MIGUM2.0/v2.1/content/listen-url";
     private static final String SEARCH_SWITCH =
             "{\"song\":1,\"album\":0,\"singer\":0,\"tagSong\":0,\"mvSong\":0,\"songlist\":0,\"bestShow\":1}";
+
     /** 咪咕 128k CDN 路径改写为 320k 的标记段。 */
     private static final String MP3_128_SEGMENT = "MP3_128_16_Stero";
+
     private static final String MP3_320_SEGMENT = "MP3_320_16_Stero";
+
     /** 接口偶发返回的 FTP 形式地址统一改写到 HTTPS CDN。 */
     private static final String FTP_PREFIX = "ftp://218.200.160.122:21/";
+
     private static final String HTTPS_PREFIX = "https://freetyst.nf.migu.cn/";
     private static final int PROBE_BYTES = 64;
 
     private final CrawlerSession session;
+    private final String searchUrl;
 
+    /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
     MiguSourceProvider(CrawlerSession session) {
-        this.session = session;
+        this(session, SEARCH_URL);
     }
 
+    /** 允许测试用本地 HTTP 服务模拟分页及失败，不依赖公开接口。 */
+    MiguSourceProvider(CrawlerSession session, String searchUrl) {
+        this.session = session;
+        this.searchUrl = searchUrl;
+    }
+
+    /** 返回来源的稳定名称，用于结果标记、去重与渠道选择。 */
     @Override
     public String sourceName() {
         return SOURCE;
     }
 
+    /** 取得来源要求的 Referer 请求头，供 HTTP 请求使用。 */
     @Override
     public String referer() {
         return REFERER;
     }
 
+    /** 按查询文字搜索歌曲，返回本来源或当前搜索组件的结果。 */
     @Override
     public List<OnlineTrackInfo> search(String query) {
         List<OnlineTrackInfo> results = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
         try {
-            String json = session.fetch(
-                    "http://pd.musicapp.migu.cn/MIGUM2.0/v1.0/content/search_all.do?ua=Android_migu"
-                            + "&version=5.0.1&text=" + JsonSupport.encode(query)
-                            + "&pageNo=1&pageSize=10&searchSwitch=" + JsonSupport.encode(SEARCH_SWITCH),
-                    REFERER,
-                    SEARCH_HEADERS);
-            results.addAll(parseSearchResponse(json));
+            for (int page = 1; page <= SEARCH_PAGES; page++) {
+                session.checkCancellation();
+                String json =
+                        session.fetch(
+                                searchUrl
+                                        + "?ua=Android_migu"
+                                        + "&version=5.0.1&text="
+                                        + JsonSupport.encode(query)
+                                        + "&pageNo="
+                                        + page
+                                        + "&pageSize="
+                                        + SEARCH_PAGE_SIZE
+                                        + "&searchSwitch="
+                                        + JsonSupport.encode(SEARCH_SWITCH),
+                                REFERER,
+                                SEARCH_HEADERS);
+                List<OnlineTrackInfo> batch = parseSearchResponse(json);
+                for (OnlineTrackInfo track : batch) {
+                    if (seen.add(track.primaryId())) results.add(track);
+                }
+                if (batch.size() < SEARCH_PAGE_SIZE) break;
+            }
         } catch (Exception exception) {
             if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+            session.checkCancellation();
+            // 后续页失败时保留已取得的歌曲；第一页失败仍向界面报告来源错误。
+            if (!results.isEmpty()) return results;
             throw new IllegalStateException("来源搜索失败", exception);
         }
         return results;
@@ -81,49 +120,63 @@ final class MiguSourceProvider implements OnlineSourceProvider {
         for (String item : JsonSupport.splitTopLevelObjects(list)) {
             String contentId = JsonSupport.stringValue(item, "contentId");
             String title = JsonSupport.stringValue(item, "name");
-            if (contentId == null || contentId.isBlank() || title == null || title.isBlank()
+            if (contentId == null
+                    || contentId.isBlank()
+                    || title == null
+                    || title.isBlank()
                     || !seen.add(contentId)) {
                 continue;
             }
-            String artist = JsonSupport.stringValue(
-                    JsonSupport.firstObject(JsonSupport.arrayValue(item, "singers")), "name");
+            String artist =
+                    JsonSupport.stringValue(
+                            JsonSupport.firstObject(JsonSupport.arrayValue(item, "singers")),
+                            "name");
             if (artist == null || artist.isBlank()) {
                 artist = "未知歌手";
             }
-            String album = JsonSupport.stringValue(
-                    JsonSupport.firstObject(JsonSupport.arrayValue(item, "albums")), "name");
+            String album =
+                    JsonSupport.stringValue(
+                            JsonSupport.firstObject(JsonSupport.arrayValue(item, "albums")),
+                            "name");
             String copyrightId = JsonSupport.stringValue(item, "copyrightId");
-            results.add(new OnlineTrackInfo(
-                    SOURCE,
-                    title,
-                    artist,
-                    album == null ? "" : album,
-                    coverOf(item),
-                    contentId,
-                    copyrightId));
+            results.add(
+                    new OnlineTrackInfo(
+                            SOURCE,
+                            title,
+                            artist,
+                            album == null ? "" : album,
+                            coverOf(item),
+                            contentId,
+                            copyrightId));
         }
         return results;
     }
 
+    /** 从来源返回的数据中提取封面地址。 */
     private static String coverOf(String item) {
         String images = JsonSupport.arrayValue(item, "imgItems");
-        String image = JsonSupport.stringValue(
-                JsonSupport.firstObject(images), "img");
+        String image = JsonSupport.stringValue(JsonSupport.firstObject(images), "img");
         return image == null || image.isBlank() ? null : image;
     }
 
+    /** 准备或解析可实际使用的地址、路径或运行配置。 */
     @Override
     public String resolve(OnlineTrackInfo track) {
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
-                String json = session.fetch(
-                        LISTEN_URL
-                                + "?netType=01&resourceType=2&toneFlag=PQ"
-                                + "&contentId=" + JsonSupport.encode(track.primaryId())
-                                + (track.secondaryId() == null || track.secondaryId().isBlank()
-                                ? "" : "&copyrightId=" + JsonSupport.encode(track.secondaryId())),
-                        REFERER,
-                        LISTEN_HEADERS);
+                String json =
+                        session.fetch(
+                                LISTEN_URL
+                                        + "?netType=01&resourceType=2&toneFlag=PQ"
+                                        + "&contentId="
+                                        + JsonSupport.encode(track.primaryId())
+                                        + (track.secondaryId() == null
+                                                        || track.secondaryId().isBlank()
+                                                ? ""
+                                                : "&copyrightId="
+                                                        + JsonSupport.encode(track.secondaryId())),
+                                REFERER,
+                                LISTEN_HEADERS);
                 String url = parsePlayUrl(json);
                 if (url == null || url.isBlank()) {
                     return null;
@@ -163,11 +216,13 @@ final class MiguSourceProvider implements OnlineSourceProvider {
         return encodeNonAscii(url);
     }
 
+    /** 检查地址或数据是否属于无法直接播放的加密音频。 */
     private static boolean isEncryptedStream(String url) {
         String lower = url.toLowerCase(Locale.ROOT);
         return lower.contains("_3d") || lower.contains("z3d") || lower.contains("wav_32bit");
     }
 
+    /** 编码地址中的非 ASCII 字符，保留协议需要的其余内容。 */
     static String encodeNonAscii(String url) {
         boolean needsEncoding = false;
         for (int index = 0; index < url.length(); index++) {
@@ -210,6 +265,7 @@ final class MiguSourceProvider implements OnlineSourceProvider {
         return url.replace(MP3_128_SEGMENT, MP3_320_SEGMENT);
     }
 
+    /** 检查来源响应是否符合可尝试播放的音频条件。 */
     private boolean isPlayableAudio(String url) {
         try (var response = session.probe(url, REFERER, PROBE_BYTES)) {
             byte[] header = new byte[PROBE_BYTES];
@@ -221,7 +277,9 @@ final class MiguSourceProvider implements OnlineSourceProvider {
                 }
                 length += read;
             }
-            return response.statusCode() >= 200 && response.statusCode() < 400 && MusicCrawler.isAudioContent(header, length);
+            return response.statusCode() >= 200
+                    && response.statusCode() < 400
+                    && MusicCrawler.isAudioContent(header, length);
         } catch (Exception exception) {
             System.out.println("[crawler] migu probe err: " + exception.getMessage());
             return false;

@@ -1,3 +1,5 @@
+/* JavaFX 共用界面样式。定义基础颜色、字体、控件和面板外观，再由桌面、窄屏及歌单样式补充。 */
+
 .app-root {
     -fx-background-color: linear-gradient(to bottom, #11151b, #0d1117);
     -fx-font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;

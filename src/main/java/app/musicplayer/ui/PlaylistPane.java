@@ -3,13 +3,14 @@ package app.musicplayer.ui;
 import app.musicplayer.model.Track;
 import app.musicplayer.playlist.PlaylistSort;
 import app.musicplayer.playlist.SortDirection;
-import javafx.collections.ObservableList;
+
 import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -37,6 +38,7 @@ public final class PlaylistPane extends VBox {
     private final boolean desktopMode;
     private Track currentTrack;
 
+    /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
     public PlaylistPane(
             ObservableList<Track> tracks,
             Preferences preferences,
@@ -44,8 +46,7 @@ public final class PlaylistPane extends VBox {
             Runnable sortAction,
             Consumer<Track> playAction,
             Runnable removeAction,
-            boolean desktopMode
-    ) {
+            boolean desktopMode) {
         super(10);
         this.desktopMode = desktopMode;
         Label header = new Label(desktopMode ? "我的音乐" : "播放列表");
@@ -62,57 +63,87 @@ public final class PlaylistPane extends VBox {
 
         searchField.setPromptText("搜索歌曲、歌手或文件名");
         searchField.getStyleClass().add("search-field");
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> filterAction.accept(newValue));
+        searchField
+                .textProperty()
+                .addListener((observable, oldValue, newValue) -> filterAction.accept(newValue));
 
         sortTypeBox.getItems().setAll(PlaylistSort.values());
-        sortTypeBox.getSelectionModel().select(PlaylistSort.fromLabel(
-                preferences.get(PREF_SORT_TYPE, PlaylistSort.TITLE.toString())));
+        sortTypeBox
+                .getSelectionModel()
+                .select(
+                        PlaylistSort.fromLabel(
+                                preferences.get(PREF_SORT_TYPE, PlaylistSort.TITLE.toString())));
         if (desktopMode) {
-            sortTypeBox.setButtonCell(new ListCell<>() {
-                @Override
-                protected void updateItem(PlaylistSort sort, boolean empty) {
-                    super.updateItem(sort, empty);
-                    setText(empty || sort == null ? null : switch (sort) {
-                        case TITLE -> "歌名";
-                        case ARTIST -> "歌手";
-                        case FILE_NAME -> "文件名";
-                        case CREATED_AT -> "创建日期";
+            sortTypeBox.setButtonCell(
+                    new ListCell<>() {
+                        /** 在 JavaFX 复用列表行时绑定当前对象或清空旧内容。 */
+                        @Override
+                        protected void updateItem(PlaylistSort sort, boolean empty) {
+                            super.updateItem(sort, empty);
+                            setText(
+                                    empty || sort == null
+                                            ? null
+                                            : switch (sort) {
+                                                case TITLE -> "歌名";
+                                                case ARTIST -> "歌手";
+                                                case FILE_NAME -> "文件名";
+                                                case CREATED_AT -> "创建日期";
+                                            });
+                        }
                     });
-                }
-            });
         }
         sortTypeBox.setMaxWidth(Double.MAX_VALUE);
-        sortTypeBox.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                preferences.put(PREF_SORT_TYPE, newValue.toString());
-                sortAction.run();
-            }
-        });
+        sortTypeBox
+                .valueProperty()
+                .addListener(
+                        (observable, oldValue, newValue) -> {
+                            if (newValue != null) {
+                                preferences.put(PREF_SORT_TYPE, newValue.toString());
+                                sortAction.run();
+                            }
+                        });
 
         sortOrderBox.getItems().setAll(SortDirection.values());
-        sortOrderBox.getSelectionModel().select(SortDirection.fromLabel(
-                preferences.get(PREF_SORT_ORDER, SortDirection.ASCENDING.toString())));
+        sortOrderBox
+                .getSelectionModel()
+                .select(
+                        SortDirection.fromLabel(
+                                preferences.get(
+                                        PREF_SORT_ORDER, SortDirection.ASCENDING.toString())));
         sortOrderBox.setMaxWidth(Double.MAX_VALUE);
-        sortOrderBox.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                preferences.put(PREF_SORT_ORDER, newValue.toString());
-                sortAction.run();
-            }
-        });
+        sortOrderBox
+                .valueProperty()
+                .addListener(
+                        (observable, oldValue, newValue) -> {
+                            if (newValue != null) {
+                                preferences.put(PREF_SORT_ORDER, newValue.toString());
+                                sortAction.run();
+                            }
+                        });
 
         HBox sortRow;
         if (desktopMode) {
-            Button directionButton = new Button(sortOrderBox.getValue() == SortDirection.ASCENDING ? "↑" : "↓");
+            Button directionButton =
+                    new Button(sortOrderBox.getValue() == SortDirection.ASCENDING ? "↑" : "↓");
             directionButton.getStyleClass().add("sort-direction-button");
             directionButton.setTooltip(new Tooltip("切换排序方向"));
             directionButton.setAccessibleText("排序方向：" + sortOrderBox.getValue());
-            directionButton.setOnAction(event -> sortOrderBox.getSelectionModel().select(
-                    sortOrderBox.getValue() == SortDirection.ASCENDING
-                            ? SortDirection.DESCENDING : SortDirection.ASCENDING));
-            sortOrderBox.valueProperty().addListener((observable, oldValue, newValue) -> {
-                directionButton.setText(newValue == SortDirection.DESCENDING ? "↓" : "↑");
-                directionButton.setAccessibleText("排序方向：" + newValue);
-            });
+            directionButton.setOnAction(
+                    event ->
+                            sortOrderBox
+                                    .getSelectionModel()
+                                    .select(
+                                            sortOrderBox.getValue() == SortDirection.ASCENDING
+                                                    ? SortDirection.DESCENDING
+                                                    : SortDirection.ASCENDING));
+            sortOrderBox
+                    .valueProperty()
+                    .addListener(
+                            (observable, oldValue, newValue) -> {
+                                directionButton.setText(
+                                        newValue == SortDirection.DESCENDING ? "↓" : "↑");
+                                directionButton.setAccessibleText("排序方向：" + newValue);
+                            });
             sortRow = new HBox(8, sortTypeBox, directionButton);
         } else {
             sortRow = new HBox(8, sortTypeBox, sortOrderBox);
@@ -124,75 +155,91 @@ public final class PlaylistPane extends VBox {
         playlistView = new ListView<>(tracks);
         if (desktopMode) playlistView.getStyleClass().add("playlist-view");
         playlistView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        if (desktopMode) playlistView.setCellFactory(ignored -> new ListCell<>() {
-            private final Label playingMarker = new Label("▶");
-            private final Label title = new Label();
-            private final Label artist = new Label();
-            private final VBox text = new VBox(3, title, artist);
-            private final HBox row = new HBox(10, playingMarker, text);
-            private final MenuItem removeItem = new MenuItem("从曲库移除");
-            private final ContextMenu contextMenu = new ContextMenu(removeItem);
+        if (desktopMode)
+            playlistView.setCellFactory(
+                    ignored ->
+                            new ListCell<>() {
+                                private final Label playingMarker = new Label("▶");
+                                private final Label title = new Label();
+                                private final Label artist = new Label();
+                                private final VBox text = new VBox(3, title, artist);
+                                private final HBox row = new HBox(10, playingMarker, text);
+                                private final MenuItem removeItem = new MenuItem("从曲库移除");
+                                private final ContextMenu contextMenu = new ContextMenu(removeItem);
 
-            {
-                playingMarker.getStyleClass().add("playlist-playing-marker");
-                title.getStyleClass().add("playlist-track-title");
-                artist.getStyleClass().add("playlist-track-artist");
-                title.setMaxWidth(Double.MAX_VALUE);
-                artist.setMaxWidth(Double.MAX_VALUE);
-                HBox.setHgrow(text, Priority.ALWAYS);
-                row.setAlignment(Pos.CENTER_LEFT);
-                removeItem.setOnAction(event -> {
-                    if (getItem() != null) {
-                        playlistView.getSelectionModel().select(getItem());
-                        removeAction.run();
+                                {
+                                    playingMarker.getStyleClass().add("playlist-playing-marker");
+                                    title.getStyleClass().add("playlist-track-title");
+                                    artist.getStyleClass().add("playlist-track-artist");
+                                    title.setMaxWidth(Double.MAX_VALUE);
+                                    artist.setMaxWidth(Double.MAX_VALUE);
+                                    HBox.setHgrow(text, Priority.ALWAYS);
+                                    row.setAlignment(Pos.CENTER_LEFT);
+                                    removeItem.setOnAction(
+                                            event -> {
+                                                if (getItem() != null) {
+                                                    playlistView
+                                                            .getSelectionModel()
+                                                            .select(getItem());
+                                                    removeAction.run();
+                                                }
+                                            });
+                                }
+
+                                /** 在 JavaFX 复用列表行时绑定当前对象或清空旧内容。 */
+                                @Override
+                                protected void updateItem(Track track, boolean empty) {
+                                    super.updateItem(track, empty);
+                                    getStyleClass().remove("currently-playing");
+                                    if (empty || track == null) {
+                                        setText(null);
+                                        setGraphic(null);
+                                        setContextMenu(null);
+                                        return;
+                                    }
+                                    title.setText(track.title());
+                                    artist.setText(track.artist());
+                                    playingMarker.setVisible(track == currentTrack);
+                                    if (track == currentTrack)
+                                        getStyleClass().add("currently-playing");
+                                    setText(null);
+                                    setGraphic(row);
+                                    setContextMenu(contextMenu);
+                                }
+                            });
+        else
+            playlistView.setCellFactory(
+                    ignored ->
+                            new ListCell<>() {
+                                /** 在 JavaFX 复用列表行时绑定当前对象或清空旧内容。 */
+                                @Override
+                                protected void updateItem(Track track, boolean empty) {
+                                    super.updateItem(track, empty);
+                                    setText(empty || track == null ? null : track.toString());
+                                }
+                            });
+        playlistView.setOnMouseClicked(
+                event -> {
+                    if (event.getClickCount() == 2) {
+                        Track selected = playlistView.getSelectionModel().getSelectedItem();
+                        if (selected != null) {
+                            playAction.accept(selected);
+                        }
                     }
                 });
-            }
-
-            @Override
-            protected void updateItem(Track track, boolean empty) {
-                super.updateItem(track, empty);
-                getStyleClass().remove("currently-playing");
-                if (empty || track == null) {
-                    setText(null);
-                    setGraphic(null);
-                    setContextMenu(null);
-                    return;
-                }
-                title.setText(track.title());
-                artist.setText(track.artist());
-                playingMarker.setVisible(track == currentTrack);
-                if (track == currentTrack) getStyleClass().add("currently-playing");
-                setText(null);
-                setGraphic(row);
-                setContextMenu(contextMenu);
-            }
-        });
-        else playlistView.setCellFactory(ignored -> new ListCell<>() {
-            @Override
-            protected void updateItem(Track track, boolean empty) {
-                super.updateItem(track, empty);
-                setText(empty || track == null ? null : track.toString());
-            }
-        });
-        playlistView.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) {
-                Track selected = playlistView.getSelectionModel().getSelectedItem();
-                if (selected != null) {
-                    playAction.accept(selected);
-                }
-            }
-        });
-        if (desktopMode) playlistView.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                Track selected = playlistView.getSelectionModel().getSelectedItem();
-                if (selected != null) playAction.accept(selected);
-                event.consume();
-            } else if (event.getCode() == KeyCode.DELETE) {
-                if (playlistView.getSelectionModel().getSelectedItem() != null) removeAction.run();
-                event.consume();
-            }
-        });
+        if (desktopMode)
+            playlistView.setOnKeyPressed(
+                    event -> {
+                        if (event.getCode() == KeyCode.ENTER) {
+                            Track selected = playlistView.getSelectionModel().getSelectedItem();
+                            if (selected != null) playAction.accept(selected);
+                            event.consume();
+                        } else if (event.getCode() == KeyCode.DELETE) {
+                            if (playlistView.getSelectionModel().getSelectedItem() != null)
+                                removeAction.run();
+                            event.consume();
+                        }
+                    });
 
         if (desktopMode) getChildren().setAll(headerRow, searchField, sortRow, playlistView);
         else getChildren().setAll(header, searchField, sortRow, playlistView);
@@ -203,22 +250,27 @@ public final class PlaylistPane extends VBox {
         VBox.setVgrow(playlistView, Priority.ALWAYS);
     }
 
+    /** 返回该面板的对应控件，让外层连接业务事件。 */
     public TextField searchField() {
         return searchField;
     }
 
+    /** 返回该面板的对应控件，让外层连接业务事件。 */
     public ComboBox<PlaylistSort> sortTypeBox() {
         return sortTypeBox;
     }
 
+    /** 返回该面板的对应控件，让外层连接业务事件。 */
     public ComboBox<SortDirection> sortOrderBox() {
         return sortOrderBox;
     }
 
+    /** 返回该面板的对应控件，让外层连接业务事件。 */
     public ListView<Track> playlistView() {
         return playlistView;
     }
 
+    /** 设置当前播放歌曲标记，并刷新相关列表行。 */
     public void setCurrentTrack(Track track) {
         if (!desktopMode) return;
         currentTrack = track;

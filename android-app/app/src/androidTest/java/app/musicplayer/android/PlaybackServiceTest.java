@@ -1,23 +1,29 @@
 package app.musicplayer.android;
 
+import static org.junit.Assert.*;
+
 import android.content.ComponentName;
 import android.content.Context;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.Uri;
-import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
-import androidx.test.runner.lifecycle.Stage;
 import android.os.Handler;
 import android.os.Looper;
-import androidx.test.ext.junit.runners.AndroidJUnit4;
-import androidx.test.platform.app.InstrumentationRegistry;
+
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
+
 import com.google.common.util.concurrent.ListenableFuture;
+
 import org.junit.*;
 import org.junit.runner.RunWith;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
@@ -25,9 +31,12 @@ import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import static org.junit.Assert.*;
 
-/** Uses disposable cache audio only. Never resets or imports into the personal library. */
+/**
+ * PlaybackService 的回归测试。使用可控夹具验证正常流程、边界输入及资源或失败处理。被测职责：Android 后台播放服务。持有 Media3
+ * 播放器及媒体会话，支持页面退出后继续播放、系统媒体控制和播放队列恢复。 Uses disposable cache audio only. Never resets or imports
+ * into the personal library.
+ */
 @RunWith(AndroidJUnit4.class)
 // Cover a cold paused notification before this suite starts any playback.
 @FixMethodOrder(org.junit.runners.MethodSorters.NAME_ASCENDING)
@@ -41,36 +50,59 @@ public class PlaybackServiceTest {
     private boolean shuffle, playing;
     private float volume;
 
+    /** 将操作投递到 Android 主线程并等待完成，把回调错误重新抛给测试线程。 */
     private void main(Runnable work) {
         CountDownLatch finished = new CountDownLatch(1);
         AtomicReference<Throwable> error = new AtomicReference<>();
-        new Handler(Looper.getMainLooper()).post(() -> {
-            try { work.run(); } catch (Throwable failure) { error.set(failure); }
-            finally { finished.countDown(); }
-        });
-        try { assertTrue("Main thread callback timed out", finished.await(10, TimeUnit.SECONDS)); }
-        catch (InterruptedException cancelled) { Thread.currentThread().interrupt(); throw new AssertionError(cancelled); }
+        new Handler(Looper.getMainLooper())
+                .post(
+                        () -> {
+                            try {
+                                work.run();
+                            } catch (Throwable failure) {
+                                error.set(failure);
+                            } finally {
+                                finished.countDown();
+                            }
+                        });
+        try {
+            assertTrue("Main thread callback timed out", finished.await(10, TimeUnit.SECONDS));
+        } catch (InterruptedException cancelled) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(cancelled);
+        }
         if (error.get() != null) throw new AssertionError(error.get());
     }
 
+    /** 启动或关闭独立测试页面并等待生命周期完成。 */
     private MainActivity openActivity() throws Exception {
         // Shell launch avoids vendor restrictions on instrumentation activity starts.
-        try (var command = InstrumentationRegistry.getInstrumentation().getUiAutomation()
-                .executeShellCommand("am start -n app.musicplayer.android/.MainActivity")) {
-            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) { while (input.read(new byte[1024]) != -1) { /* Drain shell output on API 28 too. */ } }
+        try (var command =
+                InstrumentationRegistry.getInstrumentation()
+                        .getUiAutomation()
+                        .executeShellCommand("am start -n app.musicplayer.android/.MainActivity")) {
+            try (var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(command)) {
+                while (input.read(new byte[1024]) != -1) {
+                    /* Drain shell output on API 28 too. */
+                }
+            }
         }
         for (int i = 0; i < 100; i++) {
             AtomicReference<MainActivity> screen = new AtomicReference<>();
-            main(() -> {
-                for (var resumed : ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED))
-                    if (resumed instanceof MainActivity) screen.set((MainActivity)resumed);
-            });
+            main(
+                    () -> {
+                        for (var resumed :
+                                ActivityLifecycleMonitorRegistry.getInstance()
+                                        .getActivitiesInStage(Stage.RESUMED))
+                            if (resumed instanceof MainActivity) screen.set((MainActivity) resumed);
+                    });
             if (screen.get() != null) return screen.get();
             Thread.sleep(100);
         }
         throw new AssertionError("Activity did not resume");
     }
 
+    /** 启动或关闭独立测试页面并等待生命周期完成。 */
     private void closeActivity() throws Exception {
         if (activity == null) return;
         MainActivity screen = activity;
@@ -79,70 +111,118 @@ public class PlaybackServiceTest {
         assertTrue(screen.isDestroyed());
         activity = null;
     }
-    private Context context() { return InstrumentationRegistry.getInstrumentation().getTargetContext(); }
 
+    /** 取得本测试使用的应用或隔离上下文。 */
+    private Context context() {
+        return InstrumentationRegistry.getInstrumentation().getTargetContext();
+    }
+
+    /** 建立测试媒体控制器或可控连接。 */
     private MediaController connect() throws Exception {
         AtomicReference<ListenableFuture<MediaController>> future = new AtomicReference<>();
-        main(() -> future.set(new MediaController.Builder(context(),
-                new SessionToken(context(), new ComponentName(context(), PlaybackService.class))).buildAsync()));
+        main(
+                () ->
+                        future.set(
+                                new MediaController.Builder(
+                                                context(),
+                                                new SessionToken(
+                                                        context(),
+                                                        new ComponentName(
+                                                                context(), PlaybackService.class)))
+                                        .buildAsync()));
         return future.get().get(10, TimeUnit.SECONDS);
     }
 
-    @Before public void before() throws Exception {
+    /** 在测试开始或结束时准备和清理页面、会话及夹具。 */
+    @Before
+    public void before() throws Exception {
         activity = openActivity();
         controller = connect();
-        main(() -> {
-            original = new ArrayList<>();
-            for (int i = 0; i < controller.getMediaItemCount(); i++) original.add(controller.getMediaItemAt(i));
-            originalIndex = controller.getCurrentMediaItemIndex(); position = controller.getCurrentPosition();
-            repeat = controller.getRepeatMode(); shuffle = controller.getShuffleModeEnabled();
-            playing = controller.getPlayWhenReady(); volume = controller.getVolume();
-        });
+        main(
+                () -> {
+                    original = new ArrayList<>();
+                    for (int i = 0; i < controller.getMediaItemCount(); i++)
+                        original.add(controller.getMediaItemAt(i));
+                    originalIndex = controller.getCurrentMediaItemIndex();
+                    position = controller.getCurrentPosition();
+                    repeat = controller.getRepeatMode();
+                    shuffle = controller.getShuffleModeEnabled();
+                    playing = controller.getPlayWhenReady();
+                    volume = controller.getVolume();
+                });
     }
 
-    @After public void after() throws Exception {
-        if (controller != null) main(() -> {
-            controller.stop();
-            if (original != null && !original.isEmpty()) {
-                controller.setMediaItems(original, originalIndex, position); controller.prepare();
-            } else controller.clearMediaItems();
-            controller.setRepeatMode(repeat); controller.setShuffleModeEnabled(shuffle);
-            controller.setVolume(volume); controller.setPlayWhenReady(playing);
-            controller.release();
-        });
+    /** 在测试开始或结束时准备和清理页面、会话及夹具。 */
+    @After
+    public void after() throws Exception {
+        if (controller != null)
+            main(
+                    () -> {
+                        controller.stop();
+                        if (original != null && !original.isEmpty()) {
+                            controller.setMediaItems(original, originalIndex, position);
+                            controller.prepare();
+                        } else controller.clearMediaItems();
+                        controller.setRepeatMode(repeat);
+                        controller.setShuffleModeEnabled(shuffle);
+                        controller.setVolume(volume);
+                        controller.setPlayWhenReady(playing);
+                        controller.release();
+                    });
         closeActivity();
         for (File file : fixtures) file.delete();
     }
 
+    /** 按文件名识别可参与歌曲扫描的音频扩展名。 */
     private MediaItem audio(String id, int seconds) throws Exception {
         File file = new File(context().getCacheDir(), "qa-" + id + ".wav");
         fixtures.add(file);
         int size = 8000 * 2 * seconds;
         ByteBuffer wav = ByteBuffer.allocate(44 + size).order(ByteOrder.LITTLE_ENDIAN);
-        wav.put(new byte[]{'R','I','F','F'}).putInt(36 + size).put(new byte[]{'W','A','V','E','f','m','t',' '});
-        wav.putInt(16).putShort((short)1).putShort((short)1).putInt(8000).putInt(16000).putShort((short)2).putShort((short)16);
-        wav.put(new byte[]{'d','a','t','a'}).putInt(size);
-        try (var output = new FileOutputStream(file)) { output.write(wav.array()); }
+        wav.put(new byte[] {'R', 'I', 'F', 'F'})
+                .putInt(36 + size)
+                .put(new byte[] {'W', 'A', 'V', 'E', 'f', 'm', 't', ' '});
+        wav.putInt(16)
+                .putShort((short) 1)
+                .putShort((short) 1)
+                .putInt(8000)
+                .putInt(16000)
+                .putShort((short) 2)
+                .putShort((short) 16);
+        wav.put(new byte[] {'d', 'a', 't', 'a'}).putInt(size);
+        try (var output = new FileOutputStream(file)) {
+            output.write(wav.array());
+        }
         return new MediaItem.Builder().setMediaId(id).setUri(Uri.fromFile(file)).build();
     }
 
+    /** 开始当前组件的工作，并接通所需状态与完成回调。 */
     private void start(List<MediaItem> queue, int repeatMode) throws Exception {
         long deadline = android.os.SystemClock.elapsedRealtime() + 10_000;
-        main(() -> {
-            controller.setVolume(0f); controller.setShuffleModeEnabled(false); controller.setRepeatMode(repeatMode);
-            controller.setMediaItems(queue); controller.prepare(); controller.play();
-        });
+        main(
+                () -> {
+                    controller.setVolume(0f);
+                    controller.setShuffleModeEnabled(false);
+                    controller.setRepeatMode(repeatMode);
+                    controller.setMediaItems(queue);
+                    controller.prepare();
+                    controller.play();
+                });
         long previous = -1;
         while (android.os.SystemClock.elapsedRealtime() < deadline) {
             AtomicReference<Long> sample = new AtomicReference<>(-1L);
-            main(() -> {
-                if (!controller.isPlaying() || controller.getCurrentMediaItemIndex() != 0
-                        || controller.getRepeatMode() != repeatMode || controller.getShuffleModeEnabled()
-                        || controller.getMediaItemCount() != queue.size()) return;
-                for (int i = 0; i < queue.size(); i++)
-                    if (!queue.get(i).mediaId.equals(controller.getMediaItemAt(i).mediaId)) return;
-                sample.set(controller.getCurrentPosition());
-            });
+            main(
+                    () -> {
+                        if (!controller.isPlaying()
+                                || controller.getCurrentMediaItemIndex() != 0
+                                || controller.getRepeatMode() != repeatMode
+                                || controller.getShuffleModeEnabled()
+                                || controller.getMediaItemCount() != queue.size()) return;
+                        for (int i = 0; i < queue.size(); i++)
+                            if (!queue.get(i).mediaId.equals(controller.getMediaItemAt(i).mediaId))
+                                return;
+                        sample.set(controller.getCurrentPosition());
+                    });
             if (previous >= 0 && sample.get() >= previous + 50) return;
             previous = sample.get();
             Thread.sleep(100);
@@ -151,156 +231,300 @@ public class PlaybackServiceTest {
     }
 
     // No URI or personal song identifiers: diagnostics are safe on the user's library too.
+    /** 收集播放服务、队列和媒体通知状态以诊断失败。 */
     private String playbackDiagnostics() {
         AtomicReference<String> state = new AtomicReference<>();
-        main(() -> state.set("state=" + controller.getPlaybackState()
-                + ", playing=" + controller.isPlaying() + ", playWhenReady=" + controller.getPlayWhenReady()
-                + ", suppression=" + controller.getPlaybackSuppressionReason()
-                + ", repeat=" + controller.getRepeatMode() + ", shuffle=" + controller.getShuffleModeEnabled()
-                + ", index=" + controller.getCurrentMediaItemIndex() + ", count=" + controller.getMediaItemCount()
-                + ", position=" + controller.getCurrentPosition() + ", duration=" + controller.getDuration()
-                + ", error=" + (controller.getPlayerError() == null ? "none" : controller.getPlayerError().getErrorCodeName())));
+        main(
+                () ->
+                        state.set(
+                                "state="
+                                        + controller.getPlaybackState()
+                                        + ", playing="
+                                        + controller.isPlaying()
+                                        + ", playWhenReady="
+                                        + controller.getPlayWhenReady()
+                                        + ", suppression="
+                                        + controller.getPlaybackSuppressionReason()
+                                        + ", repeat="
+                                        + controller.getRepeatMode()
+                                        + ", shuffle="
+                                        + controller.getShuffleModeEnabled()
+                                        + ", index="
+                                        + controller.getCurrentMediaItemIndex()
+                                        + ", count="
+                                        + controller.getMediaItemCount()
+                                        + ", position="
+                                        + controller.getCurrentPosition()
+                                        + ", duration="
+                                        + controller.getDuration()
+                                        + ", error="
+                                        + (controller.getPlayerError() == null
+                                                ? "none"
+                                                : controller.getPlayerError().getErrorCodeName())));
         return state.get();
     }
 
-    @Test public void queueLoopsAfterActivityDestroyedAndReopensWithSameSession() throws Exception {
+    /** 验证页面销毁后队列继续循环，重开仍连接同一媒体会话。 */
+    @Test
+    public void queueLoopsAfterActivityDestroyedAndReopensWithSameSession() throws Exception {
         List<String> transitions = Collections.synchronizedList(new ArrayList<>());
         List<String> events = Collections.synchronizedList(new ArrayList<>());
         long began = android.os.SystemClock.elapsedRealtime();
         var activityDestroyed = new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch wrapped = new CountDownLatch(1);
-        main(() -> controller.addListener(new Player.Listener() {
-            @Override public void onMediaItemTransition(MediaItem item, int reason) {
-                if (item == null) return;
-                String id = item.mediaId.equals("first") || item.mediaId.equals("second") ? item.mediaId : "<other>";
-                transitions.add(id);
-                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
-                        + "ms transition=" + id + " reason=" + reason);
-                if (activityDestroyed.get() && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
-                        && item.mediaId.equals("first")) wrapped.countDown();
-            }
-            @Override public void onEvents(Player player, Player.Events changed) {
-                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
-                        + "ms state=" + player.getPlaybackState() + " playing=" + player.isPlaying()
-                        + " suppression=" + player.getPlaybackSuppressionReason());
-            }
-            @Override public void onPositionDiscontinuity(Player.PositionInfo oldPosition,
-                    Player.PositionInfo newPosition, int reason) {
-                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
-                        + "ms discontinuity=" + oldPosition.mediaItemIndex + ":" + oldPosition.positionMs
-                        + "->" + newPosition.mediaItemIndex + ":" + newPosition.positionMs + " reason=" + reason);
-            }
-            @Override public void onPlayWhenReadyChanged(boolean value, int reason) {
-                if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began)
-                        + "ms playWhenReady=" + value + " reason=" + reason);
-            }
-        }));
+        main(
+                () ->
+                        controller.addListener(
+                                new Player.Listener() {
+                                    /** 切换媒体条目时同步当前歌曲及歌词。 */
+                                    @Override
+                                    public void onMediaItemTransition(MediaItem item, int reason) {
+                                        if (item == null) return;
+                                        String id =
+                                                item.mediaId.equals("first")
+                                                                || item.mediaId.equals("second")
+                                                        ? item.mediaId
+                                                        : "<other>";
+                                        transitions.add(id);
+                                        if (events.size() < 64)
+                                            events.add(
+                                                    (android.os.SystemClock.elapsedRealtime()
+                                                                    - began)
+                                                            + "ms transition="
+                                                            + id
+                                                            + " reason="
+                                                            + reason);
+                                        if (activityDestroyed.get()
+                                                && reason
+                                                        == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+                                                && item.mediaId.equals("first"))
+                                            wrapped.countDown();
+                                    }
+
+                                    /** 接收测试播放器事件，记录实际播放状态变化。 */
+                                    @Override
+                                    public void onEvents(Player player, Player.Events changed) {
+                                        if (events.size() < 64)
+                                            events.add(
+                                                    (android.os.SystemClock.elapsedRealtime()
+                                                                    - began)
+                                                            + "ms state="
+                                                            + player.getPlaybackState()
+                                                            + " playing="
+                                                            + player.isPlaying()
+                                                            + " suppression="
+                                                            + player
+                                                                    .getPlaybackSuppressionReason());
+                                    }
+
+                                    /** 接收测试播放器事件，记录实际播放状态变化。 */
+                                    @Override
+                                    public void onPositionDiscontinuity(
+                                            Player.PositionInfo oldPosition,
+                                            Player.PositionInfo newPosition,
+                                            int reason) {
+                                        if (events.size() < 64)
+                                            events.add(
+                                                    (android.os.SystemClock.elapsedRealtime()
+                                                                    - began)
+                                                            + "ms discontinuity="
+                                                            + oldPosition.mediaItemIndex
+                                                            + ":"
+                                                            + oldPosition.positionMs
+                                                            + "->"
+                                                            + newPosition.mediaItemIndex
+                                                            + ":"
+                                                            + newPosition.positionMs
+                                                            + " reason="
+                                                            + reason);
+                                    }
+
+                                    /** 接收测试播放器事件，记录实际播放状态变化。 */
+                                    @Override
+                                    public void onPlayWhenReadyChanged(boolean value, int reason) {
+                                        if (events.size() < 64)
+                                            events.add(
+                                                    (android.os.SystemClock.elapsedRealtime()
+                                                                    - began)
+                                                            + "ms playWhenReady="
+                                                            + value
+                                                            + " reason="
+                                                            + reason);
+                                    }
+                                }));
         start(List.of(audio("first", 2), audio("second", 2)), Player.REPEAT_MODE_ALL);
         closeActivity();
-        main(() -> {
-            activityDestroyed.set(true);
-            if (events.size() < 64) events.add((android.os.SystemClock.elapsedRealtime() - began) + "ms Activity destroyed");
-        });
+        main(
+                () -> {
+                    activityDestroyed.set(true);
+                    if (events.size() < 64)
+                        events.add(
+                                (android.os.SystemClock.elapsedRealtime() - began)
+                                        + "ms Activity destroyed");
+                });
         boolean didWrap = wrapped.await(12, TimeUnit.SECONDS);
-        assertTrue("Last track failed to wrap; " + playbackDiagnostics() + "; events=" + events, didWrap);
+        assertTrue(
+                "Last track failed to wrap; " + playbackDiagnostics() + "; events=" + events,
+                didWrap);
         assertEquals(Arrays.asList("first", "second", "first"), transitions.subList(0, 3));
         // Remove every UI/controller binding, leaving only the foreground service.
-        main(controller::release); controller = null;
+        main(controller::release);
+        controller = null;
         Thread.sleep(1200);
         controller = connect();
-        main(() -> { assertTrue(controller.isPlaying()); assertEquals(2, controller.getMediaItemCount()); });
+        main(
+                () -> {
+                    assertTrue(controller.isPlaying());
+                    assertEquals(2, controller.getMediaItemCount());
+                });
         activity = openActivity();
         Thread.sleep(500);
-        main(() -> {
-            try {
-                var field = MainActivity.class.getDeclaredField("player"); field.setAccessible(true);
-                MediaController ui = (MediaController)field.get(activity);
-                assertNotNull(ui); assertEquals(controller.getCurrentMediaItem().mediaId, ui.getCurrentMediaItem().mediaId);
-                assertTrue(ui.isPlaying());
-            } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
-        });
+        main(
+                () -> {
+                    try {
+                        var field = MainActivity.class.getDeclaredField("player");
+                        field.setAccessible(true);
+                        MediaController ui = (MediaController) field.get(activity);
+                        assertNotNull(ui);
+                        assertEquals(
+                                controller.getCurrentMediaItem().mediaId,
+                                ui.getCurrentMediaItem().mediaId);
+                        assertTrue(ui.isPlaying());
+                    } catch (ReflectiveOperationException error) {
+                        throw new AssertionError(error);
+                    }
+                });
     }
 
-    @Test public void repeatOneAndTransportCommandsRemainAvailable() throws Exception {
+    /** 验证单曲循环时仍可使用媒体控制命令。 */
+    @Test
+    public void repeatOneAndTransportCommandsRemainAvailable() throws Exception {
         start(List.of(audio("single", 1), audio("other", 1)), Player.REPEAT_MODE_ONE);
         long previous = 0;
         boolean repeated = false;
         for (int i = 0; i < 60; i++) {
             AtomicReference<Long> current = new AtomicReference<>();
             main(() -> current.set(controller.getCurrentPosition()));
-            if (previous > 600 && current.get() < previous - 400) { repeated = true; break; }
+            if (previous > 600 && current.get() < previous - 400) {
+                repeated = true;
+                break;
+            }
             previous = current.get();
             Thread.sleep(100);
         }
         assertTrue("Single-track position did not wrap", repeated);
-        main(() -> {
-            assertEquals("single", controller.getCurrentMediaItem().mediaId);
-            controller.pause(); assertFalse(controller.getPlayWhenReady());
-            controller.setRepeatMode(Player.REPEAT_MODE_ALL);
-            controller.seekToNextMediaItem();
-        });
+        main(
+                () -> {
+                    assertEquals("single", controller.getCurrentMediaItem().mediaId);
+                    controller.pause();
+                    assertFalse(controller.getPlayWhenReady());
+                    controller.setRepeatMode(Player.REPEAT_MODE_ALL);
+                    controller.seekToNextMediaItem();
+                });
         awaitMediaId("other");
         // Commands are updated asynchronously by the session after a transition.
         awaitCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM);
         main(controller::seekToPreviousMediaItem);
         awaitMediaId("single");
-        main(() -> { controller.setShuffleModeEnabled(true); assertTrue(controller.getShuffleModeEnabled()); });
+        main(
+                () -> {
+                    controller.setShuffleModeEnabled(true);
+                    assertTrue(controller.getShuffleModeEnabled());
+                });
     }
 
-    @Test public void screenOffQueueContinuesAndWraps() throws Exception {
+    /** 验证息屏后播放队列继续并可首尾回绕。 */
+    @Test
+    public void screenOffQueueContinuesAndWraps() throws Exception {
         CountDownLatch wrapped = new CountDownLatch(1);
-        main(() -> controller.addListener(new Player.Listener() {
-            @Override public void onMediaItemTransition(MediaItem item, int reason) {
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && item != null && item.mediaId.equals("screen-first")) wrapped.countDown();
-            }
-        }));
+        main(
+                () ->
+                        controller.addListener(
+                                new Player.Listener() {
+                                    /** 切换媒体条目时同步当前歌曲及歌词。 */
+                                    @Override
+                                    public void onMediaItemTransition(MediaItem item, int reason) {
+                                        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+                                                && item != null
+                                                && item.mediaId.equals("screen-first"))
+                                            wrapped.countDown();
+                                    }
+                                }));
         start(List.of(audio("screen-first", 2), audio("screen-second", 2)), Player.REPEAT_MODE_ALL);
         try {
             shell("input keyevent 223");
             boolean didWrap = wrapped.await(12, TimeUnit.SECONDS);
             assertTrue("Screen-off queue failed to loop; " + playbackDiagnostics(), didWrap);
             main(() -> assertTrue(controller.isPlaying()));
-        } finally { shell("input keyevent 224"); shell("wm dismiss-keyguard"); }
+        } finally {
+            shell("input keyevent 224");
+            shell("wm dismiss-keyguard");
+        }
     }
 
-    @Test public void clearedQueueNotificationCannotDismissRestartedPlayback() throws Exception {
+    /** 验证旧空队列通知不能移除重新开始播放的通知。 */
+    @Test
+    public void clearedQueueNotificationCannotDismissRestartedPlayback() throws Exception {
         var pausedFirst = audio("paused-notify-first", 20);
         var pausedSecond = audio("paused-notify-second", 20);
-        main(() -> {
-            controller.stop(); controller.setPlayWhenReady(false);
-            controller.clearMediaItems(); controller.setMediaItem(pausedFirst); controller.prepare();
-        });
+        main(
+                () -> {
+                    controller.stop();
+                    controller.setPlayWhenReady(false);
+                    controller.clearMediaItems();
+                    controller.setMediaItem(pausedFirst);
+                    controller.prepare();
+                });
         var pausedNotification = awaitMediaNotification(-1);
-        assertEquals("Paused fixture must exercise the notification outside foreground service", 0,
-                pausedNotification.getNotification().flags & android.app.Notification.FLAG_FOREGROUND_SERVICE);
+        assertEquals(
+                "Paused fixture must exercise the notification outside foreground service",
+                0,
+                pausedNotification.getNotification().flags
+                        & android.app.Notification.FLAG_FOREGROUND_SERVICE);
         // Intentionally give Media3 a chance to coalesce the intermediate empty queue.
-        main(() -> { controller.clearMediaItems(); controller.setMediaItem(pausedSecond); controller.prepare(); });
+        main(
+                () -> {
+                    controller.clearMediaItems();
+                    controller.setMediaItem(pausedSecond);
+                    controller.prepare();
+                });
         awaitMediaNotification(pausedNotification.getId());
-        main(() -> {
-            assertFalse(controller.isPlaying());
-            assertEquals("paused-notify-second", controller.getCurrentMediaItem().mediaId);
-            controller.clearMediaItems();
-        });
+        main(
+                () -> {
+                    assertFalse(controller.isPlaying());
+                    assertEquals("paused-notify-second", controller.getCurrentMediaItem().mediaId);
+                    controller.clearMediaItems();
+                });
         awaitNoMediaNotifications();
 
         start(List.of(audio("notify-first", 20)), Player.REPEAT_MODE_ALL);
-        android.service.notification.StatusBarNotification oldNotification = awaitMediaNotification(-1);
-        main(() -> { controller.stop(); controller.clearMediaItems(); });
+        android.service.notification.StatusBarNotification oldNotification =
+                awaitMediaNotification(-1);
+        main(
+                () -> {
+                    controller.stop();
+                    controller.clearMediaItems();
+                });
         awaitNoMediaNotifications();
 
         start(List.of(audio("notify-second", 20)), Player.REPEAT_MODE_ALL);
         var current = awaitMediaNotification(oldNotification.getId());
-        var manager = (android.app.NotificationManager) context().getSystemService(Context.NOTIFICATION_SERVICE);
+        var manager =
+                (android.app.NotificationManager)
+                        context().getSystemService(Context.NOTIFICATION_SERVICE);
         // An asynchronous system removal for the old key must not affect the new queue.
         manager.cancel(oldNotification.getId());
         AtomicReference<Long> before = new AtomicReference<>();
         main(() -> before.set(controller.getCurrentPosition()));
         Thread.sleep(600);
         String diagnostic = playbackDiagnostics();
-        main(() -> {
-            assertTrue("Obsolete notification removal stopped playback; " + diagnostic, controller.isPlaying());
-            assertTrue(controller.getCurrentPosition() >= before.get() + 300);
-        });
+        main(
+                () -> {
+                    assertTrue(
+                            "Obsolete notification removal stopped playback; " + diagnostic,
+                            controller.isPlaying());
+                    assertTrue(controller.getCurrentPosition() >= before.get() + 300);
+                });
 
         // A dismissal of the current notification must still stop playback normally.
         assertNotNull(current.getNotification().deleteIntent);
@@ -309,95 +533,173 @@ public class PlaybackServiceTest {
         boolean stopped = false;
         while (android.os.SystemClock.elapsedRealtime() < deadline) {
             AtomicReference<Boolean> value = new AtomicReference<>(false);
-            main(() -> value.set(controller.getPlaybackState() == Player.STATE_IDLE && !controller.isPlaying()));
-            if (value.get()) { stopped = true; break; }
+            main(
+                    () ->
+                            value.set(
+                                    controller.getPlaybackState() == Player.STATE_IDLE
+                                            && !controller.isPlaying()));
+            if (value.get()) {
+                stopped = true;
+                break;
+            }
             Thread.sleep(50);
         }
-        assertTrue("Current notification dismissal did not stop playback; " + playbackDiagnostics(), stopped);
+        assertTrue(
+                "Current notification dismissal did not stop playback; " + playbackDiagnostics(),
+                stopped);
     }
 
+    /** 等待测试条件满足；到达期限仍未满足时报告失败。 */
     private void awaitNoMediaNotifications() throws Exception {
         long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
-        while (!mediaNotifications().isEmpty() && android.os.SystemClock.elapsedRealtime() < deadline)
-            Thread.sleep(50);
+        while (!mediaNotifications().isEmpty()
+                && android.os.SystemClock.elapsedRealtime() < deadline) Thread.sleep(50);
         assertTrue("Cleared queue retained a media notification", mediaNotifications().isEmpty());
     }
 
+    /** 读取当前媒体通知，供播放服务断言使用。 */
     private List<android.service.notification.StatusBarNotification> mediaNotifications() {
-        var manager = (android.app.NotificationManager) context().getSystemService(Context.NOTIFICATION_SERVICE);
+        var manager =
+                (android.app.NotificationManager)
+                        context().getSystemService(Context.NOTIFICATION_SERVICE);
         List<android.service.notification.StatusBarNotification> result = new ArrayList<>();
         for (var notification : manager.getActiveNotifications()) {
-            if (notification.getNotification().extras.containsKey(android.app.Notification.EXTRA_MEDIA_SESSION))
+            if (notification
+                    .getNotification()
+                    .extras
+                    .containsKey(android.app.Notification.EXTRA_MEDIA_SESSION))
                 result.add(notification);
         }
         return result;
     }
 
-    private android.service.notification.StatusBarNotification awaitMediaNotification(int obsoleteId) throws Exception {
+    /** 等待媒体通知出现，超时则使测试失败。 */
+    private android.service.notification.StatusBarNotification awaitMediaNotification(
+            int obsoleteId) throws Exception {
         long deadline = android.os.SystemClock.elapsedRealtime() + 5_000;
         while (android.os.SystemClock.elapsedRealtime() < deadline) {
             var notifications = mediaNotifications();
-            if (notifications.size() == 1 && notifications.get(0).getId() != obsoleteId) return notifications.get(0);
+            if (notifications.size() == 1 && notifications.get(0).getId() != obsoleteId)
+                return notifications.get(0);
             Thread.sleep(50);
         }
         fail("Expected exactly one current media notification after queue restart");
         return null;
     }
 
+    /** 执行设备测试需要的 adb shell 命令并取得输出。 */
     private void shell(String command) throws Exception {
-        try (var descriptor = InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
-             var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) { while (input.read(new byte[1024]) != -1) { /* Drain shell output on API 28 too. */ } }
+        try (var descriptor =
+                        InstrumentationRegistry.getInstrumentation()
+                                .getUiAutomation()
+                                .executeShellCommand(command);
+                var input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor)) {
+            while (input.read(new byte[1024]) != -1) {
+                /* Drain shell output on API 28 too. */
+            }
+        }
     }
 
-    @Test public void temporaryAudioFocusLossPausesAndResumes() throws Exception {
+    /** 验证临时失去音频焦点时暂停，恢复后继续。 */
+    @Test
+    public void temporaryAudioFocusLossPausesAndResumes() throws Exception {
         start(List.of(audio("focus", 20)), Player.REPEAT_MODE_ALL);
         AudioManager manager = (AudioManager) context().getSystemService(Context.AUDIO_SERVICE);
-        AudioFocusRequest focus = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                .setAudioAttributes(new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA).build())
-                .setOnAudioFocusChangeListener(value -> {}).build();
+        AudioFocusRequest focus =
+                new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                        .setAudioAttributes(
+                                new android.media.AudioAttributes.Builder()
+                                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                        .build())
+                        .setOnAudioFocusChangeListener(value -> {})
+                        .build();
         try {
             assertEquals(AudioManager.AUDIOFOCUS_REQUEST_GRANTED, manager.requestAudioFocus(focus));
             awaitPlaying(false);
-        } finally { manager.abandonAudioFocusRequest(focus); }
+        } finally {
+            manager.abandonAudioFocusRequest(focus);
+        }
         awaitPlaying(true);
     }
 
-    @Test public void typingLocalSearchDoesNotReplaceThePlayingQueue() throws Exception {
+    /** 验证本地搜索不会替换正在播放的队列。 */
+    @Test
+    public void typingLocalSearchDoesNotReplaceThePlayingQueue() throws Exception {
         start(List.of(audio("search-fixture", 20)), Player.REPEAT_MODE_ALL);
         var changed = new java.util.concurrent.atomic.AtomicInteger();
-        main(() -> controller.addListener(new Player.Listener() {
-            @Override public void onTimelineChanged(androidx.media3.common.Timeline timeline, int reason) {
-                if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) changed.incrementAndGet();
-            }
-        }));
-        main(() -> {
-            android.widget.EditText search = activity.findViewById(R.id.localSearch);
-            search.setText("a"); search.setText("ab"); search.setText("abc"); search.setText("");
-        });
+        main(
+                () ->
+                        controller.addListener(
+                                new Player.Listener() {
+                                    /** 播放队列变化时同步服务保存的状态与媒体通知。 */
+                                    @Override
+                                    public void onTimelineChanged(
+                                            androidx.media3.common.Timeline timeline, int reason) {
+                                        if (reason
+                                                == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
+                                            changed.incrementAndGet();
+                                    }
+                                }));
+        main(
+                () -> {
+                    android.widget.EditText search = activity.findViewById(R.id.localSearch);
+                    search.setText("a");
+                    search.setText("ab");
+                    search.setText("abc");
+                    search.setText("");
+                });
         Thread.sleep(500);
-        main(() -> {
-            assertEquals(0, changed.get());
-            assertTrue(controller.isPlaying());
-            assertEquals("search-fixture", controller.getCurrentMediaItem().mediaId);
-            assertEquals(1, controller.getMediaItemCount());
-        });
-    }
-    @Test public void libraryRefreshDoesNotReplaceNamedPlaylistOrderOrRepeatedRows() throws Exception {
-        var first=audio("named-first",20);var second=audio("named-second",20);
-        android.os.Bundle extras=new android.os.Bundle();extras.putBoolean("namedPlaylistQueue",true);
-        first=first.buildUpon().setMediaMetadata(new androidx.media3.common.MediaMetadata.Builder().setExtras(extras).build()).build();
-        var queue=List.of(second,first,first);start(queue,Player.REPEAT_MODE_ALL);
-        main(() -> {
-            try{var method=MainActivity.class.getDeclaredMethod("syncPlaybackQueue");method.setAccessible(true);method.invoke(activity);}
-            catch(Exception error){throw new AssertionError(error);}
-            assertEquals(3,controller.getMediaItemCount());
-            for(int i=0;i<queue.size();i++)assertEquals(queue.get(i).mediaId,controller.getMediaItemAt(i).mediaId);
-        });
-        closeActivity();activity=openActivity();
-        main(() -> {assertEquals(3,controller.getMediaItemCount());assertEquals("named-second",controller.getCurrentMediaItem().mediaId);assertTrue(controller.isPlaying());});
+        main(
+                () -> {
+                    assertEquals(0, changed.get());
+                    assertTrue(controller.isPlaying());
+                    assertEquals("search-fixture", controller.getCurrentMediaItem().mediaId);
+                    assertEquals(1, controller.getMediaItemCount());
+                });
     }
 
-    @Test public void personalLibraryAudioAdvancesInBackground() throws Exception {
+    /** 验证曲库刷新保留独立歌单的播放顺序和重复行。 */
+    @Test
+    public void libraryRefreshDoesNotReplaceNamedPlaylistOrderOrRepeatedRows() throws Exception {
+        var first = audio("named-first", 20);
+        var second = audio("named-second", 20);
+        android.os.Bundle extras = new android.os.Bundle();
+        extras.putBoolean("namedPlaylistQueue", true);
+        first =
+                first.buildUpon()
+                        .setMediaMetadata(
+                                new androidx.media3.common.MediaMetadata.Builder()
+                                        .setExtras(extras)
+                                        .build())
+                        .build();
+        var queue = List.of(second, first, first);
+        start(queue, Player.REPEAT_MODE_ALL);
+        main(
+                () -> {
+                    try {
+                        var method = MainActivity.class.getDeclaredMethod("syncPlaybackQueue");
+                        method.setAccessible(true);
+                        method.invoke(activity);
+                    } catch (Exception error) {
+                        throw new AssertionError(error);
+                    }
+                    assertEquals(3, controller.getMediaItemCount());
+                    for (int i = 0; i < queue.size(); i++)
+                        assertEquals(queue.get(i).mediaId, controller.getMediaItemAt(i).mediaId);
+                });
+        closeActivity();
+        activity = openActivity();
+        main(
+                () -> {
+                    assertEquals(3, controller.getMediaItemCount());
+                    assertEquals("named-second", controller.getCurrentMediaItem().mediaId);
+                    assertTrue(controller.isPlaying());
+                });
+    }
+
+    /** 验证现场曲库音频在后台继续推进；该历史用例依赖指定设备数据。 */
+    @Test
+    public void personalLibraryAudioAdvancesInBackground() throws Exception {
         app.musicplayer.android.data.TrackEntry entry;
         try (var database = new app.musicplayer.android.data.AndroidMusicDatabase(context())) {
             var tracks = database.loadTracks();
@@ -406,29 +708,43 @@ public class PlaybackServiceTest {
         }
         // Close the screen to prevent lyric lookup or metadata writes during a read-only check.
         closeActivity();
-        Uri uri = entry.storageType() == app.musicplayer.android.data.TrackEntry.StorageType.MEDIA_STORE
-                ? Uri.parse(entry.location()) : Uri.fromFile(new File(entry.location()));
-        start(List.of(new MediaItem.Builder().setMediaId("personal-validation").setUri(uri).build()),
+        Uri uri =
+                entry.storageType()
+                                == app.musicplayer.android.data.TrackEntry.StorageType.MEDIA_STORE
+                        ? Uri.parse(entry.location())
+                        : Uri.fromFile(new File(entry.location()));
+        start(
+                List.of(
+                        new MediaItem.Builder()
+                                .setMediaId("personal-validation")
+                                .setUri(uri)
+                                .build()),
                 Player.REPEAT_MODE_ALL);
         Thread.sleep(500);
         AtomicReference<Long> before = new AtomicReference<>();
         main(() -> before.set(controller.getCurrentPosition()));
         Thread.sleep(700);
-        main(() -> {
-            assertTrue(controller.isPlaying());
-            assertTrue("Personal library audio did not advance", controller.getCurrentPosition() > before.get() + 300);
-        });
+        main(
+                () -> {
+                    assertTrue(controller.isPlaying());
+                    assertTrue(
+                            "Personal library audio did not advance",
+                            controller.getCurrentPosition() > before.get() + 300);
+                });
     }
 
+    /** 等待测试条件满足；到达期限仍未满足时报告失败。 */
     private void awaitPlaying(boolean expected) throws Exception {
         for (int i = 0; i < 50; i++) {
-            AtomicReference<Boolean> value = new AtomicReference<>(); main(() -> value.set(controller.isPlaying()));
+            AtomicReference<Boolean> value = new AtomicReference<>();
+            main(() -> value.set(controller.isPlaying()));
             if (value.get() == expected) return;
             Thread.sleep(100);
         }
         fail("Expected isPlaying=" + expected);
     }
 
+    /** 等待播放器的媒体 ID 与目标一致，避免把上一首的状态用于断言。 */
     private void awaitMediaId(String expected) throws Exception {
         for (int i = 0; i < 50; i++) {
             AtomicReference<String> id = new AtomicReference<>();
@@ -439,6 +755,7 @@ public class PlaybackServiceTest {
         fail("Expected mediaId=" + expected);
     }
 
+    /** 等待媒体控制器允许执行目标命令，避免在连接未就绪时操作。 */
     private void awaitCommand(int command) throws Exception {
         for (int i = 0; i < 50; i++) {
             AtomicReference<Boolean> available = new AtomicReference<>();

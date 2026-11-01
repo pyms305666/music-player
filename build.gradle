@@ -1,3 +1,5 @@
+// 桌面构建：Java 25、JavaFX 及 SQLite；引用共享模块并生成可运行分发目录。
+
 plugins {
     id "application"
     id "org.openjfx.javafxplugin" version "0.1.0"
@@ -6,19 +8,37 @@ group = "app.musicplayer"
 def versions = new Properties()
 file("version.properties").withInputStream { versions.load(it) }
 version = versions.getProperty("versionName")
-java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
 application {
     mainClass = "app.musicplayer.MusicPlayerLauncher"
     applicationDefaultJvmArgs = ["--enable-native-access=ALL-UNNAMED", "--enable-native-access=javafx.graphics", "--enable-native-access=javafx.media"]
 }
-javafx { version = "25.0.1"; modules = ["javafx.controls", "javafx.media"] }
+javafx {
+    version = "25.0.1"
+    modules = ["javafx.controls", "javafx.media"]
+}
 dependencies {
     implementation project(":shared")
     implementation "org.xerial:sqlite-jdbc:3.50.3.0"
+    implementation "com.google.code.gson:gson:2.11.0"
     testImplementation platform("org.junit:junit-bom:5.13.4")
     testImplementation "org.junit.jupiter:junit-jupiter"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
-tasks.withType(JavaCompile).configureEach { options.encoding = "UTF-8" }
-tasks.withType(Test).configureEach { useJUnitPlatform(); jvmArgs "--enable-native-access=ALL-UNNAMED" }
-tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }
+// 中文源码使用明确编码，不依赖 Windows 本机默认字符集。
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    jvmArgs "--enable-native-access=ALL-UNNAMED"
+}
+// 固定归档顺序与时间戳，减少相同源码构建之间的无意义差异。
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}

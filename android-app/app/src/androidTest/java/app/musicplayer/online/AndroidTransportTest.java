@@ -1,6 +1,9 @@
 package app.musicplayer.online;
 
+import static org.junit.Assert.*;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -20,39 +23,51 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
-
-/** Exercises Android's real HTTP transport using loopback sockets and no application data. */
+/**
+ * 在 Android 运行环境验证实际来源 HTTP 解析、超时、Cookie 与取消。 Exercises Android's real HTTP transport using
+ * loopback sockets and no application data.
+ */
 @RunWith(AndroidJUnit4.class)
 public class AndroidTransportTest {
-    @Test public void cancellingStalledBodyFreesWorkerAndPreservesSessionCookies() throws Exception {
+    /** 验证取消卡住的响应体释放工作线程，同时保留会话 Cookie。 */
+    @Test
+    public void cancellingStalledBodyFreesWorkerAndPreservesSessionCookies() throws Exception {
         var worker = Executors.newSingleThreadExecutor();
         var canceller = Executors.newSingleThreadExecutor();
         var bodyRead = new CountDownLatch(1);
         var token = new RequestCancellation();
-        try (var server = new LocalServer(); var session = new CrawlerSession()) {
-            var request = worker.submit(() -> {
-                try (var scope = session.cancellationScope(token);
-                     var response = session.download(server.base() + "/slow", server.base())) {
-                    assertEquals(200, response.statusCode());
-                    assertEquals('x', response.body().read());
-                    bodyRead.countDown();
-                    while (response.body().read() >= 0) { }
-                    return "unexpected completion";
-                }
-            });
+        try (var server = new LocalServer();
+                var session = new CrawlerSession()) {
+            var request =
+                    worker.submit(
+                            () -> {
+                                try (var scope = session.cancellationScope(token);
+                                        var response =
+                                                session.download(
+                                                        server.base() + "/slow", server.base())) {
+                                    assertEquals(200, response.statusCode());
+                                    assertEquals('x', response.body().read());
+                                    bodyRead.countDown();
+                                    while (response.body().read() >= 0) {}
+                                    return "unexpected completion";
+                                }
+                            });
             assertTrue("Response body was not read", bodyRead.await(3, TimeUnit.SECONDS));
             canceller.submit(token::close).get(3, TimeUnit.SECONDS);
             try {
                 request.get(3, TimeUnit.SECONDS);
                 fail("Cancelled body completed normally");
             } catch (ExecutionException stopped) {
-                assertTrue("Cancellation must close the active body: " + stopped.getCause(),
+                assertTrue(
+                        "Cancellation must close the active body: " + stopped.getCause(),
                         stopped.getCause() instanceof IOException);
             }
-            // The same single worker must be available while the server's slow handler is still blocked.
-            assertEquals("ok", worker.submit(() -> session.fetch(server.base() + "/fast", server.base()))
-                    .get(3, TimeUnit.SECONDS));
+            // The same single worker must be available while the server's slow handler is still
+            // blocked.
+            assertEquals(
+                    "ok",
+                    worker.submit(() -> session.fetch(server.base() + "/fast", server.base()))
+                            .get(3, TimeUnit.SECONDS));
             assertNotNull("No Cookie request header", server.cookie.get());
             assertTrue(server.cookie.get().contains("fixture=owned"));
             assertNull("Loopback server failed", server.failure.get());
@@ -60,11 +75,15 @@ public class AndroidTransportTest {
             token.close();
             worker.shutdownNow();
             canceller.shutdownNow();
-            assertTrue("Request worker did not terminate", worker.awaitTermination(3, TimeUnit.SECONDS));
-            assertTrue("Canceller did not terminate", canceller.awaitTermination(3, TimeUnit.SECONDS));
+            assertTrue(
+                    "Request worker did not terminate",
+                    worker.awaitTermination(3, TimeUnit.SECONDS));
+            assertTrue(
+                    "Canceller did not terminate", canceller.awaitTermination(3, TimeUnit.SECONDS));
         }
     }
 
+    /** 管理测试专用本地 HTTP 服务，提供可控响应并在测试结束时关闭。 */
     private static final class LocalServer implements AutoCloseable {
         private final ServerSocket listener;
         private final ExecutorService handlers = Executors.newCachedThreadPool();
@@ -75,66 +94,95 @@ public class AndroidTransportTest {
         final AtomicReference<String> cookie = new AtomicReference<>();
         final AtomicReference<Throwable> failure = new AtomicReference<>();
 
+        /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
         LocalServer() throws IOException {
             listener = new ServerSocket(0, 8, InetAddress.getByName("127.0.0.1"));
-            acceptor = new Thread(() -> {
-                try {
-                    while (!closed) {
-                        Socket socket = listener.accept();
-                        sockets.add(socket);
-                        handlers.execute(() -> handle(socket));
-                    }
-                } catch (IOException | RuntimeException error) {
-                    if (!closed) failure.compareAndSet(null, error);
-                }
-            }, "android-transport-loopback");
+            acceptor =
+                    new Thread(
+                            () -> {
+                                try {
+                                    while (!closed) {
+                                        Socket socket = listener.accept();
+                                        sockets.add(socket);
+                                        handlers.execute(() -> handle(socket));
+                                    }
+                                } catch (IOException | RuntimeException error) {
+                                    if (!closed) failure.compareAndSet(null, error);
+                                }
+                            },
+                            "android-transport-loopback");
             acceptor.start();
         }
 
-        String base() { return "http://127.0.0.1:" + listener.getLocalPort(); }
+        /** 返回本测试 HTTP 服务的基础地址。 */
+        String base() {
+            return "http://127.0.0.1:" + listener.getLocalPort();
+        }
 
+        /** 按用例约定处理本地 HTTP 请求并写入可控响应。 */
         private void handle(Socket socket) {
             try (Socket owned = socket) {
                 owned.setSoTimeout(3000);
-                var input = new BufferedReader(new InputStreamReader(owned.getInputStream(), StandardCharsets.US_ASCII));
+                var input =
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        owned.getInputStream(), StandardCharsets.US_ASCII));
                 String request = input.readLine();
                 if (request == null) throw new IOException("Missing request line");
-                for (String header; (header = input.readLine()) != null && !header.isEmpty();) {
-                    if (header.regionMatches(true, 0, "Cookie:", 0, 7)) cookie.set(header.substring(7).trim());
+                for (String header; (header = input.readLine()) != null && !header.isEmpty(); ) {
+                    if (header.regionMatches(true, 0, "Cookie:", 0, 7))
+                        cookie.set(header.substring(7).trim());
                 }
                 var output = owned.getOutputStream();
                 if (request.startsWith("GET /slow ")) {
-                    output.write(("HTTP/1.1 200 OK\r\nContent-Length: 4096\r\n"
-                            + "Set-Cookie: fixture=owned; Path=/\r\nConnection: close\r\n\r\nx")
-                            .getBytes(StandardCharsets.US_ASCII));
+                    output.write(
+                            ("HTTP/1.1 200 OK\r\n"
+                                            + "Content-Length: 4096\r\n"
+                                            + "Set-Cookie: fixture=owned; Path=/\r\n"
+                                            + "Connection: close\r\n\r\n"
+                                            + "x")
+                                    .getBytes(StandardCharsets.US_ASCII));
                     output.flush();
-                    if (!release.await(10, TimeUnit.SECONDS)) throw new IOException("Slow handler was not released");
+                    if (!release.await(10, TimeUnit.SECONDS))
+                        throw new IOException("Slow handler was not released");
                 } else if (request.startsWith("GET /fast ")) {
-                    output.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
-                            .getBytes(StandardCharsets.US_ASCII));
+                    output.write(
+                            "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                                    .getBytes(StandardCharsets.US_ASCII));
                     output.flush();
                 } else throw new IOException("Unexpected request: " + request);
             } catch (InterruptedException stopped) {
                 Thread.currentThread().interrupt();
             } catch (IOException | RuntimeException error) {
                 if (!closed) failure.compareAndSet(null, error);
-            } finally { sockets.remove(socket); }
+            } finally {
+                sockets.remove(socket);
+            }
         }
 
-        @Override public void close() throws Exception {
+        /** 结束本组件或句柄的使用；具体资源归属见所属类型的说明。 */
+        @Override
+        public void close() throws Exception {
             closed = true;
             release.countDown();
-            try { listener.close(); }
-            finally {
-                try { acceptor.join(3000); }
-                finally {
+            try {
+                listener.close();
+            } finally {
+                try {
+                    acceptor.join(3000);
+                } finally {
                     for (Socket socket : sockets) {
-                        try { socket.close(); } catch (IOException ignored) { }
+                        try {
+                            socket.close();
+                        } catch (IOException ignored) {
+                        }
                     }
                     handlers.shutdownNow();
                 }
                 assertFalse("Accept thread did not terminate", acceptor.isAlive());
-                assertTrue("Server handlers did not terminate", handlers.awaitTermination(3, TimeUnit.SECONDS));
+                assertTrue(
+                        "Server handlers did not terminate",
+                        handlers.awaitTermination(3, TimeUnit.SECONDS));
             }
         }
     }

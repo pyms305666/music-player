@@ -1,4 +1,5 @@
-"""Android 13+ key rotation. Private material never belongs to this repository."""
+"Android 正式签名命令入口。构建、签署带轮换证明的 APK，调用 ApkSigningInspector 校验并写入构建记录，支持独立 verify。\n\nAndroid 13+ key rotation. Private material never belongs to this repository."
+
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -14,9 +15,14 @@ POLICY = ROOT / "android-app/signing/policy.json"
 
 
 def run(args, *, env=None, capture=False):
-    result = subprocess.run([str(x) for x in args], env=env, cwd=ROOT,
-                            stdout=subprocess.PIPE if capture else None,
-                            stderr=subprocess.PIPE if capture else None)
+    "执行命令并检查退出码；需要捕获时返回输出，失败由调用方处理。"
+    result = subprocess.run(
+        [str(x) for x in args],
+        env=env,
+        cwd=ROOT,
+        stdout=subprocess.PIPE if capture else None,
+        stderr=subprocess.PIPE if capture else None,
+    )
     if result.returncode:
         if capture:
             raise RuntimeError(result.stderr.decode("utf-8", errors="replace")[:3000])
@@ -25,29 +31,48 @@ def run(args, *, env=None, capture=False):
 
 
 def tools():
+    "定位本机 JDK、Android SDK 和签名检查工具，优先使用项目内工具。"
     local = ROOT / ".tools/android-sdk"
     sdk = local if local.exists() else Path(os.environ["ANDROID_HOME"])
     jdk = ROOT / ".tools/jdk-17-android"
     if not jdk.exists():
         jdk = Path(os.environ["JAVA_HOME"])
     suffix = ".exe" if os.name == "nt" else ""
-    return jdk / ("bin/java" + suffix), jdk / ("bin/javac" + suffix), sdk / "build-tools/35.0.0/lib/apksigner.jar"
+    return (
+        jdk / ("bin/java" + suffix),
+        jdk / ("bin/javac" + suffix),
+        sdk / "build-tools/35.0.0/lib/apksigner.jar",
+    )
 
 
 def sha(path):
+    "以二进制方式读取文件并计算 SHA-256，供发布附件完整性核对。"
     with Path(path).open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256")
     return digest.hexdigest()
 
 
 def version():
-    return dict(line.strip().split("=", 1) for line in (ROOT / "version.properties").read_text().splitlines() if "=" in line)
+    "读取唯一的版本配置，供 APK 和构建记录保持版本一致。"
+    return dict(
+        line.strip().split("=", 1)
+        for line in (ROOT / "version.properties").read_text().splitlines()
+        if "=" in line
+    )
 
 
 def material():
-    """Environment for disposable CI keys, or current-user DPAPI material locally."""
-    names = ("ZA_KEYSTORE", "ZA_STORE_PASSWORD", "ZA_KEY_ALIAS", "ZA_KEY_PASSWORD",
-             "ZA_OLD_KEYSTORE", "ZA_OLD_STORE_PASSWORD", "ZA_OLD_KEY_ALIAS", "ZA_OLD_KEY_PASSWORD")
+    "读取环境变量或当前 Windows 用户的签名材料；部分配置不完整时拒绝继续。\n\nEnvironment for disposable CI keys, or current-user DPAPI material locally."
+    names = (
+        "ZA_KEYSTORE",
+        "ZA_STORE_PASSWORD",
+        "ZA_KEY_ALIAS",
+        "ZA_KEY_PASSWORD",
+        "ZA_OLD_KEYSTORE",
+        "ZA_OLD_STORE_PASSWORD",
+        "ZA_OLD_KEY_ALIAS",
+        "ZA_OLD_KEY_PASSWORD",
+    )
     present = [bool(os.environ.get(n)) for n in names]
     if any(present):
         if not all(present):
@@ -56,18 +81,38 @@ def material():
     if os.name != "nt":
         raise RuntimeError("Explicit disposable signing credentials required on CI")
     import signing_vault
+
     return signing_vault.load()
 
 
 def inspect(apk):
+    "编译签名检查器并读取 APK 的实际签名事实，返回解析后的 JSON。"
     java, javac, jar = tools()
     output = ROOT / ".tools/signing-inspector"
     output.mkdir(parents=True, exist_ok=True)
-    run([javac, "-cp", jar, "-d", output, ROOT / "scripts/ApkSigningInspector.java"], capture=True)
-    return json.loads(run([java, "-cp", str(jar) + os.pathsep + str(output), "ApkSigningInspector", apk], capture=True))
+    run(
+        [
+            javac,
+            "-encoding",
+            "UTF-8",
+            "-cp",
+            jar,
+            "-d",
+            output,
+            ROOT / "scripts/ApkSigningInspector.java",
+        ],
+        capture=True,
+    )
+    return json.loads(
+        run(
+            [java, "-cp", str(jar) + os.pathsep + str(output), "ApkSigningInspector", apk],
+            capture=True,
+        )
+    )
 
 
 def verify(apk, policy=POLICY, test=False, qa=False):
+    "核对二进制清单、签名轮换链和策略；任一不一致即抛错。"
     expected = json.loads(Path(policy).read_text())
     if expected["rotationMinSdk"] != 33 or expected["minSdk"] != 28:
         raise RuntimeError("Unsupported rotation boundary")
@@ -83,13 +128,31 @@ def verify(apk, policy=POLICY, test=False, qa=False):
     # apkanalyzer reads the binary manifest, so stale Gradle metadata is insufficient.
     java, _, jar = tools()
     sdk = jar.parents[3]
-    analyzer = sdk / ("cmdline-tools/latest/bin/apkanalyzer.bat" if os.name == "nt" else "cmdline-tools/latest/bin/apkanalyzer")
+    analyzer = sdk / (
+        "cmdline-tools/latest/bin/apkanalyzer.bat"
+        if os.name == "nt"
+        else "cmdline-tools/latest/bin/apkanalyzer"
+    )
     if not analyzer.exists():
         candidates = sorted((sdk / "cmdline-tools").glob("*/bin/apkanalyzer*"))
         analyzer = next(p for p in candidates if p.suffix == (".bat" if os.name == "nt" else ""))
     import xml.etree.ElementTree as ET
+
     classpath = analyzer.parent.parent / "lib/apkanalyzer-classpath.jar"
-    xml = run([java, "-Dfile.encoding=UTF-8", "-Dcom.android.sdklib.toolsdir=" + str(analyzer.parent.parent), "-cp", classpath, "com.android.tools.apk.analyzer.ApkAnalyzerCli", "manifest", "print", apk], capture=True)
+    xml = run(
+        [
+            java,
+            "-Dfile.encoding=UTF-8",
+            "-Dcom.android.sdklib.toolsdir=" + str(analyzer.parent.parent),
+            "-cp",
+            classpath,
+            "com.android.tools.apk.analyzer.ApkAnalyzerCli",
+            "manifest",
+            "print",
+            apk,
+        ],
+        capture=True,
+    )
     manifest = ET.fromstring(xml)
     android = "{http://schemas.android.com/apk/res/android}"
     package = manifest.attrib["package"]
@@ -102,46 +165,126 @@ def verify(apk, policy=POLICY, test=False, qa=False):
         raise RuntimeError("APK application ID mismatch")
     if not test and debug != "false":
         raise RuntimeError("Release APK must not be debuggable")
-    if not test and not qa and (app_version != version()["versionName"] or code != int(version()["versionCode"])):
+    if (
+        not test
+        and not qa
+        and (app_version != version()["versionName"] or code != int(version()["versionCode"]))
+    ):
         raise RuntimeError("APK version mismatch")
-    return dict(facts, applicationId=package, debuggable=debug == "true", versionName=app_version,
-                versionCode=code, rotationMinSdk=33, lineageSha256=expected["lineageSha256"])
+    return dict(
+        facts,
+        applicationId=package,
+        debuggable=debug == "true",
+        versionName=app_version,
+        versionCode=code,
+        rotationMinSdk=33,
+        lineageSha256=expected["lineageSha256"],
+    )
 
 
 def sign(source, output, policy):
+    "使用现有签名材料签署 APK，并按策略检查输出。"
     java, _, jar = tools()
     env = dict(os.environ, **material())
-    old = ["--ks", env["ZA_OLD_KEYSTORE"], "--ks-key-alias", env["ZA_OLD_KEY_ALIAS"],
-           "--ks-pass", "env:ZA_OLD_STORE_PASSWORD", "--key-pass", "env:ZA_OLD_KEY_PASSWORD"]
-    new = ["--ks", env["ZA_KEYSTORE"], "--ks-key-alias", env["ZA_KEY_ALIAS"],
-           "--ks-pass", "env:ZA_STORE_PASSWORD", "--key-pass", "env:ZA_KEY_PASSWORD"]
+    old = [
+        "--ks",
+        env["ZA_OLD_KEYSTORE"],
+        "--ks-key-alias",
+        env["ZA_OLD_KEY_ALIAS"],
+        "--ks-pass",
+        "env:ZA_OLD_STORE_PASSWORD",
+        "--key-pass",
+        "env:ZA_OLD_KEY_PASSWORD",
+    ]
+    new = [
+        "--ks",
+        env["ZA_KEYSTORE"],
+        "--ks-key-alias",
+        env["ZA_KEY_ALIAS"],
+        "--ks-pass",
+        "env:ZA_STORE_PASSWORD",
+        "--key-pass",
+        "env:ZA_KEY_PASSWORD",
+    ]
     output.parent.mkdir(parents=True, exist_ok=True)
-    run([java, "-jar", jar, "sign", "--out", output, "--lineage", Path(policy).with_name("lineage.bin"),
-         "--rotation-min-sdk-version", "33", "--v1-signing-enabled", "false", "--v2-signing-enabled", "true",
-         "--v3-signing-enabled", "true", "--v4-signing-enabled", "false", *old, "--next-signer", *new, source], env=env, capture=True)
+    run(
+        [
+            java,
+            "-jar",
+            jar,
+            "sign",
+            "--out",
+            output,
+            "--lineage",
+            Path(policy).with_name("lineage.bin"),
+            "--rotation-min-sdk-version",
+            "33",
+            "--v1-signing-enabled",
+            "false",
+            "--v2-signing-enabled",
+            "true",
+            "--v3-signing-enabled",
+            "true",
+            "--v4-signing-enabled",
+            "false",
+            *old,
+            "--next-signer",
+            *new,
+            source,
+        ],
+        env=env,
+        capture=True,
+    )
 
 
 def package(args):
+    "构建指定渠道 APK，签署后写入与产物一致的构建记录。"
     env = dict(os.environ, **material())
     vcs = lambda *x: run(["git", *x], capture=True).strip()
     before, dirty = vcs("rev-parse", "HEAD"), bool(vcs("status", "--porcelain"))
     policy = Path(args.policy).resolve()
     if policy != POLICY.resolve() and not args.qa:
         raise RuntimeError("Disposable signing policy requires --qa")
-    tasks = [":shared:test", "assembleRelease", "assembleReleaseAndroidTest", "lintRelease", "-PandroidTestBuildType=release"]
+    tasks = [
+        ":shared:test",
+        "assembleRelease",
+        "assembleReleaseAndroidTest",
+        "lintRelease",
+        "-PandroidTestBuildType=release",
+    ]
     if args.qa_code is not None:
         if not args.qa:
             raise RuntimeError("Version code overrides are QA-only")
         tasks.append("-PzaQaVersionCode=" + str(args.qa_code))
     if os.name == "nt":
         # Existing PowerShell helper handles non-ASCII Gradle classpaths and restores environment.
-        command = ". (Join-Path $PWD 'scripts/build-common.ps1'); Invoke-ZaGradle $PWD 'android-app' @(" + ",".join("'" + t + "'" for t in tasks) + ")"
+        command = (
+            ". (Join-Path $PWD 'scripts/build-common.ps1'); Invoke-ZaGradle $PWD 'android-app' @("
+            + ",".join("'" + t + "'" for t in tasks)
+            + ")"
+        )
         run(["pwsh", "-NoProfile", "-Command", command], env=env)
     else:
-        run([ROOT / "android-app/gradlew", "-p", ROOT / "android-app", *tasks, "--no-daemon", "--console=plain"], env=env)
+        run(
+            [
+                ROOT / "android-app/gradlew",
+                "-p",
+                ROOT / "android-app",
+                *tasks,
+                "--no-daemon",
+                "--console=plain",
+            ],
+            env=env,
+        )
     app = ROOT / "android-app/app/build/outputs/apk/release/app-release.apk"
-    tests = ROOT / "android-app/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk"
-    output = Path(args.output).resolve() if args.output else ROOT / ("android-app/dist/ZA-Music-Android-" + version()["versionName"] + ".apk")
+    tests = (
+        ROOT / "android-app/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk"
+    )
+    output = (
+        Path(args.output).resolve()
+        if args.output
+        else ROOT / ("android-app/dist/ZA-Music-Android-" + version()["versionName"] + ".apk")
+    )
     if output == app.resolve():
         raise RuntimeError("Keep the Gradle intermediate separate from the distribution APK")
     sign(app, output, policy)
@@ -151,14 +294,30 @@ def package(args):
     verify(test_output, policy, test=True, qa=True)
     if before != vcs("rev-parse", "HEAD") or (not dirty and vcs("status", "--porcelain")):
         raise RuntimeError("Source changed during build")
-    record = dict(version=version()["versionName"], versionCode=facts["versionCode"], sourceCommit=before,
-                  sourceDirty=dirty, platform="android-release", artifact=output.name, sha256=sha(output),
-                  signing=facts, qa=args.qa, gradle="8.11.1", jdk="",
-                  builtAtUtc=datetime.now(timezone.utc).isoformat())
+    record = dict(
+        version=version()["versionName"],
+        versionCode=facts["versionCode"],
+        sourceCommit=before,
+        sourceDirty=dirty,
+        platform="android-release",
+        artifact=output.name,
+        sha256=sha(output),
+        signing=facts,
+        qa=args.qa,
+        gradle="8.11.1",
+        jdk="",
+        builtAtUtc=datetime.now(timezone.utc).isoformat(),
+    )
     # java -version writes stderr; this field is supplied from the runtime release file instead.
-    runtime = dict(line.split("=", 1) for line in (tools()[0].parents[1] / "release").read_text().splitlines() if "=" in line)
+    runtime = dict(
+        line.split("=", 1)
+        for line in (tools()[0].parents[1] / "release").read_text().splitlines()
+        if "=" in line
+    )
     record["jdk"] = runtime["JAVA_RUNTIME_VERSION"].strip('"')
-    output.with_suffix(output.suffix + ".build.json").write_text(json.dumps(record, indent=2) + "\n")
+    output.with_suffix(output.suffix + ".build.json").write_text(
+        json.dumps(record, indent=2) + "\n"
+    )
     print("SIGNED AND VERIFIED:", output)
     print("SIGNERS: API 28-32 legacy; API 33+ formal. TEST APK:", test_output)
 

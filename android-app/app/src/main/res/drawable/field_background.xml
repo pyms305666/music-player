@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 输入框背景资源。定义矢量图形或按状态变化的背景，供布局、菜单及代码通过 R.drawable 引用。 -->
+
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="@color/surface" />
     <corners android:radius="8dp" />

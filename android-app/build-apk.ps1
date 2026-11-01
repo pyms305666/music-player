@@ -1,3 +1,5 @@
+﻿# Android 开发 APK 构建入口。准备对应 SDK/JDK，调用 Android 验证和构建任务，再输出调试 APK 及构建记录。
+
 param(
     [switch] $Clean
 )
@@ -53,7 +55,9 @@ if (-not (Test-Path $jdkBin)) {
     }
     $resolvedJdkExtract = [IO.Path]::GetFullPath($jdkExtractRoot)
     $toolsBoundary = [IO.Path]::GetFullPath($toolsRoot).TrimEnd('\') + '\'
-    if (-not $resolvedJdkExtract.StartsWith($toolsBoundary, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid JDK extraction path' }
+    if (-not $resolvedJdkExtract.StartsWith($toolsBoundary, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Invalid JDK extraction path'
+    }
     if (Test-Path $jdkExtractRoot) {
         Remove-Item -LiteralPath $jdkExtractRoot -Recurse -Force
     }
@@ -73,23 +77,37 @@ $env:Path = (Join-Path $jdkHome "bin") + ";" + $env:Path
 # SDK command-line tools also require an ASCII path on Windows.
 if (-not (Test-Path (Join-Path $sdkRoot 'platforms/android-35/android.jar')) -or -not (Test-Path (Join-Path $sdkRoot 'build-tools/35.0.0/apksigner.bat')) -or -not (Test-Path (Join-Path $sdkRoot 'platform-tools/adb.exe'))) {
     $used = @(Get-PSDrive -PSProvider FileSystem | ForEach-Object { $_.Name.ToUpperInvariant() })
-    $letter = @('M','N','P','Q','R','S','T','U','V','W','X','Y','Z') | Where-Object { $used -notcontains $_ } | Select-Object -First 1
-    if (-not $letter) { throw 'No free drive letter for SDK setup' }
+    $letter = @('M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z') | Where-Object { $used -notcontains $_ } | Select-Object -First 1
+    if (-not $letter) {
+        throw 'No free drive letter for SDK setup'
+    }
     $drive = $letter + ':'
     & subst $drive $projectRoot
-    if ($LASTEXITCODE) { throw 'SDK path mapping failed' }
+    if ($LASTEXITCODE) {
+        throw 'SDK path mapping failed'
+    }
     try {
         $mappedSdk = Join-Path ($drive + '\') '.tools/android-sdk'
         $manager = Join-Path $mappedSdk 'cmdline-tools/latest/bin/sdkmanager.bat'
         $licenseAnswers = (1..30 | ForEach-Object { 'y' }) -join "`n"
         $licenseAnswers | & $manager "--sdk_root=$mappedSdk" --licenses | Out-Host
-        if ($LASTEXITCODE) { throw 'Android license setup failed' }
+        if ($LASTEXITCODE) {
+            throw 'Android license setup failed'
+        }
         & $manager "--sdk_root=$mappedSdk" 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
-        if ($LASTEXITCODE) { throw 'Android SDK package installation failed' }
-    } finally { & subst $drive /d }
+        if ($LASTEXITCODE) {
+            throw 'Android SDK package installation failed'
+        }
+    } finally {
+        & subst $drive /d
+    }
 }
 
-$tasks = if ($Clean) { @('clean', ':shared:clean', ':shared:test', 'assembleDebug') } else { @(':shared:test', 'assembleDebug') }
+$tasks = if ($Clean) {
+    @('clean', ':shared:clean', ':shared:test', 'assembleDebug')
+} else {
+    @(':shared:test', 'assembleDebug')
+}
 Invoke-ZaGradle $projectRoot 'android-app' $tasks
 
 $apk = Join-Path $androidRoot "app\build\outputs\apk\debug\app-debug.apk"
@@ -97,7 +115,7 @@ if (-not (Test-Path $apk)) {
     throw "APK was not generated: $apk"
 }
 $distDir = Join-Path $androidRoot "dist"
-$distApk = Join-Path $distDir ((-join @([char]90, [char]65, [char]38899, [char]20048)) + "-Android-$version-debug.apk")
+$distApk = Join-Path $distDir (( -join @([char]90, [char]65, [char]38899, [char]20048)) + "-Android-$version-debug.apk")
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 Copy-Item -LiteralPath $apk -Destination $distApk -Force
 Write-Host "APK: $distApk"

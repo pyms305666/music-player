@@ -1,163 +1,639 @@
 package app.musicplayer.online;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import app.musicplayer.model.OnlineTrackInfo;
 import app.musicplayer.playlist.*;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * PlaylistDownloads
+ * 的回归测试。使用可控夹具验证正常流程、边界输入及资源或失败处理。被测职责：歌单批量下载状态机。控制有界调度、暂停、继续、取消和失败重试，发布完成后保存条目并通知曲库。
+ */
 class PlaylistDownloadsTest {
     @TempDir Path folder;
-    @Test void thousandSongBatchIsBoundedAndFailedSongsRemainRetryable() throws Exception {
-        var store=new MemoryStore();var p=playlist(1000);store.savePlaylist(p);
-        AtomicInteger inFlight=new AtomicInteger(),maximum=new AtomicInteger(),attempts=new AtomicInteger();
-        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
-            int current=inFlight.incrementAndGet();maximum.accumulateAndGet(current,Math::max);
-            try{if(track.primaryId().equals("3")&&attempts.getAndIncrement()==0)throw new java.io.IOException("fixture unavailable");
-                Files.createDirectories(dir);Path file=dir.resolve("song.mp3");Files.write(file,new byte[]{1});return file;
-            }finally{inFlight.decrementAndGet();}
-        });
-        var downloads=new PlaylistDownloads(store,folder,(file,e,dest) -> {Files.delete(file);return "local/"+e.track().primaryId();},Runnable::run,service,(entry,token) -> List.of(entry.track()));
-        try{
-            downloads.start(p,ids(p));await(() -> !downloads.active(p.id()));
-            var result=store.findPlaylist(p.id()).orElseThrow();assertEquals(999,result.entries().stream().filter(e -> e.state()==NamedPlaylist.State.READY).count());
-            var failed=result.entries().stream().filter(e -> e.state()==NamedPlaylist.State.FAILED).findFirst().orElseThrow();assertEquals("3",failed.track().primaryId());assertTrue(maximum.get()<=2);
-            downloads.start(result,Set.of(failed.id()));await(() -> !downloads.active(p.id()));
-            assertTrue(store.findPlaylist(p.id()).orElseThrow().entries().stream().allMatch(e -> e.state()==NamedPlaylist.State.READY));
-        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
-    }
-    @Test void pausingKeepsPendingAndCancellationDoesNotEraseFinishedFiles() throws Exception {
-        var store=new MemoryStore();var p=playlist(8);store.savePlaylist(p);CountDownLatch started=new CountDownLatch(2),release=new CountDownLatch(1);
-        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
-            started.countDown();release.await();Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
-        });
-        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/"+e.id();},Runnable::run,service,(entry,token) -> List.of(entry.track()));
-        try{
-            downloads.start(p,ids(p));assertTrue(started.await(5,TimeUnit.SECONDS));downloads.pause(p.id());release.countDown();
-            await(() -> store.findPlaylist(p.id()).orElseThrow().entries().stream().filter(e -> e.state()==NamedPlaylist.State.READY).count()==2);
-            assertTrue(downloads.active(p.id()));assertTrue(downloads.paused(p.id()));downloads.cancel(p.id());await(() -> !downloads.active(p.id()));
-            var entries=store.findPlaylist(p.id()).orElseThrow().entries();assertEquals(2,entries.stream().filter(e -> e.state()==NamedPlaylist.State.READY).count());
-            assertEquals(6,entries.stream().filter(e -> e.state()==NamedPlaylist.State.CANCELLED).count());
-        }finally{release.countDown();downloads.shutdown().get(10,TimeUnit.SECONDS);}
-    }
-    @Test void repeatedRowsShareOneFileUnlessUserRequestsSeparateCopies() throws Exception {
-        var store=new MemoryStore();var track=new OnlineTrackInfo("QQ音乐","重复曲目","歌手","","","same","");
-        var first=NamedPlaylist.Entry.create(track,0);var second=NamedPlaylist.Entry.create(track,0);
-        var third=NamedPlaylist.Entry.create(track,0).status(NamedPlaylist.State.REDOWNLOAD,"");
-        var fourth=NamedPlaylist.Entry.create(track,0).status(NamedPlaylist.State.REDOWNLOAD,"");
-        var p=playlist(0).withEntries(List.of(first,second,third,fourth));store.savePlaylist(p);
-        AtomicInteger fetched=new AtomicInteger(),published=new AtomicInteger();
-        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(info,dir,cancel,progress) -> {
-            fetched.incrementAndGet();Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
-        });
-        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/"+published.incrementAndGet();},Runnable::run,service,(entry,token) -> List.of(entry.track()));
-        try{
-            downloads.start(p,ids(p));await(() -> !downloads.active(p.id()));
-            var rows=store.findPlaylist(p.id()).orElseThrow().entries();
-            assertTrue(rows.stream().allMatch(e -> e.state()==NamedPlaylist.State.READY));
-            assertEquals(3,fetched.get());assertEquals(3,published.get());
-            assertEquals(rows.get(0).location(),rows.get(1).location());
-            assertEquals(3,rows.stream().map(NamedPlaylist.Entry::location).distinct().count());
-        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
-    }
-    @Test void failedInitialDatabaseWriteDoesNotReserveJobsOrBlockRetry() throws Exception {
-        var store=new MemoryStore();var p=playlist(2);store.savePlaylist(p);store.rejectSave=true;
-        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
-            Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
-        });
-        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/"+e.id();},Runnable::run,service,(entry,token) -> List.of(entry.track()));
-        try{
-            assertThrows(IllegalStateException.class,() -> downloads.start(p,ids(p)));assertFalse(downloads.active(p.id()));
-            store.rejectSave=false;downloads.start(p,ids(p));await(() -> !downloads.active(p.id()));
-            assertTrue(store.findPlaylist(p.id()).orElseThrow().entries().stream().allMatch(e -> e.state()==NamedPlaylist.State.READY));
-        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
-    }
-    @Test void softwareChannelsArePreferredAndFailedChannelFallsBackToMatchingVersion() throws Exception {
-        var store=new MemoryStore();var p=playlist(1);store.savePlaylist(p);var requested=p.entries().get(0).track();
-        var kuwo=new OnlineTrackInfo("酷我音乐",requested.title(),requested.artist(),"","","kw","");
-        var live=new OnlineTrackInfo("酷我音乐",requested.title()+" (Live)",requested.artist(),"","","live","");
-        var migu=new OnlineTrackInfo("咪咕音乐",requested.title(),requested.artist(),"","","mg","");List<String> attempted=Collections.synchronizedList(new ArrayList<>());
-        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
-            attempted.add(track.source());if(track.source().equals("酷我音乐"))throw new java.io.IOException("fixture unavailable");
-            Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
-        });
-        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/song";},Runnable::run,service,(entry,token) -> List.of(requested,live,migu,kuwo));
-        try{
-            downloads.start(p,ids(p));await(() -> !downloads.active(p.id()));var saved=store.findPlaylist(p.id()).orElseThrow().entries().get(0);
-            assertEquals(List.of("酷我音乐","咪咕音乐"),attempted);assertEquals(NamedPlaylist.State.READY,saved.state());assertEquals(requested,saved.track());assertEquals("咪咕音乐",saved.downloadTrack().source());
-            assertEquals(saved,PlaylistCodec.entry(PlaylistCodec.entry(saved)));
-        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
-    }
-    @Test void manuallySelectedVersionSurvivesFailurePersistenceAndRestartedRetry() throws Exception {
-        var store=new MemoryStore();var p=playlist(1);var original=p.entries().get(0).track();
-        var chosen=new OnlineTrackInfo("酷我音乐",original.title()+" (Live)",original.artist(),"现场","","chosen","");
-        p=p.withEntries(List.of(p.entries().get(0).selectVersion(chosen)));store.savePlaylist(p);
-        List<OnlineTrackInfo> attempted=new ArrayList<>();AtomicInteger searches=new AtomicInteger();
-        for(int round=0;round<2;round++){
-            var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
-                attempted.add(track);if(attempted.size()==1)throw new java.io.IOException("fixture unavailable");
-                Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
-            });
-            var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/chosen";},Runnable::run,service,(entry,token) -> {searches.incrementAndGet();return List.of(original);});
-            try{
-                var latest=store.findPlaylist(p.id()).orElseThrow();downloads.start(latest,ids(latest));await(() -> !downloads.active(latest.id()));
-                var result=store.findPlaylist(p.id()).orElseThrow();var entry=result.entries().get(0);
-                assertTrue(entry.userSelectedVersion());assertEquals(chosen,entry.downloadTrack());assertEquals(original,entry.track());
-                if(round==0){
-                    assertEquals(NamedPlaylist.State.FAILED,entry.state());
-                    var restored=PlaylistCodec.entry(PlaylistCodec.entry(entry)).prepareDownload().pendingCopy(NamedPlaylist.State.MISSING);
-                    store.savePlaylist(result.withEntries(List.of(restored)));
-                }else assertEquals(NamedPlaylist.State.READY,entry.state());
-            }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
+
+    /** 提交时读取最新歌单目录，后续修改不能改变运行中和排队任务的暂存或发布目标。 */
+    @Test
+    void queuedSongsKeepDirectoryCapturedAtSubmission() throws Exception {
+        var store = new MemoryStore();
+        var stale = playlist(3);
+        Path submitted = folder.resolve("提交目录"), changed = folder.resolve("后来修改的目录");
+        var latest = located(stale, submitted);
+        store.savePlaylist(latest);
+        CountDownLatch running = new CountDownLatch(2), release = new CountDownLatch(1);
+        List<Path> stages = new CopyOnWriteArrayList<>();
+        List<String> destinations = new CopyOnWriteArrayList<>();
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 500),
+                        System::nanoTime,
+                        (track, directory, cancel, progress) -> {
+                            stages.add(directory);
+                            running.countDown();
+                            if (!release.await(10, TimeUnit.SECONDS))
+                                throw new java.io.IOException("fixture not released");
+                            cancel.check();
+                            Files.createDirectories(directory);
+                            return Files.write(
+                                    directory.resolve(track.primaryId() + ".wav"), new byte[128]);
+                        });
+        var publisher =
+                new PlaylistDownloads.Publisher() {
+                    /** 模拟桌面目标盘暂存，同时检查策略收到的确实是提交时目录。 */
+                    @Override
+                    public Path stagingDirectory(String destination, Path fallback) {
+                        return Path.of(destination)
+                                .resolve(".test-staging")
+                                .resolve(fallback.getFileName());
+                    }
+
+                    /** 发布到捕获目标，不能读取后来变化的歌单目录。 */
+                    @Override
+                    public String publish(Path file, NamedPlaylist.Entry entry, String destination)
+                            throws Exception {
+                        destinations.add(destination);
+                        Files.createDirectories(Path.of(destination));
+                        return Files.move(file, Path.of(destination).resolve(file.getFileName()))
+                                .toString();
+                    }
+                };
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder.resolve("legacy-staging"),
+                        publisher,
+                        Runnable::run,
+                        service,
+                        (entry, cancel) -> List.of(entry.track()));
+        try {
+            downloads.start(stale, ids(stale));
+            assertTrue(running.await(5, TimeUnit.SECONDS), "first two songs did not start");
+            store.savePlaylist(located(store.findPlaylist(stale.id()).orElseThrow(), changed));
+            release.countDown();
+            await(() -> !downloads.active(stale.id()));
+            assertEquals(3, stages.size());
+            assertTrue(stages.stream().allMatch(path -> path.startsWith(submitted)));
+            assertEquals(
+                    List.of(submitted.toString(), submitted.toString(), submitted.toString()),
+                    destinations);
+            assertTrue(
+                    store.findPlaylist(stale.id()).orElseThrow().entries().stream()
+                            .allMatch(
+                                    entry ->
+                                            entry.state() == NamedPlaylist.State.READY
+                                                    && Path.of(entry.location())
+                                                            .startsWith(submitted)));
+            assertEquals(
+                    changed.toString(), store.findPlaylist(stale.id()).orElseThrow().directory());
+        } finally {
+            release.countDown();
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
         }
-        var expectedAttempt=chosen.withAvailability(OnlineTrackInfo.Availability.TENTATIVE,"待下载");
-        assertEquals(List.of(expectedAttempt,expectedAttempt),attempted);assertEquals(0,searches.get());
     }
-    @Test void automaticRetryResearchesOtherChannelsInsteadOfPinningLastFailedChannel() throws Exception {
-        var store=new MemoryStore();var p=playlist(1);var original=p.entries().get(0).track();
-        var prior=new OnlineTrackInfo("酷狗音乐",original.title(),original.artist(),"","","old","");
-        var available=new OnlineTrackInfo("咪咕音乐",original.title(),original.artist(),"","","new","");
-        p=p.withEntries(List.of(p.entries().get(0).downloadFrom(prior).status(NamedPlaylist.State.FAILED,"old failure")));store.savePlaylist(p);
-        AtomicInteger searches=new AtomicInteger();List<String> attempted=new ArrayList<>();
-        var service=new OnlineMusicSearchService(new MusicCrawler(List.of(),100),System::nanoTime,(track,dir,cancel,progress) -> {
-            attempted.add(track.source());Files.createDirectories(dir);return Files.write(dir.resolve("song.mp3"),new byte[]{1});
-        });
-        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {Files.delete(file);return "local/song";},Runnable::run,service,(entry,token) -> {searches.incrementAndGet();return List.of(available);});
-        try{downloads.start(p,ids(p));await(() -> !downloads.active("playlist"));var result=store.findPlaylist("playlist").orElseThrow().entries().get(0);
-            assertEquals(1,searches.get());assertEquals(List.of("咪咕音乐"),attempted);assertFalse(result.userSelectedVersion());assertEquals(NamedPlaylist.State.READY,result.state());
-        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
+
+    /** 只改变测试歌单的保存目录，其余配置和条目状态保持原值。 */
+    private static NamedPlaylist located(NamedPlaylist original, Path directory) {
+        return new NamedPlaylist(
+                original.id(),
+                original.name(),
+                original.source(),
+                original.sourceId(),
+                original.sourceUrl(),
+                original.artworkUrl(),
+                original.creator(),
+                original.expectedCount(),
+                directory.toString(),
+                original.recursive(),
+                original.entries());
     }
-    @Test void failureReportsEachSearchOutcomeAndAllAttemptedChannels() throws Exception {
-        var store=new MemoryStore();var p=playlist(1);store.savePlaylist(p);var original=p.entries().get(0).track();
-        var kuwo=new OnlineTrackInfo("酷我音乐",original.title(),original.artist(),"","","kw","");
-        var otherVersion=new OnlineTrackInfo("咪咕音乐",original.title()+" (Live)",original.artist(),"","","mg","");
-        var providers=List.of(OnlineTestFixtures.provider("酷我音乐",() -> List.of(kuwo)),
-                OnlineTestFixtures.provider("咪咕音乐",() -> List.of(otherVersion)),
-                OnlineTestFixtures.provider("QQ音乐",List::of),
-                OnlineTestFixtures.provider("网易云音乐",() -> {throw new IllegalStateException("offline");}));
-        var service=new OnlineMusicSearchService(new MusicCrawler(providers,1000),System::nanoTime,(track,dir,cancel,progress) -> {throw new java.io.IOException("cannot resolve URL");});
-        var downloads=new PlaylistDownloads(store,folder,(file,e,d) -> {throw new AssertionError("No publication expected");},Runnable::run,service);
-        try{downloads.start(p,ids(p));await(() -> !downloads.active(p.id()));var result=store.findPlaylist(p.id()).orElseThrow().entries().get(0);
-            assertEquals(NamedPlaylist.State.FAILED,result.state());assertEquals("QQ音乐",result.downloadTrack().source());
-            assertTrue(result.message().contains("酷我音乐：同版候选 1"));assertTrue(result.message().contains("咪咕音乐：同版候选 0"));
-            assertTrue(result.message().contains("网易云音乐：搜索失败"));assertTrue(result.message().contains("已尝试：酷我音乐、QQ音乐"));
-            assertEquals(result,PlaylistCodec.entry(PlaylistCodec.entry(result)));
-        }finally{downloads.shutdown().get(10,TimeUnit.SECONDS);}
+
+    /** 验证千首歌批次仍受并发上限约束，失败歌曲可重试。 */
+    @Test
+    void thousandSongBatchIsBoundedAndFailedSongsRemainRetryable() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(1000);
+        store.savePlaylist(p);
+        AtomicInteger inFlight = new AtomicInteger(),
+                maximum = new AtomicInteger(),
+                attempts = new AtomicInteger();
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 100),
+                        System::nanoTime,
+                        (track, dir, cancel, progress) -> {
+                            int current = inFlight.incrementAndGet();
+                            maximum.accumulateAndGet(current, Math::max);
+                            try {
+                                if (track.primaryId().equals("3")
+                                        && attempts.getAndIncrement() == 0)
+                                    throw new java.io.IOException("fixture unavailable");
+                                Files.createDirectories(dir);
+                                Path file = dir.resolve("song.mp3");
+                                Files.write(file, new byte[] {1});
+                                return file;
+                            } finally {
+                                inFlight.decrementAndGet();
+                            }
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, dest) -> {
+                            Files.delete(file);
+                            return "local/" + e.track().primaryId();
+                        },
+                        Runnable::run,
+                        service,
+                        (entry, token) -> List.of(entry.track()));
+        try {
+            downloads.start(p, ids(p));
+            await(() -> !downloads.active(p.id()));
+            var result = store.findPlaylist(p.id()).orElseThrow();
+            assertEquals(
+                    999,
+                    result.entries().stream()
+                            .filter(e -> e.state() == NamedPlaylist.State.READY)
+                            .count());
+            var failed =
+                    result.entries().stream()
+                            .filter(e -> e.state() == NamedPlaylist.State.FAILED)
+                            .findFirst()
+                            .orElseThrow();
+            assertEquals("3", failed.track().primaryId());
+            assertTrue(maximum.get() <= 2);
+            downloads.start(result, Set.of(failed.id()));
+            await(() -> !downloads.active(p.id()));
+            assertTrue(
+                    store.findPlaylist(p.id()).orElseThrow().entries().stream()
+                            .allMatch(e -> e.state() == NamedPlaylist.State.READY));
+        } finally {
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
     }
-    private NamedPlaylist playlist(int count){List<NamedPlaylist.Entry> entries=new ArrayList<>();for(int i=0;i<count;i++)entries.add(NamedPlaylist.Entry.create(new OnlineTrackInfo("QQ音乐","歌"+i,"歌手","","",Integer.toString(i),""),0));
-        return new NamedPlaylist("playlist","歌单","QQ音乐","1","https://y.qq.com/n/ryqq/playlist/1","","我",count,"destination",false,entries);}
-    private Set<String> ids(NamedPlaylist p){Set<String> ids=new HashSet<>();p.entries().forEach(e -> ids.add(e.id()));return ids;}
-    private static void await(java.util.function.BooleanSupplier condition) throws Exception {long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(15);while(!condition.getAsBoolean()&&System.nanoTime()<deadline)Thread.sleep(10);assertTrue(condition.getAsBoolean());}
+
+    /** 验证暂停保留待处理项，取消不删除已完成文件。 */
+    @Test
+    void pausingKeepsPendingAndCancellationDoesNotEraseFinishedFiles() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(8);
+        store.savePlaylist(p);
+        CountDownLatch started = new CountDownLatch(2), release = new CountDownLatch(1);
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 100),
+                        System::nanoTime,
+                        (track, dir, cancel, progress) -> {
+                            started.countDown();
+                            release.await();
+                            Files.createDirectories(dir);
+                            return Files.write(dir.resolve("song.mp3"), new byte[] {1});
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, d) -> {
+                            Files.delete(file);
+                            return "local/" + e.id();
+                        },
+                        Runnable::run,
+                        service,
+                        (entry, token) -> List.of(entry.track()));
+        try {
+            downloads.start(p, ids(p));
+            assertTrue(started.await(5, TimeUnit.SECONDS));
+            downloads.pause(p.id());
+            release.countDown();
+            await(
+                    () ->
+                            store.findPlaylist(p.id()).orElseThrow().entries().stream()
+                                            .filter(e -> e.state() == NamedPlaylist.State.READY)
+                                            .count()
+                                    == 2);
+            assertTrue(downloads.active(p.id()));
+            assertTrue(downloads.paused(p.id()));
+            downloads.cancel(p.id());
+            await(() -> !downloads.active(p.id()));
+            var entries = store.findPlaylist(p.id()).orElseThrow().entries();
+            assertEquals(
+                    2,
+                    entries.stream().filter(e -> e.state() == NamedPlaylist.State.READY).count());
+            assertEquals(
+                    6,
+                    entries.stream()
+                            .filter(e -> e.state() == NamedPlaylist.State.CANCELLED)
+                            .count());
+        } finally {
+            release.countDown();
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    /** 验证重复歌单行共享一份文件，用户选择独立副本时例外。 */
+    @Test
+    void repeatedRowsShareOneFileUnlessUserRequestsSeparateCopies() throws Exception {
+        var store = new MemoryStore();
+        var track = new OnlineTrackInfo("QQ音乐", "重复曲目", "歌手", "", "", "same", "");
+        var first = NamedPlaylist.Entry.create(track, 0);
+        var second = NamedPlaylist.Entry.create(track, 0);
+        var third = NamedPlaylist.Entry.create(track, 0).status(NamedPlaylist.State.REDOWNLOAD, "");
+        var fourth =
+                NamedPlaylist.Entry.create(track, 0).status(NamedPlaylist.State.REDOWNLOAD, "");
+        var p = playlist(0).withEntries(List.of(first, second, third, fourth));
+        store.savePlaylist(p);
+        AtomicInteger fetched = new AtomicInteger(), published = new AtomicInteger();
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 100),
+                        System::nanoTime,
+                        (info, dir, cancel, progress) -> {
+                            fetched.incrementAndGet();
+                            Files.createDirectories(dir);
+                            return Files.write(dir.resolve("song.mp3"), new byte[] {1});
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, d) -> {
+                            Files.delete(file);
+                            return "local/" + published.incrementAndGet();
+                        },
+                        Runnable::run,
+                        service,
+                        (entry, token) -> List.of(entry.track()));
+        try {
+            downloads.start(p, ids(p));
+            await(() -> !downloads.active(p.id()));
+            var rows = store.findPlaylist(p.id()).orElseThrow().entries();
+            assertTrue(rows.stream().allMatch(e -> e.state() == NamedPlaylist.State.READY));
+            assertEquals(3, fetched.get());
+            assertEquals(3, published.get());
+            assertEquals(rows.get(0).location(), rows.get(1).location());
+            assertEquals(3, rows.stream().map(NamedPlaylist.Entry::location).distinct().count());
+        } finally {
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    /** 验证初始数据库写入失败不占用下载任务，后续可重试。 */
+    @Test
+    void failedInitialDatabaseWriteDoesNotReserveJobsOrBlockRetry() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(2);
+        store.savePlaylist(p);
+        store.rejectSave = true;
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 100),
+                        System::nanoTime,
+                        (track, dir, cancel, progress) -> {
+                            Files.createDirectories(dir);
+                            return Files.write(dir.resolve("song.mp3"), new byte[] {1});
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, d) -> {
+                            Files.delete(file);
+                            return "local/" + e.id();
+                        },
+                        Runnable::run,
+                        service,
+                        (entry, token) -> List.of(entry.track()));
+        try {
+            assertThrows(IllegalStateException.class, () -> downloads.start(p, ids(p)));
+            assertFalse(downloads.active(p.id()));
+            store.rejectSave = false;
+            downloads.start(p, ids(p));
+            await(() -> !downloads.active(p.id()));
+            assertTrue(
+                    store.findPlaylist(p.id()).orElseThrow().entries().stream()
+                            .allMatch(e -> e.state() == NamedPlaylist.State.READY));
+        } finally {
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    /** 验证软件优先渠道顺序，失败后回退到匹配版本。 */
+    @Test
+    void softwareChannelsArePreferredAndFailedChannelFallsBackToMatchingVersion() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(1);
+        store.savePlaylist(p);
+        var requested = p.entries().get(0).track();
+        var kuwo =
+                new OnlineTrackInfo(
+                        "酷我音乐", requested.title(), requested.artist(), "", "", "kw", "");
+        var live =
+                new OnlineTrackInfo(
+                        "酷我音乐",
+                        requested.title() + " (Live)",
+                        requested.artist(),
+                        "",
+                        "",
+                        "live",
+                        "");
+        var migu =
+                new OnlineTrackInfo(
+                        "咪咕音乐", requested.title(), requested.artist(), "", "", "mg", "");
+        List<String> attempted = Collections.synchronizedList(new ArrayList<>());
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 100),
+                        System::nanoTime,
+                        (track, dir, cancel, progress) -> {
+                            attempted.add(track.source());
+                            if (track.source().equals("酷我音乐"))
+                                throw new java.io.IOException("fixture unavailable");
+                            Files.createDirectories(dir);
+                            return Files.write(dir.resolve("song.mp3"), new byte[] {1});
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, d) -> {
+                            Files.delete(file);
+                            return "local/song";
+                        },
+                        Runnable::run,
+                        service,
+                        (entry, token) -> List.of(requested, live, migu, kuwo));
+        try {
+            downloads.start(p, ids(p));
+            await(() -> !downloads.active(p.id()));
+            var saved = store.findPlaylist(p.id()).orElseThrow().entries().get(0);
+            assertEquals(List.of("酷我音乐", "咪咕音乐"), attempted);
+            assertEquals(NamedPlaylist.State.READY, saved.state());
+            assertEquals(requested, saved.track());
+            assertEquals("咪咕音乐", saved.downloadTrack().source());
+            assertEquals(saved, PlaylistCodec.entry(PlaylistCodec.entry(saved)));
+        } finally {
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    /** 验证手选版本经失败持久化和重启重试仍保留。 */
+    @Test
+    void manuallySelectedVersionSurvivesFailurePersistenceAndRestartedRetry() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(1);
+        var original = p.entries().get(0).track();
+        var chosen =
+                new OnlineTrackInfo(
+                        "酷我音乐",
+                        original.title() + " (Live)",
+                        original.artist(),
+                        "现场",
+                        "",
+                        "chosen",
+                        "");
+        p = p.withEntries(List.of(p.entries().get(0).selectVersion(chosen)));
+        store.savePlaylist(p);
+        List<OnlineTrackInfo> attempted = new ArrayList<>();
+        AtomicInteger searches = new AtomicInteger();
+        for (int round = 0; round < 2; round++) {
+            var service =
+                    new OnlineMusicSearchService(
+                            new MusicCrawler(List.of(), 100),
+                            System::nanoTime,
+                            (track, dir, cancel, progress) -> {
+                                attempted.add(track);
+                                if (attempted.size() == 1)
+                                    throw new java.io.IOException("fixture unavailable");
+                                Files.createDirectories(dir);
+                                return Files.write(dir.resolve("song.mp3"), new byte[] {1});
+                            });
+            var downloads =
+                    new PlaylistDownloads(
+                            store,
+                            folder,
+                            (file, e, d) -> {
+                                Files.delete(file);
+                                return "local/chosen";
+                            },
+                            Runnable::run,
+                            service,
+                            (entry, token) -> {
+                                searches.incrementAndGet();
+                                return List.of(original);
+                            });
+            try {
+                var latest = store.findPlaylist(p.id()).orElseThrow();
+                downloads.start(latest, ids(latest));
+                await(() -> !downloads.active(latest.id()));
+                var result = store.findPlaylist(p.id()).orElseThrow();
+                var entry = result.entries().get(0);
+                assertTrue(entry.userSelectedVersion());
+                assertEquals(chosen, entry.downloadTrack());
+                assertEquals(original, entry.track());
+                if (round == 0) {
+                    assertEquals(NamedPlaylist.State.FAILED, entry.state());
+                    var restored =
+                            PlaylistCodec.entry(PlaylistCodec.entry(entry))
+                                    .prepareDownload()
+                                    .pendingCopy(NamedPlaylist.State.MISSING);
+                    store.savePlaylist(result.withEntries(List.of(restored)));
+                } else assertEquals(NamedPlaylist.State.READY, entry.state());
+            } finally {
+                downloads.shutdown().get(10, TimeUnit.SECONDS);
+            }
+        }
+        var expectedAttempt =
+                chosen.withAvailability(OnlineTrackInfo.Availability.TENTATIVE, "待下载");
+        assertEquals(List.of(expectedAttempt, expectedAttempt), attempted);
+        assertEquals(0, searches.get());
+    }
+
+    /** 验证自动重试重新搜索其他渠道，不固定在最后失败的来源。 */
+    @Test
+    void automaticRetryResearchesOtherChannelsInsteadOfPinningLastFailedChannel() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(1);
+        var original = p.entries().get(0).track();
+        var prior =
+                new OnlineTrackInfo("酷狗音乐", original.title(), original.artist(), "", "", "old", "");
+        var available =
+                new OnlineTrackInfo("咪咕音乐", original.title(), original.artist(), "", "", "new", "");
+        p =
+                p.withEntries(
+                        List.of(
+                                p.entries()
+                                        .get(0)
+                                        .downloadFrom(prior)
+                                        .status(NamedPlaylist.State.FAILED, "old failure")));
+        store.savePlaylist(p);
+        AtomicInteger searches = new AtomicInteger();
+        List<String> attempted = new ArrayList<>();
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(List.of(), 100),
+                        System::nanoTime,
+                        (track, dir, cancel, progress) -> {
+                            attempted.add(track.source());
+                            Files.createDirectories(dir);
+                            return Files.write(dir.resolve("song.mp3"), new byte[] {1});
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, d) -> {
+                            Files.delete(file);
+                            return "local/song";
+                        },
+                        Runnable::run,
+                        service,
+                        (entry, token) -> {
+                            searches.incrementAndGet();
+                            return List.of(available);
+                        });
+        try {
+            downloads.start(p, ids(p));
+            await(() -> !downloads.active("playlist"));
+            var result = store.findPlaylist("playlist").orElseThrow().entries().get(0);
+            assertEquals(1, searches.get());
+            assertEquals(List.of("咪咕音乐"), attempted);
+            assertFalse(result.userSelectedVersion());
+            assertEquals(NamedPlaylist.State.READY, result.state());
+        } finally {
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    /** 验证失败报告保留各搜索结果状态及全部尝试渠道。 */
+    @Test
+    void failureReportsEachSearchOutcomeAndAllAttemptedChannels() throws Exception {
+        var store = new MemoryStore();
+        var p = playlist(1);
+        store.savePlaylist(p);
+        var original = p.entries().get(0).track();
+        var kuwo =
+                new OnlineTrackInfo("酷我音乐", original.title(), original.artist(), "", "", "kw", "");
+        var otherVersion =
+                new OnlineTrackInfo(
+                        "咪咕音乐", original.title() + " (Live)", original.artist(), "", "", "mg", "");
+        var providers =
+                List.of(
+                        OnlineTestFixtures.provider("酷我音乐", () -> List.of(kuwo)),
+                        OnlineTestFixtures.provider("咪咕音乐", () -> List.of(otherVersion)),
+                        OnlineTestFixtures.provider("QQ音乐", List::of),
+                        OnlineTestFixtures.provider(
+                                "网易云音乐",
+                                () -> {
+                                    throw new IllegalStateException("offline");
+                                }));
+        var service =
+                new OnlineMusicSearchService(
+                        new MusicCrawler(providers, 1000),
+                        System::nanoTime,
+                        (track, dir, cancel, progress) -> {
+                            throw new java.io.IOException("cannot resolve URL");
+                        });
+        var downloads =
+                new PlaylistDownloads(
+                        store,
+                        folder,
+                        (file, e, d) -> {
+                            throw new AssertionError("No publication expected");
+                        },
+                        Runnable::run,
+                        service);
+        try {
+            downloads.start(p, ids(p));
+            await(() -> !downloads.active(p.id()));
+            var result = store.findPlaylist(p.id()).orElseThrow().entries().get(0);
+            assertEquals(NamedPlaylist.State.FAILED, result.state());
+            assertEquals("QQ音乐", result.downloadTrack().source());
+            assertTrue(result.message().contains("酷我音乐：同版候选 1"));
+            assertTrue(result.message().contains("咪咕音乐：同版候选 0"));
+            assertTrue(result.message().contains("网易云音乐：搜索失败"));
+            assertTrue(result.message().contains("已尝试：酷我音乐、QQ音乐"));
+            assertEquals(result, PlaylistCodec.entry(PlaylistCodec.entry(result)));
+        } finally {
+            downloads.shutdown().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    /** 组合平台返回的歌单名称、身份与条目。 */
+    private NamedPlaylist playlist(int count) {
+        List<NamedPlaylist.Entry> entries = new ArrayList<>();
+        for (int i = 0; i < count; i++)
+            entries.add(
+                    NamedPlaylist.Entry.create(
+                            new OnlineTrackInfo(
+                                    "QQ音乐", "歌" + i, "歌手", "", "", Integer.toString(i), ""),
+                            0));
+        return new NamedPlaylist(
+                "playlist",
+                "歌单",
+                "QQ音乐",
+                "1",
+                "https://y.qq.com/n/ryqq/playlist/1",
+                "",
+                "我",
+                count,
+                "destination",
+                false,
+                entries);
+    }
+
+    /** 取得测试歌单条目的稳定身份集合。 */
+    private Set<String> ids(NamedPlaylist p) {
+        Set<String> ids = new HashSet<>();
+        p.entries().forEach(e -> ids.add(e.id()));
+        return ids;
+    }
+
+    /** 等待测试条件满足；到达期限仍未满足时报告失败。 */
+    private static void await(java.util.function.BooleanSupplier condition) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+        while (!condition.getAsBoolean() && System.nanoTime() < deadline) Thread.sleep(10);
+        assertTrue(condition.getAsBoolean());
+    }
+
+    /** 在内存模拟歌单存储，供下载与工作区回归断言。 */
     static final class MemoryStore implements PlaylistStore {
-        private final Map<String,NamedPlaylist> values=new LinkedHashMap<>();
+        private final Map<String, NamedPlaylist> values = new LinkedHashMap<>();
         boolean rejectSave;
-        public synchronized List<NamedPlaylist> loadPlaylists(){return List.copyOf(values.values());}
-        public synchronized void savePlaylist(NamedPlaylist p){if(rejectSave)throw new IllegalStateException("fixture database write failure");values.put(p.id(),p);}
-        public synchronized void updatePlaylistEntry(String id,NamedPlaylist.Entry item){var p=values.get(id);if(p==null)throw new IllegalStateException();values.put(id,p.withEntries(p.entries().stream().map(e -> e.id().equals(item.id())?item:e).toList()));}
-        public synchronized void deletePlaylist(String id){values.remove(id);}
+
+        /** 从本平台数据库读取对应歌单、歌曲或歌词缓存。 */
+        public synchronized List<NamedPlaylist> loadPlaylists() {
+            return List.copyOf(values.values());
+        }
+
+        /** 把对应歌单、歌曲或歌词数据写入数据库，遵守事务及线程约定。 */
+        public synchronized void savePlaylist(NamedPlaylist p) {
+            if (rejectSave) throw new IllegalStateException("fixture database write failure");
+            values.put(p.id(), p);
+        }
+
+        /** 保存歌单中指定条目的最新状态与配置。 */
+        public synchronized void updatePlaylistEntry(String id, NamedPlaylist.Entry item) {
+            var p = values.get(id);
+            if (p == null) throw new IllegalStateException();
+            values.put(
+                    id,
+                    p.withEntries(
+                            p.entries().stream()
+                                    .map(e -> e.id().equals(item.id()) ? item : e)
+                                    .toList()));
+        }
+
+        /** 删除歌单及其条目记录，保留关联音频和歌词。 */
+        public synchronized void deletePlaylist(String id) {
+            values.remove(id);
+        }
     }
 }
