@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 封面背景流光资源。放射渐变圆形光晕，置于专辑封面背后形成深空氛围。 -->
+
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="110dp"
+        android:startColor="#4D4FA5FF"
+        android:endColor="#00000000" />
+</shape>

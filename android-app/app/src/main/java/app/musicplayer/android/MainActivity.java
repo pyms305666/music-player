@@ -122,6 +122,8 @@ public final class MainActivity extends AppCompatActivity {
     private TextView statusText;
     private TextView titleText;
     private TextView artistText;
+    private TextView currentTrackBadge;
+    private View artworkGlow;
     private TextView lyricsText;
     private TextView currentTimeText;
     private TextView durationText;
@@ -205,6 +207,8 @@ public final class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         titleText = findViewById(R.id.titleText);
         artistText = findViewById(R.id.artistText);
+        currentTrackBadge = findViewById(R.id.currentTrackBadge);
+        artworkGlow = findViewById(R.id.artworkGlow);
         lyricsText = findViewById(R.id.lyricsText);
         currentTimeText = findViewById(R.id.currentTimeText);
         durationText = findViewById(R.id.durationText);
@@ -257,6 +261,11 @@ public final class MainActivity extends AppCompatActivity {
         artworkView.getLayoutParams().width = dp(artworkDp);
         artworkView.getLayoutParams().height = dp(artworkDp);
         artworkView.requestLayout();
+        if (artworkGlow != null && artworkGlow.getLayoutParams() != null) {
+            artworkGlow.getLayoutParams().width = dp(artworkDp + 24);
+            artworkGlow.getLayoutParams().height = dp(artworkDp + 24);
+            artworkGlow.requestLayout();
+        }
     }
 
     /** 创建曲库及在线结果适配器，并连接选择和播放事件。 */
@@ -734,10 +743,41 @@ public final class MainActivity extends AppCompatActivity {
         displayTrack(entry);
     }
 
+    /** 更新当前播放音质角标（FLAC / MP3）。 */
+    private void updateCurrentTrackBadge(@Nullable String pathOrFileName) {
+        if (currentTrackBadge == null) return;
+        if (TextUtils.isEmpty(pathOrFileName)) {
+            currentTrackBadge.setVisibility(View.GONE);
+            return;
+        }
+        String lower = pathOrFileName.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") || lower.endsWith(".aiff")) {
+            currentTrackBadge.setText("FLAC");
+            currentTrackBadge.setBackgroundResource(R.drawable.badge_flac_background);
+            currentTrackBadge.setTextColor(ContextCompat.getColor(this, R.color.badge_flac_text));
+            currentTrackBadge.setVisibility(View.VISIBLE);
+        } else if (lower.endsWith(".mp3") || lower.endsWith(".m4a") || lower.endsWith(".aac") || lower.endsWith(".ogg")) {
+            currentTrackBadge.setText("MP3");
+            currentTrackBadge.setBackgroundResource(R.drawable.badge_std_background);
+            currentTrackBadge.setTextColor(ContextCompat.getColor(this, R.color.badge_std_text));
+            currentTrackBadge.setVisibility(View.VISIBLE);
+        } else {
+            currentTrackBadge.setVisibility(View.GONE);
+        }
+    }
+
     /** 更新当前歌曲名称、歌手及播放标记。 */
     private void displayTrack(TrackEntry entry) {
         titleText.setText(entry.track().title());
         artistText.setText(entry.track().artist());
+        String badgeSource = entry.fileName();
+        if (TextUtils.isEmpty(badgeSource) && entry.track() != null && entry.track().path() != null) {
+            badgeSource = entry.track().path().toString();
+        }
+        if (TextUtils.isEmpty(badgeSource)) {
+            badgeSource = entry.location();
+        }
+        updateCurrentTrackBadge(badgeSource);
         loadEmbeddedArtwork(entry);
         loadLyrics(entry);
         showStatus("正在播放：" + entry.track().title());
@@ -835,6 +875,7 @@ public final class MainActivity extends AppCompatActivity {
         setRefreshLoading(false);
         titleText.setText(info.title());
         artistText.setText(info.artist());
+        updateCurrentTrackBadge(null);
         if (!TextUtils.isEmpty(info.artworkUrl())) loadArtwork(info.artworkUrl());
         else showArtworkPlaceholder();
         onlineService
@@ -1011,6 +1052,7 @@ public final class MainActivity extends AppCompatActivity {
                 player.clearMediaItems();
             }
             currentTrack = null;
+            updateCurrentTrackBadge(null);
         }
         CompletableFuture.supplyAsync(
                         () -> {

@@ -1,11 +1,13 @@
 package app.musicplayer.android.ui;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
@@ -14,6 +16,7 @@ import app.musicplayer.android.R;
 import app.musicplayer.android.data.TrackEntry;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -72,10 +75,26 @@ public final class TrackAdapter extends ListAdapter<TrackRow, TrackAdapter.Holde
     public void onBindViewHolder(@NonNull Holder holder, int position) {
         TrackRow row = getItem(position);
         holder.title.setText(row.title());
+        Context context = holder.itemView.getContext();
         holder.subtitle.setText(
-                holder.itemView
-                        .getContext()
-                        .getString(R.string.track_subtitle, row.artist(), row.fileName()));
+                context.getString(R.string.track_subtitle, row.artist(), row.fileName()));
+
+        String fileName = row.fileName();
+        String lower = fileName != null ? fileName.toLowerCase(Locale.ROOT) : "";
+        if (lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") || lower.endsWith(".aiff")) {
+            holder.itemBadge.setText("FLAC");
+            holder.itemBadge.setBackgroundResource(R.drawable.badge_flac_background);
+            holder.itemBadge.setTextColor(ContextCompat.getColor(context, R.color.badge_flac_text));
+            holder.itemBadge.setVisibility(View.VISIBLE);
+        } else if (lower.endsWith(".mp3") || lower.endsWith(".m4a") || lower.endsWith(".aac") || lower.endsWith(".ogg")) {
+            holder.itemBadge.setText("MP3");
+            holder.itemBadge.setBackgroundResource(R.drawable.badge_std_background);
+            holder.itemBadge.setTextColor(ContextCompat.getColor(context, R.color.badge_std_text));
+            holder.itemBadge.setVisibility(View.VISIBLE);
+        } else {
+            holder.itemBadge.setVisibility(View.GONE);
+        }
+
         holder.itemView.setBackgroundResource(
                 Objects.equals(row.key(), selectedKey)
                         ? R.drawable.track_item_selected_background
@@ -100,12 +119,14 @@ public final class TrackAdapter extends ListAdapter<TrackRow, TrackAdapter.Holde
     static final class Holder extends RecyclerView.ViewHolder {
         final TextView title;
         final TextView subtitle;
+        final TextView itemBadge;
 
         /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
         Holder(View view) {
             super(view);
             title = view.findViewById(R.id.itemTitle);
             subtitle = view.findViewById(R.id.itemSubtitle);
+            itemBadge = view.findViewById(R.id.itemBadge);
         }
     }
 }
