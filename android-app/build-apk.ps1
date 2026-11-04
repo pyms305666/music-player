@@ -1,4 +1,4 @@
-﻿# Android 开发 APK 构建入口。准备对应 SDK/JDK，调用 Android 验证和构建任务，再输出调试 APK 及构建记录。
+# Android 开发 APK 构建入口。准备对应 SDK/JDK，调用 Android 验证和构建任务，再输出调试 APK 及构建记录。
 
 param(
     [switch] $Clean
@@ -118,6 +118,7 @@ $distDir = Join-Path $androidRoot "dist"
 $distApk = Join-Path $distDir (( -join @([char]90, [char]65, [char]38899, [char]20048)) + "-Android-$version-debug.apk")
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 Copy-Item -LiteralPath $apk -Destination $distApk -Force
+Copy-Item -LiteralPath $apk -Destination (Join-Path $distDir "ZA-Music-Android-$version.apk") -Force
 Write-Host "APK: $distApk"
 
 Write-ZaBuildRecord $projectRoot $distApk "android-debug" $sourceSnapshot

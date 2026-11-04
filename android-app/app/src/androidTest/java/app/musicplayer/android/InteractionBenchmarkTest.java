@@ -226,7 +226,7 @@ public class InteractionBenchmarkTest {
             text.append(lyrics.lines().get(i).text());
             if (i == active) {
                 text.setSpan(
-                        new ForegroundColorSpan(Color.rgb(240, 90, 60)),
+                        new ForegroundColorSpan(Color.rgb(44, 230, 230)),
                         start,
                         text.length(),
                         Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);

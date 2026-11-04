@@ -1,0 +1,56 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="196dp"
+    android:height="196dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Outer Vinyl Body -->
+    <path
+        android:fillColor="#151A24"
+        android:pathData="M60,4 A56,56 0 1,0 60,116 A56,56 0 1,0 60,4 Z" />
+
+    <!-- Vinyl Outer Rim Highlight -->
+    <path
+        android:strokeColor="#253042"
+        android:strokeWidth="1.2"
+        android:pathData="M60,7 A53,53 0 1,0 60,113 A53,53 0 1,0 60,7 Z" />
+
+    <!-- Grooves (sound tracks) -->
+    <path
+        android:strokeColor="#1E2636"
+        android:strokeWidth="1.0"
+        android:pathData="M60,14 A46,46 0 1,0 60,106 A46,46 0 1,0 60,14 Z" />
+
+    <path
+        android:strokeColor="#222C3E"
+        android:strokeWidth="1.0"
+        android:pathData="M60,21 A39,39 0 1,0 60,99 A39,39 0 1,0 60,21 Z" />
+
+    <path
+        android:strokeColor="#1E2636"
+        android:strokeWidth="1.0"
+        android:pathData="M60,28 A32,32 0 1,0 60,92 A32,32 0 1,0 60,28 Z" />
+
+    <!-- Inner Label Background -->
+    <path
+        android:fillColor="#111620"
+        android:strokeColor="#304FA5FF"
+        android:strokeWidth="1.5"
+        android:pathData="M60,38 A22,22 0 1,0 60,82 A22,22 0 1,0 60,38 Z" />
+
+    <!-- Cyan Accent Ring -->
+    <path
+        android:strokeColor="#2CE6E6"
+        android:strokeWidth="1.2"
+        android:pathData="M60,45 A15,15 0 1,0 60,75 A15,15 0 1,0 60,45 Z" />
+
+    <!-- Center Spindle Hole -->
+    <path
+        android:fillColor="#0B0E14"
+        android:pathData="M60,55 A5,5 0 1,0 60,65 A5,5 0 1,0 60,55 Z" />
+
+    <!-- Glowing Cyan Note Emblem -->
+    <path
+        android:fillColor="#2CE6E6"
+        android:pathData="M59,49 v9.2 a3.2,3.2 0 1,0 2.2,3.0 v-7.5 h4.5 v-4.7 z" />
+</vector>

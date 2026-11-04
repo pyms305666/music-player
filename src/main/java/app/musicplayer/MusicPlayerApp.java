@@ -801,7 +801,14 @@ public final class MusicPlayerApp extends Application {
             desktopHero.getStyleClass().add("desktop-hero");
             desktopHero.setAlignment(Pos.CENTER_LEFT);
             HBox.setHgrow(lyricsMetaBox, Priority.ALWAYS);
-            nowPlaying = new VBox(16, desktopHero, lyricsShell, lyricsToolbar);
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(144, 144);
+            clip.setArcWidth(24);
+            clip.setArcHeight(24);
+            artworkImageView.setClip(clip);
+            lyricsShell.getChildren().add(lyricsToolbar);
+            StackPane.setAlignment(lyricsToolbar, Pos.TOP_RIGHT);
+            StackPane.setMargin(lyricsToolbar, new Insets(8, 12, 0, 0));
+            nowPlaying = new VBox(16, desktopHero, lyricsShell);
         }
         nowPlaying.getStyleClass().add("content-foreground");
         nowPlaying.setPadding(layoutMode.isMobile() ? new Insets(24, 22, 16, 22) : new Insets(24));
@@ -829,13 +836,14 @@ public final class MusicPlayerApp extends Application {
 
     /** 创建歌词刷新、锁定、字号及纯歌词模式控件。 */
     private HBox createLyricsToolbar() {
-        lyricsLockButton = createLyricsToolButton("锁定歌词", this::toggleLyricsLock);
-        Button zoomInButton = createLyricsToolButton("放大字体", () -> changeLyricsFontSize(1.5));
-        Button zoomOutButton = createLyricsToolButton("缩小字体", () -> changeLyricsFontSize(-1.5));
-        pureLyricsButton = createLyricsToolButton("纯歌词模式", this::togglePureLyricsMode);
+        lyricsLockButton = createLyricsToolButton("🔒", "锁定歌词滚动", this::toggleLyricsLock);
+        Button zoomInButton = createLyricsToolButton("A⁺", "放大字体", () -> changeLyricsFontSize(1.5));
+        Button zoomOutButton = createLyricsToolButton("A⁻", "缩小字体", () -> changeLyricsFontSize(-1.5));
+        pureLyricsButton = createLyricsToolButton("⤢", "纯歌词模式", this::togglePureLyricsMode);
         Button reloadLyricsButton =
                 createLyricsToolButton(
-                        "刷新歌词",
+                        "⟳",
+                        "重新获取联网歌词",
                         () -> {
                             if (currentTrack != null) loadLyrics(currentTrack, true);
                         });
@@ -854,7 +862,7 @@ public final class MusicPlayerApp extends Application {
                                 spacer)
                         : new HBox(
                                 8,
-                                spacer,
+
                                 reloadLyricsButton,
                                 lyricsLockButton,
                                 zoomInButton,
@@ -866,9 +874,12 @@ public final class MusicPlayerApp extends Application {
     }
 
     /** 创建具有统一样式和操作回调的歌词工具按钮。 */
-    private Button createLyricsToolButton(String text, Runnable action) {
+    private Button createLyricsToolButton(String text, String tooltipText, Runnable action) {
         Button button = new Button(text);
         button.getStyleClass().add("toolbar-button");
+        if (tooltipText != null) {
+            button.setTooltip(new Tooltip(tooltipText));
+        }
         button.setFocusTraversable(!layoutMode.isMobile());
         button.setOnAction(e -> action.run());
         return button;
@@ -923,6 +934,10 @@ public final class MusicPlayerApp extends Application {
     private void updateLyricsToolbarState() {
         toggleToolbarButtonState(lyricsLockButton, lyricsAutoScrollLocked);
         toggleToolbarButtonState(pureLyricsButton, pureLyricsMode);
+        if (lyricsLockButton != null) {
+            lyricsLockButton.setText(lyricsAutoScrollLocked ? "🔒" : "🔓");
+            lyricsLockButton.setTooltip(new Tooltip(lyricsAutoScrollLocked ? "已锁定歌词滚动" : "自动滚动已开启"));
+        }
     }
 
     /** 按启用状态切换工具按钮的样式与选择标记。 */
@@ -956,6 +971,16 @@ public final class MusicPlayerApp extends Application {
         progressSlider = playbackControls.progressSlider();
         volumeSlider = playbackControls.volumeSlider();
         timeLabel = playbackControls.timeLabel();
+        if (artworkImageView != null) {
+            artworkImageView
+                    .imageProperty()
+                    .addListener(
+                            (obs, oldImg, newImg) -> {
+                                if (playbackControls != null) {
+                                    playbackControls.setArtwork(newImg);
+                                }
+                            });
+        }
         return playbackControls;
     }
 

@@ -189,10 +189,10 @@
                             android:background="@drawable/artwork_background"
                             android:clipToOutline="true"
                             android:contentDescription="@string/artwork_description"
-                            android:padding="48dp"
+
                             android:scaleType="centerCrop"
-                            android:src="@drawable/ic_music_note"
-                            app:tint="@color/text_muted" />
+                            android:src="@drawable/vinyl_placeholder"
+ />
                     </FrameLayout>
 
                     <TextView

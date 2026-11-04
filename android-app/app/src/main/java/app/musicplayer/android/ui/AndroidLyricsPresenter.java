@@ -21,7 +21,7 @@ import app.musicplayer.model.Lyrics;
 public final class AndroidLyricsPresenter implements AutoCloseable {
     private final TextView text;
     private final ScrollView scroll;
-    private final ForegroundColorSpan color = new ForegroundColorSpan(Color.rgb(240, 90, 60));
+    private final ForegroundColorSpan color = new ForegroundColorSpan(Color.rgb(44, 230, 230));
     private final StyleSpan bold = new StyleSpan(android.graphics.Typeface.BOLD);
     private final ViewTreeObserver.OnPreDrawListener beforeDraw =
             () -> {

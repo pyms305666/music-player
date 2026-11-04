@@ -15,23 +15,30 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.util.function.DoubleConsumer;
 
 /** 底部播放控制栏，统一管理进度条、音量条和传输按钮的稳定尺寸。 */
 public final class PlaybackControls extends VBox {
-    private final Button playPauseButton = new Button("播放");
+    private final Button playPauseButton = new Button("▶");
     private final Slider progressSlider = new Slider(0, 1, 0);
     private final Slider volumeSlider = new Slider(0, 1, 0.75);
     private final Label timeLabel = new Label("00:00 / 00:00");
     private final Label trackTitleLabel = new Label("未播放歌曲");
     private final Label trackArtistLabel = new Label("选择歌曲开始播放");
+    private final ImageView trackThumbView = new ImageView();
+    private final Label trackThumbPlaceholder = new Label("♫");
+    private final StackPane trackThumbBox = new StackPane(trackThumbPlaceholder, trackThumbView);
     private boolean seeking;
 
     /** 初始化本类型的状态和依赖；生命周期与资源归属见类型说明。 */
@@ -46,10 +53,25 @@ public final class PlaybackControls extends VBox {
             ComboBox<PlayMode> playModeBox) {
         super(8);
 
-        Button previousButton = controlButton("上一首", previousAction);
+        Button previousButton = controlButton("⏮", previousAction, "上一首");
         playPauseButton.getStyleClass().addAll("primary-button", "control-button", "play-button");
+        playPauseButton.setTooltip(new Tooltip("播放 / 暂停"));
         playPauseButton.setOnAction(event -> playPauseAction.run());
-        Button nextButton = controlButton("下一首", nextAction);
+        Button nextButton = controlButton("⏭", nextAction, "下一首");
+
+        trackThumbView.setFitWidth(38);
+        trackThumbView.setFitHeight(38);
+        trackThumbView.setPreserveRatio(true);
+        trackThumbView.setVisible(false);
+        javafx.scene.shape.Rectangle thumbClip = new javafx.scene.shape.Rectangle(38, 38);
+        thumbClip.setArcWidth(12);
+        thumbClip.setArcHeight(12);
+        trackThumbView.setClip(thumbClip);
+        trackThumbPlaceholder.getStyleClass().add("player-track-thumb-icon");
+        trackThumbBox.getStyleClass().add("player-track-thumb");
+        trackThumbBox.setMinSize(38, 38);
+        trackThumbBox.setPrefSize(38, 38);
+        trackThumbBox.setMaxSize(38, 38);
 
         progressSlider.getStyleClass().add("song-progress-slider");
         progressSlider.setMinWidth(240);
@@ -75,12 +97,12 @@ public final class PlaybackControls extends VBox {
         progressRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(progressSlider, Priority.ALWAYS);
 
-        HBox transportGroup = new HBox(10, previousButton, playPauseButton, nextButton);
+        HBox transportGroup = new HBox(12, previousButton, playPauseButton, nextButton);
         transportGroup.getStyleClass().add("transport-group");
-        transportGroup.setAlignment(Pos.CENTER_LEFT);
+        transportGroup.setAlignment(Pos.CENTER);
 
-        Label volumeLabel = new Label("音量");
-        volumeLabel.getStyleClass().add("muted-label");
+        Label volumeLabel = new Label("🔊");
+        volumeLabel.getStyleClass().add("volume-icon");
         volumeSlider.getStyleClass().add("volume-slider");
         volumeSlider.setMinWidth(72);
         volumeSlider.setPrefWidth(96);
@@ -143,11 +165,13 @@ public final class PlaybackControls extends VBox {
             progressSpacer.setManaged(false);
             trackTitleLabel.getStyleClass().add("player-track-title");
             trackArtistLabel.getStyleClass().add("player-track-artist");
-            VBox trackInfo = new VBox(3, trackTitleLabel, trackArtistLabel);
+            HBox trackInfo =
+                    new HBox(10, trackThumbBox, new VBox(2, trackTitleLabel, trackArtistLabel));
             trackInfo.getStyleClass().add("player-track-info");
-            trackInfo.setMinWidth(180);
+            trackInfo.setAlignment(Pos.CENTER_LEFT);
+            trackInfo.setMinWidth(190);
             trackInfo.setPrefWidth(240);
-            trackInfo.setMaxWidth(280);
+            trackInfo.setMaxWidth(300);
             Region leadingSpacer = new Region();
             Region trailingSpacer = new Region();
             HBox.setHgrow(leadingSpacer, Priority.ALWAYS);
@@ -162,13 +186,13 @@ public final class PlaybackControls extends VBox {
                             trailingSpacer,
                             playModeBox,
                             volumeGroup);
-            controlRow.setMinHeight(48);
-            controlRow.setPrefHeight(48);
-            controlRow.setMaxHeight(48);
+            controlRow.setMinHeight(52);
+            controlRow.setPrefHeight(52);
+            controlRow.setMaxHeight(52);
             setPadding(new Insets(8, 24, 10, 24));
-            setMinHeight(96);
-            setPrefHeight(96);
-            setMaxHeight(96);
+            setMinHeight(100);
+            setPrefHeight(100);
+            setMaxHeight(100);
         }
 
         playPauseButton.disableProperty().bind(Bindings.isEmpty(tracks));
@@ -200,11 +224,27 @@ public final class PlaybackControls extends VBox {
     public void setTrackInfo(String title, String artist) {
         trackTitleLabel.setText(title == null || title.isBlank() ? "未播放歌曲" : title);
         trackArtistLabel.setText(artist == null || artist.isBlank() ? "选择歌曲开始播放" : artist);
+        if (title == null || title.isBlank()) {
+            setArtwork(null);
+        }
+    }
+
+    /** 更新控制栏缩略图。 */
+    public void setArtwork(Image image) {
+        if (image != null) {
+            trackThumbView.setImage(image);
+            trackThumbView.setVisible(true);
+            trackThumbPlaceholder.setVisible(false);
+        } else {
+            trackThumbView.setImage(null);
+            trackThumbView.setVisible(false);
+            trackThumbPlaceholder.setVisible(true);
+        }
     }
 
     /** 根据实际播放状态切换播放或暂停按钮外观。 */
     public void setPlaying(boolean playing) {
-        playPauseButton.setText(playing ? "暂停" : "播放");
+        playPauseButton.setText(playing ? "⏸" : "▶");
     }
 
     /** 检查用户是否正在拖动进度，避免自动刷新覆盖手动操作。 */
@@ -299,9 +339,12 @@ public final class PlaybackControls extends VBox {
     }
 
     /** 创建统一外观及提示的播放控制按钮。 */
-    private Button controlButton(String text, Runnable action) {
+    private Button controlButton(String text, Runnable action, String tooltipText) {
         Button button = new Button(text);
         button.getStyleClass().add("control-button");
+        if (tooltipText != null) {
+            button.setTooltip(new Tooltip(tooltipText));
+        }
         button.setOnAction(event -> action.run());
         return button;
     }

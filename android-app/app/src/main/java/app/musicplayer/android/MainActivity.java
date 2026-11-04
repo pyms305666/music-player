@@ -856,11 +856,11 @@ public final class MainActivity extends AppCompatActivity {
     /** 显示默认封面占位，清除上一首歌曲的图像。 */
     private void showArtworkPlaceholder() {
         Glide.with(this).clear(artworkView);
-        int padding = dp(48);
-        artworkView.setPadding(padding, padding, padding, padding);
+
+        artworkView.setPadding(0, 0, 0, 0);
         ImageViewCompat.setImageTintList(
-                artworkView, ColorStateList.valueOf(getColor(R.color.text_muted)));
-        artworkView.setImageResource(R.drawable.ic_music_note);
+                artworkView, null);
+        artworkView.setImageResource(R.drawable.vinyl_placeholder);
     }
 
     /** 从当前搜索输入启动在线查询，结果由专用协调器更新。 */

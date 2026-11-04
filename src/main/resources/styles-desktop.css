@@ -233,15 +233,21 @@
 }
 
 .desktop-root .artwork-tile {
-    -fx-background-color: -app-raised;
-    -fx-background-radius: 12px;
-    -fx-border-color: -app-border;
-    -fx-border-radius: 12px;
+    -fx-background-color:
+        radial-gradient(center 50% 50%, radius 50%, #151A24 0%, #11151E 48%, #1A2230 49%, #121620 50%, #1E2738 68%, #121620 69%, #151A24 100%),
+        radial-gradient(center 50% 50%, radius 22%, #0B0E14 0%, #101520 80%, rgba(44, 230, 230, 0.4) 95%, transparent 100%);
+    -fx-background-radius: 50%;
+    -fx-border-color: rgba(44, 230, 230, 0.25);
+    -fx-border-width: 1.5px;
+    -fx-border-radius: 50%;
+    -fx-effect: dropshadow(gaussian, rgba(44, 230, 230, 0.25), 20, 0.15, 0, 4);
+    -fx-alignment: center;
 }
 
 .desktop-root .artwork-placeholder {
-    -fx-text-fill: #5E728B;
-    -fx-font-size: 52px;
+    -fx-text-fill: #2CE6E6;
+    -fx-font-size: 40px;
+    -fx-effect: dropshadow(gaussian, rgba(44, 230, 230, 0.6), 10, 0.3, 0, 0);
 }
 
 .desktop-root .artwork-background {
@@ -292,17 +298,40 @@
 
 .desktop-root .lyrics-toolbar {
     -fx-alignment: center-right;
+    -fx-background-color: rgba(19, 25, 36, 0.75);
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 20px;
+    -fx-padding: 3 8 3 8;
+    -fx-spacing: 6;
 }
 
 .desktop-root .toolbar-button {
-    -fx-font-size: 12px;
-    -fx-padding: 6 10;
+    -fx-font-size: 13px;
+    -fx-min-width: 28px;
+    -fx-pref-width: 28px;
+    -fx-max-width: 28px;
+    -fx-min-height: 28px;
+    -fx-pref-height: 28px;
+    -fx-max-height: 28px;
+    -fx-padding: 0;
+    -fx-background-radius: 14px;
+    -fx-background-color: transparent;
+    -fx-text-fill: -app-secondary;
+    -fx-alignment: center;
+    -fx-cursor: hand;
+}
+
+.desktop-root .toolbar-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-text-fill: -app-accent-glow;
 }
 
 .desktop-root .toolbar-button-active {
-    -fx-background-color: rgba(79, 165, 255, 0.25);
-    -fx-border-color: -app-accent;
-    -fx-text-fill: white;
+    -fx-background-color: rgba(44, 230, 230, 0.2);
+    -fx-border-color: #2CE6E6;
+    -fx-border-radius: 14px;
+    -fx-text-fill: #2CE6E6;
 }
 
 .desktop-root .online-panel {
@@ -434,19 +463,72 @@
     -fx-font-size: 11px;
 }
 
-.desktop-root .control-button {
-    -fx-min-width: 72px;
-    -fx-pref-width: 72px;
-    -fx-max-width: 72px;
+.desktop-root .player-track-thumb {
+    -fx-min-width: 38px;
+    -fx-pref-width: 38px;
+    -fx-max-width: 38px;
     -fx-min-height: 38px;
     -fx-pref-height: 38px;
     -fx-max-height: 38px;
+    -fx-background-radius: 8px;
+    -fx-background-color: #151A24;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-radius: 8px;
+    -fx-alignment: center;
+}
+
+.desktop-root .player-track-thumb-icon {
+    -fx-text-fill: #2CE6E6;
+    -fx-font-size: 16px;
+}
+
+.desktop-root .volume-icon {
+    -fx-text-fill: -app-secondary;
+    -fx-font-size: 14px;
+}
+
+.desktop-root .control-button {
+    -fx-min-width: 38px;
+    -fx-pref-width: 38px;
+    -fx-max-width: 38px;
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+    -fx-max-height: 38px;
+    -fx-background-radius: 19px;
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-text-fill: -app-text;
+    -fx-font-size: 15px;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+    -fx-alignment: center;
+}
+
+.desktop-root .control-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.14);
+    -fx-text-fill: #2CE6E6;
 }
 
 .desktop-root .play-button {
-    -fx-min-width: 80px;
-    -fx-pref-width: 80px;
-    -fx-max-width: 80px;
+    -fx-min-width: 48px;
+    -fx-pref-width: 48px;
+    -fx-max-width: 48px;
+    -fx-min-height: 48px;
+    -fx-pref-height: 48px;
+    -fx-max-height: 48px;
+    -fx-background-radius: 24px;
+    -fx-background-color: linear-gradient(to bottom right, #4FA5FF, #2CE6E6);
+    -fx-text-fill: #0B0E14;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+    -fx-alignment: center;
+    -fx-effect: dropshadow(gaussian, rgba(44, 230, 230, 0.45), 14, 0.2, 0, 2);
+}
+
+.desktop-root .play-button:hover {
+    -fx-background-color: linear-gradient(to bottom right, #6AB5FF, #45EEEE);
+    -fx-effect: dropshadow(gaussian, rgba(44, 230, 230, 0.7), 18, 0.3, 0, 2);
 }
 
 .desktop-root .desktop-play-mode {
