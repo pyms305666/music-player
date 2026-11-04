@@ -23,3 +23,8 @@ Thumbs.db
 *.p12
 *.dpapi
 android-app/dist/
+
+# Worktrees and agent scratch
+.worktrees/
+worktrees/
+.superpowers/
