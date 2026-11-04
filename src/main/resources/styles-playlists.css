@@ -2,16 +2,16 @@
 
 /* Shared by playlist windows and their owned dialogs. Keep app content effects out of dialogs. */
 .playlist-root {
-    -fx-background-color: #101318;
+    -fx-background-color: #0B0E14;
     -fx-font-size: 13px;
 }
 .playlist-root .label,
 .playlist-root .check-box,
 .playlist-root .text-field {
-    -fx-text-fill: #f4f7fb;
+    -fx-text-fill: #F4F7FB;
 }
 .playlist-root .muted-label {
-    -fx-text-fill: #b1bdcb;
+    -fx-text-fill: #8F9CAE;
     -fx-font-size: 12px;
 }
 .playlist-root .playlist-heading {
@@ -19,60 +19,60 @@
     -fx-font-weight: bold;
 }
 .playlist-root .playlist-operation {
-    -fx-text-fill: #9bc4ff;
+    -fx-text-fill: #4FA5FF;
 }
 .playlist-root .playlist-error {
     -fx-text-fill: #ffb4a9;
 }
 .playlist-root .text-field {
-    -fx-background-color: #222a35;
-    -fx-border-color: #46556a;
+    -fx-background-color: #1B2432;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
     -fx-border-radius: 8px;
     -fx-background-radius: 8px;
     -fx-padding: 9px 11px;
-    -fx-prompt-text-fill: #a6b3c4;
-    -fx-highlight-fill: #345c8d;
+    -fx-prompt-text-fill: #8F9CAE;
+    -fx-highlight-fill: #22436C;
     -fx-highlight-text-fill: white;
 }
 .playlist-root .text-field:focused {
-    -fx-border-color: #70aaff;
+    -fx-border-color: #4FA5FF;
 }
 .playlist-root .combo-box > .list-cell {
     -fx-padding: 0;
 }
 .playlist-root .combo-box-popup .list-view {
-    -fx-background-color: #191e26;
-    -fx-control-inner-background: #191e26;
-    -fx-border-color: #46556a;
+    -fx-background-color: #131924;
+    -fx-control-inner-background: #131924;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
 }
 .playlist-root .combo-box-popup .list-cell {
-    -fx-background-color: #191e26;
-    -fx-text-fill: #f4f7fb;
+    -fx-background-color: #131924;
+    -fx-text-fill: #F4F7FB;
     -fx-padding: 10px;
 }
 .playlist-root .combo-box-popup .list-cell:hover,
 .playlist-root .combo-box-popup .list-cell:filled:selected {
-    -fx-background-color: #29405c;
+    -fx-background-color: rgba(79, 165, 255, 0.22);
 }
 .playlist-root .playlist-entries {
-    -fx-background-color: #191e26;
-    -fx-border-color: #303947;
+    -fx-background-color: #131924;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
     -fx-border-radius: 10px;
     -fx-background-radius: 10px;
     -fx-padding: 6px;
 }
 .playlist-root .playlist-entries .list-cell:filled:selected {
-    -fx-background-color: #29405c;
+    -fx-background-color: rgba(79, 165, 255, 0.22);
 }
 .playlist-root .check-box .box {
-    -fx-background-color: #222a35;
-    -fx-border-color: #8294aa;
+    -fx-background-color: #1B2432;
+    -fx-border-color: #8F9CAE;
     -fx-border-radius: 4px;
     -fx-background-radius: 4px;
 }
 .playlist-root .check-box:selected .box {
-    -fx-background-color: #4f8fe8;
-    -fx-border-color: #70aaff;
+    -fx-background-color: #4FA5FF;
+    -fx-border-color: #4FA5FF;
 }
 .playlist-root .check-box:selected .mark {
     -fx-background-color: white;
@@ -87,7 +87,7 @@
 }
 .playlist-root .playlist-footer {
     -fx-padding: 12px 0 0 0;
-    -fx-border-color: #303947 transparent transparent transparent;
+    -fx-border-color: rgba(255, 255, 255, 0.08) transparent transparent transparent;
 }
 .playlist-root .danger-button {
     -fx-text-fill: #ffb4a9;
@@ -95,9 +95,9 @@
 .playlist-root .button:disabled,
 .playlist-root .combo-box:disabled {
     -fx-opacity: 1;
-    -fx-background-color: #1b222c;
-    -fx-border-color: #303b4a;
-    -fx-text-fill: #8796aa;
+    -fx-background-color: #131924;
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-text-fill: #627184;
 }
 .playlist-dialog {
     -fx-padding: 16px;
@@ -112,10 +112,11 @@
     -fx-effect: null;
 }
 .playlist-dialog > .header-panel .label {
-    -fx-text-fill: #f4f7fb;
+    -fx-text-fill: #F4F7FB;
     -fx-font-size: 15px;
 }
 .playlist-dialog .button:default {
-    -fx-background-color: #4f8fe8;
-    -fx-border-color: #70aaff;
+    -fx-background-color: linear-gradient(to right, #4FA5FF, #2F7CDA);
+    -fx-border-color: #4FA5FF;
+    -fx-text-fill: white;
 }

@@ -2,13 +2,32 @@
 
 /* Desktop-only visual system. Loaded after styles.css so the mobile preview keeps its layout. */
 .desktop-root {
-    -app-background: #101318;
-    -app-surface: #191e26;
-    -app-raised: #222a35;
-    -app-border: #303947;
-    -app-text: #f4f7fb;
-    -app-secondary: #b1bdcb;
-    -app-accent: #70aaff;
+    -app-background: #0B0E14;
+    -app-surface: #131924;
+    -app-raised: #1B2432;
+    -app-border: rgba(255, 255, 255, 0.08);
+    -app-accent: #4FA5FF;
+    -app-accent-glow: #2CE6E6;
+    -app-text: #F4F7FB;
+    -app-secondary: #8F9CAE;
+    -app-badge-flac-bg: rgba(44, 230, 230, 0.15);
+    -app-badge-flac-text: #2CE6E6;
+    -app-badge-std-bg: rgba(143, 156, 174, 0.15);
+    -app-badge-std-text: #8F9CAE;
+
+    --app-background: #0B0E14;
+    --app-surface: #131924;
+    --app-raised: #1B2432;
+    --app-border: rgba(255, 255, 255, 0.08);
+    --app-accent: #4FA5FF;
+    --app-accent-glow: #2CE6E6;
+    --app-text: #F4F7FB;
+    --app-secondary: #8F9CAE;
+    --app-badge-flac-bg: rgba(44, 230, 230, 0.15);
+    --app-badge-flac-text: #2CE6E6;
+    --app-badge-std-bg: rgba(143, 156, 174, 0.15);
+    --app-badge-std-text: #8F9CAE;
+
     -fx-background-color: -app-background;
     -fx-font-family: "Segoe UI Variable", "Microsoft YaHei UI", sans-serif;
 }
@@ -22,7 +41,7 @@
 }
 
 .desktop-root .top-bar {
-    -fx-background-color: #171c23;
+    -fx-background-color: -app-surface;
     -fx-border-color: transparent transparent -app-border transparent;
     -fx-border-width: 0 0 1 0;
 }
@@ -74,7 +93,8 @@
 .desktop-root .button:hover,
 .desktop-root .combo-box:hover,
 .desktop-root .menu-button:hover {
-    -fx-background-color: #2b3543;
+    -fx-background-color: #242F40;
+    -fx-border-color: rgba(255, 255, 255, 0.16);
 }
 
 .desktop-root .button:focused,
@@ -83,19 +103,22 @@
 .desktop-root .text-field:focused,
 .desktop-root .list-view .list-cell:focused {
     -fx-border-color: -app-accent;
-    -fx-border-width: 2;
+    -fx-border-width: 1.5;
 }
 
 .desktop-root .primary-button {
-    -fx-background-color: #4f8fe8;
-    -fx-border-color: #4f8fe8;
+    -fx-background-color: linear-gradient(to right, #4FA5FF, #2F7CDA);
+    -fx-border-color: #4FA5FF;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
     -fx-text-fill: white;
     -fx-font-weight: 700;
 }
 
 .desktop-root .primary-button:hover {
-    -fx-background-color: #69a5f5;
-    -fx-border-color: #69a5f5;
+    -fx-background-color: linear-gradient(to right, #6AB5FF, #3E8DE5);
+    -fx-border-color: #6AB5FF;
+    -fx-effect: dropshadow(gaussian, rgba(79, 165, 255, 0.35), 8, 0.2, 0, 0);
 }
 
 .desktop-root .primary-button > .label {
@@ -129,8 +152,8 @@
 }
 
 .desktop-root .search-field {
-    -fx-background-color: #242c37;
-    -fx-prompt-text-fill: #92a0b0;
+    -fx-background-color: -app-raised;
+    -fx-prompt-text-fill: -app-secondary;
     -fx-padding: 9 11;
 }
 
@@ -151,12 +174,14 @@
 }
 
 .desktop-root .list-view .list-cell:filled:hover {
-    -fx-background-color: #27313e;
+    -fx-background-color: rgba(255, 255, 255, 0.05);
 }
 
 .desktop-root .playlist-view .list-cell:filled:selected,
 .desktop-root .online-results-view .list-cell:filled:selected {
-    -fx-background-color: #29405c;
+    -fx-background-color: rgba(79, 165, 255, 0.2);
+    -fx-border-color: transparent transparent transparent -app-accent;
+    -fx-border-width: 0 0 0 3;
 }
 
 .desktop-root .combo-box > .list-cell:filled:selected {
@@ -208,14 +233,14 @@
 }
 
 .desktop-root .artwork-tile {
-    -fx-background-color: #27313e;
+    -fx-background-color: -app-raised;
     -fx-background-radius: 12px;
     -fx-border-color: -app-border;
     -fx-border-radius: 12px;
 }
 
 .desktop-root .artwork-placeholder {
-    -fx-text-fill: #7790ac;
+    -fx-text-fill: #5E728B;
     -fx-font-size: 52px;
 }
 
@@ -247,20 +272,21 @@
 
 .desktop-root .lyrics-shell,
 .desktop-root .lyrics-view {
-    -fx-background-color: #151a21;
-    -fx-border-color: transparent;
+    -fx-background-color: #0E131C;
+    -fx-border-color: -app-border;
+    -fx-border-width: 1;
     -fx-background-radius: 10px;
     -fx-border-radius: 10px;
 }
 
 .desktop-root .lyrics-view .list-cell {
-    -fx-text-fill: #aeb9c6;
+    -fx-text-fill: -app-secondary;
     -fx-padding: 9 12;
 }
 
 .desktop-root .lyrics-view .list-cell:filled:selected {
     -fx-background-color: transparent;
-    -fx-text-fill: -app-accent;
+    -fx-text-fill: -app-accent-glow;
     -fx-font-weight: 700;
 }
 
@@ -274,8 +300,8 @@
 }
 
 .desktop-root .toolbar-button-active {
-    -fx-background-color: #29405c;
-    -fx-border-color: #5889c5;
+    -fx-background-color: rgba(79, 165, 255, 0.25);
+    -fx-border-color: -app-accent;
     -fx-text-fill: white;
 }
 
@@ -316,20 +342,23 @@
     -fx-text-fill: -app-secondary;
     -fx-font-size: 10px;
     -fx-padding: 4 6;
-    -fx-background-color: #2b3543;
+    -fx-background-color: -app-raised;
     -fx-background-radius: 5px;
 }
 
 .desktop-root .result-downloadable .online-availability {
-    -fx-text-fill: #9ee0b8;
+    -fx-text-fill: #4EE4A2;
+    -fx-background-color: rgba(78, 228, 162, 0.15);
 }
 
 .desktop-root .result-tryable .online-availability {
-    -fx-text-fill: #f0cf91;
+    -fx-text-fill: #FFD166;
+    -fx-background-color: rgba(255, 209, 102, 0.15);
 }
 
 .desktop-root .result-unavailable .online-availability {
-    -fx-text-fill: #aeb9c6;
+    -fx-text-fill: -app-secondary;
+    -fx-background-color: rgba(143, 156, 174, 0.12);
 }
 
 .desktop-root .online-results-view .list-cell.result-downloadable,
@@ -340,7 +369,7 @@
 }
 
 .desktop-root .controls {
-    -fx-background-color: #171c23;
+    -fx-background-color: -app-surface;
     -fx-border-color: -app-border transparent transparent transparent;
     -fx-border-width: 1 0 0 0;
 }
@@ -355,21 +384,43 @@
     -fx-pref-width: 760px;
 }
 
+.desktop-root .slider .track,
 .desktop-root .song-progress-slider .track,
 .desktop-root .volume-slider .track {
-    -fx-background-color: #394657;
-    -fx-pref-height: 5px;
+    -fx-pref-height: 4px;
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-background-radius: 2px;
+    -fx-background-insets: 0;
 }
 
+.desktop-root .song-progress-slider .track {
+    -fx-pref-height: 4px;
+    -fx-background-color: linear-gradient(to right, #4FA5FF, #2CE6E6);
+    -fx-background-radius: 2px;
+    -fx-background-insets: 0;
+}
+
+.desktop-root .slider .thumb,
 .desktop-root .song-progress-slider .thumb,
 .desktop-root .volume-slider .thumb {
-    -fx-background-color: -app-accent;
-    -fx-min-width: 13px;
-    -fx-pref-width: 13px;
-    -fx-max-width: 13px;
-    -fx-min-height: 13px;
-    -fx-pref-height: 13px;
-    -fx-max-height: 13px;
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 6px;
+    -fx-background-insets: 0;
+    -fx-min-width: 12px;
+    -fx-pref-width: 12px;
+    -fx-max-width: 12px;
+    -fx-min-height: 12px;
+    -fx-pref-height: 12px;
+    -fx-max-height: 12px;
+    -fx-effect: dropshadow(gaussian, rgba(44, 230, 230, 0.45), 6, 0.2, 0, 0);
+    -fx-cursor: hand;
+}
+
+.desktop-root .slider .thumb:hover,
+.desktop-root .song-progress-slider .thumb:hover,
+.desktop-root .volume-slider .thumb:hover {
+    -fx-background-color: #FFFFFF;
+    -fx-effect: dropshadow(gaussian, rgba(44, 230, 230, 0.8), 8, 0.35, 0, 0);
 }
 
 .desktop-root .player-track-title {
@@ -402,4 +453,22 @@
     -fx-min-width: 112px;
     -fx-pref-width: 112px;
     -fx-max-width: 112px;
+}
+
+/* Audio format badge indicators */
+.audio-badge-flac {
+    -fx-background-color: rgba(44, 230, 230, 0.15);
+    -fx-text-fill: #2CE6E6;
+    -fx-background-radius: 4px;
+    -fx-padding: 1 5 1 5;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+}
+
+.audio-badge-standard {
+    -fx-background-color: rgba(143, 156, 174, 0.15);
+    -fx-text-fill: #8F9CAE;
+    -fx-background-radius: 4px;
+    -fx-padding: 1 5 1 5;
+    -fx-font-size: 10px;
 }
