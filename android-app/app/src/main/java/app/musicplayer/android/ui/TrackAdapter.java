@@ -81,7 +81,7 @@ public final class TrackAdapter extends ListAdapter<TrackRow, TrackAdapter.Holde
 
         String fileName = row.fileName();
         String lower = fileName != null ? fileName.toLowerCase(Locale.ROOT) : "";
-        if (lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") || lower.endsWith(".aiff")) {
+        if (lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") || lower.endsWith(".aiff") || lower.endsWith(".aif") || lower.endsWith(".alac")) {
             holder.itemBadge.setText("FLAC");
             holder.itemBadge.setBackgroundResource(R.drawable.badge_flac_background);
             holder.itemBadge.setTextColor(ContextCompat.getColor(context, R.color.badge_flac_text));

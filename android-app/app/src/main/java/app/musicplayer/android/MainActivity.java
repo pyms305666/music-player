@@ -751,7 +751,7 @@ public final class MainActivity extends AppCompatActivity {
             return;
         }
         String lower = pathOrFileName.toLowerCase(Locale.ROOT);
-        if (lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") || lower.endsWith(".aiff")) {
+        if (lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") || lower.endsWith(".aiff") || lower.endsWith(".aif") || lower.endsWith(".alac")) {
             currentTrackBadge.setText("FLAC");
             currentTrackBadge.setBackgroundResource(R.drawable.badge_flac_background);
             currentTrackBadge.setTextColor(ContextCompat.getColor(this, R.color.badge_flac_text));
