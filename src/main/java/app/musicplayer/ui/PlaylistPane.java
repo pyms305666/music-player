@@ -163,7 +163,8 @@ public final class PlaylistPane extends VBox {
                                 private final Label title = new Label();
                                 private final Label artist = new Label();
                                 private final VBox text = new VBox(3, title, artist);
-                                private final HBox row = new HBox(10, playingMarker, text);
+                                private final Label formatBadge = new Label();
+                                private final HBox row = new HBox(10, playingMarker, text, formatBadge);
                                 private final MenuItem removeItem = new MenuItem("从曲库移除");
                                 private final ContextMenu contextMenu = new ContextMenu(removeItem);
 
@@ -173,6 +174,7 @@ public final class PlaylistPane extends VBox {
                                     artist.getStyleClass().add("playlist-track-artist");
                                     title.setMaxWidth(Double.MAX_VALUE);
                                     artist.setMaxWidth(Double.MAX_VALUE);
+                                    formatBadge.managedProperty().bind(formatBadge.visibleProperty());
                                     HBox.setHgrow(text, Priority.ALWAYS);
                                     row.setAlignment(Pos.CENTER_LEFT);
                                     removeItem.setOnAction(
@@ -192,6 +194,7 @@ public final class PlaylistPane extends VBox {
                                     super.updateItem(track, empty);
                                     getStyleClass().remove("currently-playing");
                                     if (empty || track == null) {
+                                        AudioFormatBadge.applyStyle(formatBadge, null);
                                         setText(null);
                                         setGraphic(null);
                                         setContextMenu(null);
@@ -202,6 +205,9 @@ public final class PlaylistPane extends VBox {
                                     playingMarker.setVisible(track == currentTrack);
                                     if (track == currentTrack)
                                         getStyleClass().add("currently-playing");
+                                    AudioFormatBadge.AudioFormatInfo badgeInfo =
+                                            AudioFormatBadge.resolve(track.path());
+                                    AudioFormatBadge.applyStyle(formatBadge, badgeInfo);
                                     setText(null);
                                     setGraphic(row);
                                     setContextMenu(contextMenu);
