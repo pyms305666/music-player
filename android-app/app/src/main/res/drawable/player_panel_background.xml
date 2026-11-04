@@ -4,12 +4,18 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/surface" />
+            <corners
+                android:topLeftRadius="20dp"
+                android:topRightRadius="20dp" />
+            <solid android:color="@color/divider_strong" />
         </shape>
     </item>
-    <item android:height="1dp" android:gravity="top">
+    <item android:top="1dp">
         <shape android:shape="rectangle">
-            <solid android:color="@color/divider" />
+            <corners
+                android:topLeftRadius="20dp"
+                android:topRightRadius="20dp" />
+            <solid android:color="@color/surface" />
         </shape>
     </item>
 </layer-list>

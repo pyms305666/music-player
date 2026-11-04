@@ -2,18 +2,25 @@
 <!-- Android 共用颜色资源。由主题、布局与 drawable 引用，集中定义界面配色。 -->
 
 <resources>
-    <color name="background">#0F1115</color>
-    <color name="surface">#181B20</color>
-    <color name="surface_alt">#20242A</color>
-    <color name="surface_elevated">#262B32</color>
-    <color name="text_primary">#F7F7F8</color>
-    <color name="text_secondary">#A9AFB8</color>
-    <color name="text_muted">#717782</color>
+    <color name="background">#0B0E14</color>
+    <color name="surface">#131924</color>
+    <color name="surface_alt">#18202E</color>
+    <color name="surface_elevated">#1B2432</color>
+    <color name="surface_glass">#CC131924</color>
+    <color name="surface_glass_card">#B318202E</color>
+    <color name="text_primary">#F4F7FB</color>
+    <color name="text_secondary">#8F9CAE</color>
+    <color name="text_muted">#637082</color>
     <color name="text_on_accent">#FFFFFFFF</color>
-    <color name="accent">#F35B3E</color>
-    <color name="accent_dark">#D7472D</color>
-    <color name="divider">#30353D</color>
-    <color name="divider_strong">#4B515B</color>
-    <color name="navigation_ripple">#33F35B3E</color>
-    <color name="scrim">#66000000</color>
+    <color name="accent">#4FA5FF</color>
+    <color name="accent_dark">#2C85E6</color>
+    <color name="accent_glow">#2CE6E6</color>
+    <color name="badge_flac_bg">#262CE6E6</color>
+    <color name="badge_flac_text">#2CE6E6</color>
+    <color name="badge_std_bg">#268F9CAE</color>
+    <color name="badge_std_text">#8F9CAE</color>
+    <color name="divider">#232B38</color>
+    <color name="divider_strong">#2E3848</color>
+    <color name="navigation_ripple">#334FA5FF</color>
+    <color name="scrim">#80000000</color>
 </resources>
