@@ -6,11 +6,13 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.paint.Color;
 import javafx.stage.Window;
 
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 /**
  * 桌面封面显示协调器。按窗口缩放比例选择解码尺寸，过滤过期加载结果，管理显示句柄及窗口监听。 One download path and sized background decode, with
@@ -20,7 +22,7 @@ public final class ArtworkPresenter implements AutoCloseable {
     private final ArtworkService service;
     private final ImageView view;
     private final DecodedArtworkCache cache = new DecodedArtworkCache();
-    private final LatestRequest<Image> decode = new LatestRequest<>();
+    private final LatestRequest<DecodedArtwork> decode = new LatestRequest<>();
     private final ExecutorService worker =
             Executors.newSingleThreadExecutor(
                     runnable -> {
@@ -35,6 +37,7 @@ public final class ArtworkPresenter implements AutoCloseable {
     private int[] currentSize;
     private boolean closed;
     private Window window;
+    private Consumer<Color> onColorExtracted;
     private final ChangeListener<Number> scaleChanged = (ignored, old, next) -> show(currentSource);
     private final ChangeListener<Number> sizeChanged = (ignored, old, next) -> show(currentSource);
 
@@ -44,6 +47,11 @@ public final class ArtworkPresenter implements AutoCloseable {
         this.view = view;
         view.fitWidthProperty().addListener(sizeChanged);
         view.fitHeightProperty().addListener(sizeChanged);
+    }
+
+    /** 设置提取到主色调时的回调监听器。 */
+    public void setOnColorExtracted(Consumer<Color> listener) {
+        this.onColorExtracted = listener;
     }
 
     /** 展示窗口或当前歌单条目，并保留有效选择状态。 */
@@ -67,10 +75,30 @@ public final class ArtworkPresenter implements AutoCloseable {
         }
         decode.close();
         display(null);
-        if (closed || key == null) return;
+        if (closed || key == null) {
+            Platform.runLater(
+                    () -> {
+                        if (onColorExtracted != null) {
+                            onColorExtracted.accept(DominantColorExtractor.DEFAULT_AMBIENT_COLOR);
+                        }
+                    });
+            return;
+        }
         Image existing = cache.get(key);
         if (existing != null) {
             display(existing);
+            worker.execute(
+                    () -> {
+                        Color ambient = DominantColorExtractor.extract(existing);
+                        Platform.runLater(
+                                () -> {
+                                    if (!closed
+                                            && Objects.equals(key, currentKey)
+                                            && onColorExtracted != null) {
+                                        onColorExtracted.accept(ambient);
+                                    }
+                                });
+                    });
             return;
         }
         if (resolvedSource != null) {
@@ -86,10 +114,14 @@ public final class ArtworkPresenter implements AutoCloseable {
                                     Platform.runLater(
                                             () -> {
                                                 if (!closed
-                                                        && Objects.equals(source, currentSource)
-                                                        && path != null) {
-                                                    resolvedSource = path.toUri().toString();
-                                                    load(currentKey, resolvedSource, currentSize);
+                                                        && Objects.equals(source, currentSource)) {
+                                                    if (path != null) {
+                                                        resolvedSource = path.toUri().toString();
+                                                        load(currentKey, resolvedSource, currentSize);
+                                                    } else if (onColorExtracted != null) {
+                                                        onColorExtracted.accept(
+                                                                DominantColorExtractor.DEFAULT_AMBIENT_COLOR);
+                                                    }
                                                 }
                                             }));
         } else load(key, source, size);
@@ -97,14 +129,23 @@ public final class ArtworkPresenter implements AutoCloseable {
 
     /** 加载当前组件需要的文件、歌单或界面数据，并返回结果。 */
     private void load(String key, String source, int[] size) {
-        decode.submit(worker, () -> ArtworkDecoder.decode(source, size[0], size[1]))
+        decode.submit(
+                        worker,
+                        () -> {
+                            Image image = ArtworkDecoder.decode(source, size[0], size[1]);
+                            Color ambient = DominantColorExtractor.extract(image);
+                            return new DecodedArtwork(image, ambient);
+                        })
                 .thenAccept(
-                        image ->
+                        result ->
                                 Platform.runLater(
                                         () -> {
                                             if (closed || !Objects.equals(key, currentKey)) return;
-                                            cache.put(key, image);
-                                            display(image);
+                                            cache.put(key, result.image());
+                                            display(result.image());
+                                            if (onColorExtracted != null) {
+                                                onColorExtracted.accept(result.ambient());
+                                            }
                                         }));
     }
 
@@ -156,4 +197,6 @@ public final class ArtworkPresenter implements AutoCloseable {
         }
         display(null);
     }
+
+    private record DecodedArtwork(Image image, Color ambient) {}
 }

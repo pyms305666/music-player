@@ -2,6 +2,7 @@ package app.musicplayer;
 
 import app.musicplayer.artwork.ArtworkPresenter;
 import app.musicplayer.artwork.ArtworkService;
+import app.musicplayer.artwork.DominantColorExtractor;
 import app.musicplayer.config.AppPaths;
 import app.musicplayer.config.LayoutMode;
 import app.musicplayer.data.MusicDatabase;
@@ -36,6 +37,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.paint.Color;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -145,6 +149,8 @@ public final class MusicPlayerApp extends Application {
     private ImageView artworkImageView;
     private ArtworkPresenter artworkPresenter;
     private Region artworkDimmer;
+    private StackPane contentPane;
+    private StackPane artworkTile;
     private VBox lyricsMetaBox;
     private HBox sourceRow;
     private StackPane lyricsShell;
@@ -778,7 +784,7 @@ public final class MusicPlayerApp extends Application {
         } else {
             Label artworkPlaceholder = new Label("♫");
             artworkPlaceholder.getStyleClass().add("artwork-placeholder");
-            StackPane artworkTile = new StackPane(artworkPlaceholder, artworkImageView);
+            artworkTile = new StackPane(artworkPlaceholder, artworkImageView);
             artworkTile.getStyleClass().add("artwork-tile");
             artworkTile.setMinSize(144, 144);
             artworkTile.setPrefSize(144, 144);
@@ -809,6 +815,8 @@ public final class MusicPlayerApp extends Application {
         stack.getStyleClass().add("content");
         stack.setMinWidth(0);
         stack.setMinHeight(0);
+        contentPane = stack;
+        applyAmbientGlow(DominantColorExtractor.DEFAULT_AMBIENT_COLOR);
         if (layoutMode.isMobile()) {
             artworkImageView.setPreserveRatio(false);
             artworkImageView.fitWidthProperty().bind(stack.widthProperty());
@@ -1516,9 +1524,46 @@ public final class MusicPlayerApp extends Application {
     /** 加载指定封面，空地址或失败时使用现有占位规则。 */
     private void showArtwork(String url) {
         if (artworkImageView == null) return;
-        if (artworkPresenter == null)
+        if (artworkPresenter == null) {
             artworkPresenter = new ArtworkPresenter(artworkService, artworkImageView);
+            artworkPresenter.setOnColorExtracted(this::applyAmbientGlow);
+        }
         artworkPresenter.show(url);
+    }
+
+    /** 响应封面主色调提取结果，平滑应用主视口背景流光与封面阴影环境光。 */
+    private void applyAmbientGlow(Color color) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> applyAmbientGlow(color));
+            return;
+        }
+        Color effective = color != null ? color : DominantColorExtractor.DEFAULT_AMBIENT_COLOR;
+        int r = (int) Math.round(effective.getRed() * 255);
+        int g = (int) Math.round(effective.getGreen() * 255);
+        int b = (int) Math.round(effective.getBlue() * 255);
+
+        if (contentPane != null) {
+            String gradient =
+                    String.format(
+                            Locale.ROOT,
+                            "-fx-background-color: radial-gradient(focus-angle 0deg, focus-distance 0%%, center 65%% 25%%, radius 65%%, rgba(%d, %d, %d, 0.25) 0%%, rgba(11, 14, 20, 0.98) 100%%);",
+                            r,
+                            g,
+                            b);
+            contentPane.setStyle(gradient);
+        }
+
+        if (artworkTile != null && (layoutMode == null || !layoutMode.isMobile())) {
+            DropShadow glow =
+                    new DropShadow(
+                            BlurType.GAUSSIAN,
+                            Color.color(effective.getRed(), effective.getGreen(), effective.getBlue(), 0.35),
+                            24,
+                            0.12,
+                            0,
+                            4);
+            artworkTile.setEffect(glow);
+        }
     }
 
     /** 把实际播放位置交给歌词时间轴，更新活动行。 */
