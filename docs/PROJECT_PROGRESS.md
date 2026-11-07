@@ -40,6 +40,15 @@
 - 流程：提交全部 UI 改动与文档 → 从干净源码重建 Windows 安装包（`package.ps1`）与正式签名 Android APK（`scripts/android-signing.py`，DPAPI 签名材料 + 密钥轮换链校验）→ 推送 `codex/playlist-import` → 等待该提交的 `build.yml` CI 通过 → `scripts/publish-release.ps1` 创建并核验 GitHub Release。
 - 发布结果：源码提交 `2ff1a18`（远端分支与提交一致），CI [Build and verify #42336659462](https://github.com/pyms305666/music-player/actions/runs/42336659462) 通过；[Release 4.3.7](https://github.com/pyms305666/music-player/releases/tag/4.3.7) 已发布为 latest，附件 `ZA-Music-Windows-4.3.7.exe`（70,684,672 字节）、`ZA-Music-Android-4.3.7.apk`（19,414,797 字节，正式签名）、`build-info.json` 与 `SHA256SUMS.txt`，脚本已逐项核对远端附件散列与标签指向。`gh auth login` 在用户设备上以浏览器设备流完成。
 
+### 2026-11-07：4.3.8 流体流光升级与发布
+
+- 用户验收后确认光效为静态，要求 Apple Music 式大面积流体光效并明确授权越过性能红线。
+- 实现：背景铺设多个大尺寸软边径向渐变色团（桌面 5 个、Android 3 个），颜色来自封面整体与四象限区域色板（`DominantColorExtractor.extractPalette`）；各色团以互错周期独立漂移与呼吸，叠加形成非重复的流动感。色板只贡献色相，渲染时统一提升到高饱和（0.72）高亮度（0.92）——封面平均色的原始明度叠加透明度后在深底上会显得灰暗（像素取样证实：平均色 (180,139,99) 叠 65% 透明度后为 (124,99,77)，观感等于没有）。
+- 关键缺陷与修复：① 色团尺寸绑定父容器宽高形成循环布局依赖，播放触发的重布局使尺寸变为无穷大、色团整体消失（探针实测 w=2147483647），改用 setScaleX/Y 固定放大倍数；② 桌面 GaussianBlur 色团层在 Media 播放器初始化后停止渲染（播放后背景全黑），桌面移除真实模糊、保留软边渐变（视觉等效），Android 在 API 31+ 用 RenderEffect 模糊并有版本回退；③ 播放不显示内嵌封面（原依赖歌词查询回调携带封面 URL），改为 onReady 即显示内嵌封面并驱动流光，歌词查询无封面时不再清除已有封面。
+- 其他：桌面封面 ColorAdjust 提亮 12%；删除 styles-desktop.css 中 JavaFX 不支持的 `--app-*` 变量组（消除 4.3.1 以来的 CSS 解析错误）；`scripts/android-signing.py` 在无 PowerShell 7 的机器回退使用 Windows PowerShell。
+- 验证：桌面 107 项测试通过；真实窗口像素取样确认待机（默认幽蓝）与播放（封面暖色调）两态色团持续渲染，漂移与呼吸动画正常，封面亮度提升。
+- 发布：升版 4.3.8（versionCode 40308），发布说明见 `docs/release-4.3.8.md`；从干净提交重建双端产物，推送 `codex/playlist-import` 并等 CI 通过后以 `scripts/publish-release.ps1` 发布，实时状态以 GitHub Release 与 CI 页面为准。
+
 ## 2026-11-01：歌手搜索与歌曲下载优化
 
 状态：源码修改、自动验证、联网实测和本地构建已完成。针对用户搜索“黄霄云”结果不全的问题，增加可见结果，并优先验证酷我、咪咕的实际下载。

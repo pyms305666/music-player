@@ -2,6 +2,7 @@ package app.musicplayer.android;
 
 import android.Manifest;
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -133,6 +134,12 @@ public final class MainActivity extends AppCompatActivity {
     private TextView artistText;
     private TextView currentTrackBadge;
     private View artworkGlow;
+    private android.widget.FrameLayout ambientBlobs;
+    /** 全页流体色团视图与它们的漂移/呼吸动画。 */
+    private final java.util.List<View> glowBlobs = new ArrayList<>();
+    private final java.util.List<ValueAnimator> blobAnimators = new ArrayList<>();
+    /** 封面流光的呼吸动画；透明度与缩放缓慢脉动，营造流光氛围。 */
+    private ValueAnimator glowPulse;
     /** 无封面或取色失败时使用的默认环境光色，与桌面端默认幽蓝一致。 */
     private static final int AMBIENT_DEFAULT_COLOR = 0x4FA5FF;
     private TextView lyricsText;
@@ -220,6 +227,8 @@ public final class MainActivity extends AppCompatActivity {
         artistText = findViewById(R.id.artistText);
         currentTrackBadge = findViewById(R.id.currentTrackBadge);
         artworkGlow = findViewById(R.id.artworkGlow);
+        ambientBlobs = findViewById(R.id.ambientBlobs);
+        setupAmbientBlobs();
         lyricsText = findViewById(R.id.lyricsText);
         currentTimeText = findViewById(R.id.currentTimeText);
         durationText = findViewById(R.id.durationText);
@@ -874,11 +883,11 @@ public final class MainActivity extends AppCompatActivity {
                                     Object model,
                                     Target<Drawable> target,
                                     boolean isFirstResource) {
-                                applyArtworkGlow(AMBIENT_DEFAULT_COLOR);
+                                applyAmbientPalette(defaultPalette());
                                 return false;
                             }
 
-                            /** 加载成功时异步采样封面主色，采样完成后再更新流光。 */
+                            /** 加载成功时异步采样封面色板，采样完成后再更新流光与色团。 */
                             @Override
                             public boolean onResourceReady(
                                     Drawable resource,
@@ -891,13 +900,13 @@ public final class MainActivity extends AppCompatActivity {
                                                 ? drawable.getBitmap()
                                                 : null;
                                 if (bitmap == null || bitmap.getWidth() <= 0) {
-                                    applyArtworkGlow(AMBIENT_DEFAULT_COLOR);
+                                    applyAmbientPalette(defaultPalette());
                                     return false;
                                 }
                                 libraryExecutor.execute(
                                         () -> {
-                                            int ambient = sampleAmbientColor(bitmap);
-                                            runOnUiThread(() -> applyArtworkGlow(ambient));
+                                            int[] palette = sampleAmbientPalette(bitmap);
+                                            runOnUiThread(() -> applyAmbientPalette(palette));
                                         });
                                 return false;
                             }
@@ -905,36 +914,136 @@ public final class MainActivity extends AppCompatActivity {
                 .into(artworkView);
     }
 
-    /** 把封面降采样为 16x16 后取平均色，并按桌面同一规则夹取饱和度与明度。 */
-    private static int sampleAmbientColor(Bitmap bitmap) {
+    /** 把封面降采样为 16x16，取整体平均色与三个象限色组成流体色板。 */
+    private static int[] sampleAmbientPalette(Bitmap bitmap) {
         try {
             Bitmap small = Bitmap.createScaledBitmap(bitmap, 16, 16, true);
-            long red = 0;
-            long green = 0;
-            long blue = 0;
-            int count = 0;
-            for (int y = 0; y < small.getHeight(); y++) {
-                for (int x = 0; x < small.getWidth(); x++) {
-                    int pixel = small.getPixel(x, y);
-                    if (Color.alpha(pixel) < 25) continue;
-                    red += Color.red(pixel);
-                    green += Color.green(pixel);
-                    blue += Color.blue(pixel);
-                    count++;
-                }
+            int[] palette = new int[4];
+            palette[0] = clampedRegionColor(small, 0, 0, 16, 16, AMBIENT_DEFAULT_COLOR, false);
+            palette[1] = clampedRegionColor(small, 0, 0, 8, 8, palette[0], true);
+            palette[2] = clampedRegionColor(small, 8, 0, 16, 8, palette[0], true);
+            palette[3] = clampedRegionColor(small, 0, 8, 16, 16, palette[0], true);
+            return palette;
+        } catch (Exception ignored) {
+            return defaultPalette();
+        }
+    }
+
+    private static int[] defaultPalette() {
+        return new int[] {
+            AMBIENT_DEFAULT_COLOR, AMBIENT_DEFAULT_COLOR, AMBIENT_DEFAULT_COLOR, AMBIENT_DEFAULT_COLOR
+        };
+    }
+
+    /** 计算图像矩形区域的平均色并夹取；almostGray 时沿用整体色，色团用更亮的钳制区间。 */
+    private static int clampedRegionColor(
+            Bitmap small, int x0, int y0, int x1, int y1, int fallback, boolean blob) {
+        long red = 0;
+        long green = 0;
+        long blue = 0;
+        int count = 0;
+        for (int y = y0; y < y1; y++) {
+            for (int x = x0; x < x1; x++) {
+                int pixel = small.getPixel(x, y);
+                if (Color.alpha(pixel) < 25) continue;
+                red += Color.red(pixel);
+                green += Color.green(pixel);
+                blue += Color.blue(pixel);
+                count++;
             }
-            if (count == 0) return AMBIENT_DEFAULT_COLOR;
-            float[] hsv = new float[3];
-            Color.RGBToHSV(
-                    (int) (red / count), (int) (green / count), (int) (blue / count), hsv);
-            // 近灰白封面没有可靠色相，回退默认幽蓝，避免色相归零产生脏红色光晕。
-            if (hsv[1] < 0.10f) return AMBIENT_DEFAULT_COLOR;
+        }
+        if (count == 0) return fallback;
+        float[] hsv = new float[3];
+        Color.RGBToHSV(
+                (int) (red / count), (int) (green / count), (int) (blue / count), hsv);
+        // 近乎纯灰白的区域没有可靠色相，沿用整体色；淡色区域保留真实色相交给饱和度钳制。
+        if (hsv[1] < 0.03f) return fallback;
+        if (blob) {
+            // 色团颜色必须保持明亮鲜活：亮度压太低会在深底上完全隐身。
+            hsv[1] = Math.max(0.45f, Math.min(0.85f, hsv[1]));
+            hsv[2] = Math.max(0.50f, Math.min(0.85f, hsv[2]));
+        } else {
             hsv[1] = Math.max(0.30f, Math.min(0.70f, hsv[1]));
             hsv[2] = Math.max(0.15f, Math.min(0.35f, hsv[2]));
-            return Color.HSVToColor(hsv);
-        } catch (Exception ignored) {
-            return AMBIENT_DEFAULT_COLOR;
         }
+        return Color.HSVToColor(hsv);
+    }
+
+    /** 用色板刷新封面光环与全页流体色团；光环用整体色，色团各取一个象限色。 */
+    private void applyAmbientPalette(int[] palette) {
+        if (palette == null || palette.length == 0) palette = defaultPalette();
+        applyArtworkGlow(palette[0]);
+        if (ambientBlobs == null) return;
+        for (int i = 0; i < glowBlobs.size(); i++) {
+            glowBlobs.get(i).setBackground(blobDrawable(palette[(i + 1) % palette.length]));
+        }
+    }
+
+    /** 创建全页流体色团：三个大尺寸软边色块，各自朝不同方向缓慢漂移并呼吸。 */
+    private void setupAmbientBlobs() {
+        if (ambientBlobs == null) return;
+        // 用户已允许越过性能红线：API 31+ 对色团容器做实时高斯模糊，交融更接近流体；
+        // 低版本回退到软边渐变本身，视觉接近且无额外开销。
+        if (Build.VERSION.SDK_INT >= 31) {
+            ambientBlobs.setRenderEffect(
+                    android.graphics.RenderEffect.createBlurEffect(
+                            60f, 60f, android.graphics.Shader.TileMode.CLAMP));
+        }
+        for (int i = 0; i < 3; i++) {
+            View blob = new View(this);
+            FrameLayout.LayoutParams params =
+                    new FrameLayout.LayoutParams(dp(420), dp(420), android.view.Gravity.CENTER);
+            blob.setLayoutParams(params);
+            blob.setBackground(blobDrawable(AMBIENT_DEFAULT_COLOR));
+            blob.setAlpha(0.55f);
+            ambientBlobs.addView(blob);
+            glowBlobs.add(blob);
+            float rangeX = dp(80) + i * dp(30);
+            float rangeY = dp(46) + i * dp(20);
+            ValueAnimator driftX = ValueAnimator.ofFloat(-rangeX, rangeX);
+            driftX.setDuration(9000L + i * 4500L);
+            driftX.setRepeatCount(ValueAnimator.INFINITE);
+            driftX.setRepeatMode(ValueAnimator.REVERSE);
+            driftX.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            driftX.addUpdateListener(animation -> blob.setTranslationX((float) animation.getAnimatedValue()));
+            driftX.start();
+            ValueAnimator driftY = ValueAnimator.ofFloat(-rangeY, rangeY);
+            driftY.setDuration(7600L + i * 5300L);
+            driftY.setRepeatCount(ValueAnimator.INFINITE);
+            driftY.setRepeatMode(ValueAnimator.REVERSE);
+            driftY.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            driftY.addUpdateListener(animation -> blob.setTranslationY((float) animation.getAnimatedValue()));
+            driftY.start();
+            ValueAnimator pulse = ValueAnimator.ofFloat(0.40f, 0.80f);
+            pulse.setDuration(3800L + i * 1100L);
+            pulse.setRepeatCount(ValueAnimator.INFINITE);
+            pulse.setRepeatMode(ValueAnimator.REVERSE);
+            pulse.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            pulse.addUpdateListener(animation -> blob.setAlpha((float) animation.getAnimatedValue()));
+            pulse.start();
+            blobAnimators.add(driftX);
+            blobAnimators.add(driftY);
+            blobAnimators.add(pulse);
+        }
+    }
+
+    /**
+     * 构建单个色团的软边径向渐变；色板只贡献色相，渲染统一提升到高饱和高亮度，
+     * 保证深底上的流光感（原始平均色叠加透明度后会显得灰暗）。
+     */
+    private GradientDrawable blobDrawable(int tint) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(tint, hsv);
+        hsv[1] = 0.72f;
+        hsv[2] = 0.92f;
+        int color = Color.HSVToColor(hsv);
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        drawable.setGradientCenter(0.5f, 0.5f);
+        drawable.setColors(new int[] {(0x88 << 24) | (color & 0x00FFFFFF), 0x00000000});
+        drawable.setGradientRadius(dp(210));
+        return drawable;
     }
 
     /** 用环境光颜色重建封面背后的径向流光层；小面积光环提亮到可见范围，默认色时即恢复初始幽蓝。 */
@@ -954,6 +1063,27 @@ public final class MainActivity extends AppCompatActivity {
         int radiusPx = artworkGlow.getWidth() > 0 ? artworkGlow.getWidth() / 2 : dp(158);
         glow.setGradientRadius(radiusPx);
         artworkGlow.setBackground(glow);
+        startGlowPulse();
+    }
+
+    /** 启动流光呼吸动画：透明度与缩放缓慢往复，只做合成层变换，不重建渐变。 */
+    private void startGlowPulse() {
+        if (glowPulse != null) return;
+        glowPulse = ValueAnimator.ofFloat(0f, 1f);
+        glowPulse.setDuration(3200);
+        glowPulse.setRepeatCount(ValueAnimator.INFINITE);
+        glowPulse.setRepeatMode(ValueAnimator.REVERSE);
+        glowPulse.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+        glowPulse.addUpdateListener(
+                animation -> {
+                    if (artworkGlow == null) return;
+                    float phase = (float) animation.getAnimatedValue();
+                    artworkGlow.setAlpha(0.62f + 0.38f * phase);
+                    float scale = 0.95f + 0.07f * phase;
+                    artworkGlow.setScaleX(scale);
+                    artworkGlow.setScaleY(scale);
+                });
+        glowPulse.start();
     }
 
     /** 显示默认封面占位，清除上一首歌曲的图像。 */
@@ -964,7 +1094,7 @@ public final class MainActivity extends AppCompatActivity {
         ImageViewCompat.setImageTintList(
                 artworkView, null);
         artworkView.setImageResource(R.drawable.vinyl_placeholder);
-        applyArtworkGlow(AMBIENT_DEFAULT_COLOR);
+        applyAmbientPalette(defaultPalette());
     }
 
     /** 从当前搜索输入启动在线查询，结果由专用协调器更新。 */
@@ -1361,6 +1491,8 @@ public final class MainActivity extends AppCompatActivity {
         if (lyricsController != null) lyricsController.close();
         if (lyricsService != null) lyricsService.close();
         if (database != null) libraryExecutor.execute(database::close);
+        if (glowPulse != null) glowPulse.cancel();
+        for (ValueAnimator animator : blobAnimators) animator.cancel();
         libraryExecutor.shutdown();
         super.onDestroy();
     }

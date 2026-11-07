@@ -32,6 +32,11 @@ import app.musicplayer.ui.PlaylistPane;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.animation.Animation;
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -41,6 +46,9 @@ import javafx.scene.Scene;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.RadialGradient;
+import javafx.scene.paint.Stop;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -57,7 +65,10 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -149,6 +160,15 @@ public final class MusicPlayerApp extends Application {
     private ProgressIndicator loadingLyrics;
     private ImageView artworkImageView;
     private ArtworkPresenter artworkPresenter;
+    /** 桌面端内容区流光层；承载径向渐变背景并参与呼吸/漂移动画。 */
+    /** 桌面端流体光效的色团列表；每个色团独立漂移，颜色来自封面色板。 */
+    private java.util.List<Region> glowBlobs;
+    /** 各色团渐变中心（相对自身宽高），错开位置让色团交融出流动层次。 */
+    private static final double[] BLOB_CX = {0.34, 0.72, 0.60, 0.22, 0.82};
+    private static final double[] BLOB_CY = {0.28, 0.20, 0.72, 0.74, 0.48};
+    /** 各色团核心透明度与漂移周期（秒）；周期互质化避免整体动画出现明显循环感。 */
+    private static final double[] BLOB_ALPHA = {0.65, 0.55, 0.48, 0.42, 0.36};
+    private static final double[] BLOB_PERIOD = {16, 21, 26, 31, 36};
     private Region artworkDimmer;
     private StackPane contentPane;
     private StackPane artworkTile;
@@ -395,7 +415,8 @@ public final class MusicPlayerApp extends Application {
                                 text -> sourceLabel.setText(text),
                                 result -> {
                                     showLyrics(result.lyrics());
-                                    showArtwork(result.artworkUrl());
+                                    // 查询结果没有封面 URL 时保留内嵌封面，避免把已显示的封面清空。
+                                    if (result.artworkUrl() != null) showArtwork(result.artworkUrl());
                                 },
                                 this::showLyrics));
         onlineMusicSearchService = new OnlineMusicSearchService();
@@ -806,6 +827,8 @@ public final class MusicPlayerApp extends Application {
             clip.setArcWidth(24);
             clip.setArcHeight(24);
             artworkImageView.setClip(clip);
+            // 深色主题下封面观感偏暗，轻度提亮让封面保持鲜活。
+            artworkImageView.setEffect(new javafx.scene.effect.ColorAdjust(0, 0, 0.12, 0));
             // 工具栏独占一行放在歌词卡片上方，避免悬浮按钮遮挡滚动的歌词文字。
             HBox lyricsToolbarRow = new HBox(lyricsToolbar);
             lyricsToolbarRow.setAlignment(Pos.CENTER_RIGHT);
@@ -816,15 +839,43 @@ public final class MusicPlayerApp extends Application {
         nowPlaying.setMinWidth(0);
         nowPlaying.setMinHeight(0);
 
-        StackPane stack =
-                layoutMode.isMobile()
-                        ? new StackPane(artworkImageView, artworkDimmer, nowPlaying)
-                        : new StackPane(nowPlaying);
+        StackPane stack;
+        if (layoutMode.isMobile()) {
+            stack = new StackPane(artworkImageView, artworkDimmer, nowPlaying);
+        } else {
+            // 桌面端流体光效：多个大尺寸软边色团叠加漂移，相互交融形成流体感。
+            // 不使用真实高斯模糊，靠渐变软边保证滚动与动画性能；色团溢出由圆角裁切收边。
+            StackPane blobHost = new StackPane();
+            blobHost.setMouseTransparent(true);
+            // 注意：不要给 blobHost 挂 GaussianBlur——实测 Media 播放器初始化后其缓存纹理
+            // 失效会导致整个色团层停止渲染（播放后背景全黑）。色团本身是软边径向渐变，
+            // 叠加后视觉上已等效预模糊，无需真实模糊滤镜。
+            // 色团尺寸也不能绑定到 blobHost 的宽高：StackPane 的期望尺寸来自子节点，
+            // 反向绑定会形成循环布局，重新布局时尺寸爆炸成无穷大、色团整体消失。
+            // 这里用 setScaleX/Y 放大填充并依赖外层圆角裁切，无任何尺寸绑定。
+            glowBlobs = new java.util.ArrayList<>();
+            for (int i = 0; i < BLOB_CX.length; i++) {
+                Region blob = new Region();
+                blob.setMouseTransparent(true);
+                blob.setScaleX(1.4);
+                blob.setScaleY(1.4);
+                blobHost.getChildren().add(blob);
+                glowBlobs.add(blob);
+            }
+            stack = new StackPane(blobHost, nowPlaying);
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+            clip.widthProperty().bind(stack.widthProperty());
+            clip.heightProperty().bind(stack.heightProperty());
+            clip.setArcWidth(20);
+            clip.setArcHeight(20);
+            stack.setClip(clip);
+        }
         stack.getStyleClass().add("content");
         stack.setMinWidth(0);
         stack.setMinHeight(0);
         contentPane = stack;
-        applyAmbientGlow(DominantColorExtractor.DEFAULT_AMBIENT_COLOR);
+        applyAmbientGlow(DominantColorExtractor.extractPalette(null));
+        if (glowBlobs != null) startGlowAnimation();
         if (layoutMode.isMobile()) {
             artworkImageView.setPreserveRatio(false);
             artworkImageView.fitWidthProperty().bind(stack.widthProperty());
@@ -1250,6 +1301,11 @@ public final class MusicPlayerApp extends Application {
     private void updateMetadata(Media media) {
         String t = valueAsString(media.getMetadata().get("title")),
                 a = valueAsString(media.getMetadata().get("artist"));
+        // 播放就绪即用内嵌封面立即显示并驱动流光，不必等歌词查询返回联网封面。
+        if (media.getMetadata().get("image") instanceof javafx.scene.image.Image embedded
+                && !embedded.isError()) {
+            showEmbeddedArtwork(embedded);
+        }
         String oldTitle = currentTrack.title(), oldArtist = currentTrack.artist();
         currentTrack.updateMetadata(t, a);
         titleLabel.setText(currentTrack.title());
@@ -1272,6 +1328,21 @@ public final class MusicPlayerApp extends Application {
     /** 为显示或字段读取提取安全的字符串值。 */
     private static String valueAsString(Object v) {
         return v instanceof String s ? s : null;
+    }
+
+    /** 立即显示音频内嵌封面，并异步取色刷新环境流光；联网封面加载成功后会自然覆盖它。 */
+    private void showEmbeddedArtwork(javafx.scene.image.Image embedded) {
+        if (artworkImageView == null || closing) return;
+        artworkImageView.setImage(embedded);
+        artworkImageView.setVisible(true);
+        CompletableFuture.supplyAsync(
+                () -> DominantColorExtractor.extractPalette(embedded), libraryExecutor)
+                .thenAccept(
+                        color ->
+                                Platform.runLater(
+                                        () -> {
+                                            if (!closing) applyAmbientGlow(color);
+                                        }));
     }
 
     // ========== 在线搜索结果：双击爬虫下载到本地再播放 ==========
@@ -1559,38 +1630,131 @@ public final class MusicPlayerApp extends Application {
         artworkPresenter.show(url);
     }
 
-    /** 响应封面主色调提取结果，平滑应用主视口背景流光与封面阴影环境光。 */
-    private void applyAmbientGlow(Color color) {
+    /** 响应封面色板提取结果，为各色团着色并同步封面阴影环境光。 */
+    private void applyAmbientGlow(Color[] palette) {
         if (!Platform.isFxApplicationThread()) {
-            Platform.runLater(() -> applyAmbientGlow(color));
+            Platform.runLater(() -> applyAmbientGlow(palette));
             return;
         }
-        Color effective = color != null ? color : DominantColorExtractor.DEFAULT_AMBIENT_COLOR;
-        int r = (int) Math.round(effective.getRed() * 255);
-        int g = (int) Math.round(effective.getGreen() * 255);
-        int b = (int) Math.round(effective.getBlue() * 255);
+        Color primary =
+                palette != null && palette.length > 0
+                        ? palette[0]
+                        : DominantColorExtractor.DEFAULT_AMBIENT_COLOR;
 
-        if (contentPane != null) {
-            String gradient =
+        if (glowBlobs != null) {
+            for (int i = 0; i < glowBlobs.size(); i++) {
+                Color tint =
+                        palette != null && palette.length > 0
+                                ? palette[i % palette.length]
+                                : primary;
+                glowBlobs
+                        .get(i)
+                        .setBackground(
+                                blobFill(BLOB_CX[i], BLOB_CY[i], tint, BLOB_ALPHA[i]));
+            }
+        } else if (contentPane != null) {
+            // 移动预览模式没有色团层，保留整面渐变底色。
+            contentPane.setStyle(
                     String.format(
                             Locale.ROOT,
-                            "-fx-background-color: radial-gradient(focus-angle 0deg, focus-distance 0%%, center 65%% 25%%, radius 78%%, rgba(%d, %d, %d, 0.40) 0%%, rgba(11, 14, 20, 0.98) 100%%);",
-                            r,
-                            g,
-                            b);
-            contentPane.setStyle(gradient);
+                            "-fx-background-color: radial-gradient(focus-angle 0deg, focus-distance 0%%, center 30%% 22%%, radius 88%%, rgba(%d, %d, %d, 0.52) 0%%, rgba(11, 14, 20, 0.98) 100%%);",
+                            (int) Math.round(primary.getRed() * 255),
+                            (int) Math.round(primary.getGreen() * 255),
+                            (int) Math.round(primary.getBlue() * 255)));
         }
 
         if (artworkTile != null && (layoutMode == null || !layoutMode.isMobile())) {
             DropShadow glow =
                     new DropShadow(
                             BlurType.GAUSSIAN,
-                            Color.color(effective.getRed(), effective.getGreen(), effective.getBlue(), 0.50),
-                            30,
-                            0.15,
+                            Color.color(primary.getRed(), primary.getGreen(), primary.getBlue(), 0.60),
+                            40,
+                            0.18,
                             0,
                             4);
             artworkTile.setEffect(glow);
+        }
+    }
+
+    /**
+     * 构建单个色团的软边径向渐变背景；颜色到全透明的柔和衰减模拟模糊流体。
+     * 色板只贡献色相，渲染时统一提升到高饱和高亮度——封面平均色的原始明度
+     * 叠加透明度后在深底上会显得灰暗（验收中踩过的坑），必须提亮才有流光感。
+     */
+    private static Background blobFill(double centerX, double centerY, Color tint, double alpha) {
+        Color vivid = Color.hsb(tint.getHue(), 0.72, 0.92);
+        return new Background(
+                new BackgroundFill(
+                        new RadialGradient(
+                                0,
+                                0,
+                                centerX,
+                                centerY,
+                                0.55,
+                                true,
+                                CycleMethod.NO_CYCLE,
+                                new Stop(
+                                        0.0,
+                                        Color.color(
+                                                vivid.getRed(),
+                                                vivid.getGreen(),
+                                                vivid.getBlue(),
+                                                alpha)),
+                                new Stop(1.0, Color.TRANSPARENT)),
+                        CornerRadii.EMPTY,
+                        Insets.EMPTY));
+    }
+
+    /** 启动色团动画：每个色团有独立的漂移方向、周期与呼吸相位，叠出非重复的流体感。 */
+    private void startGlowAnimation() {
+        for (int i = 0; i < glowBlobs.size(); i++) {
+            Region blob = glowBlobs.get(i);
+            double range = 90 + i * 34;
+            double period = BLOB_PERIOD[i];
+            Timeline driftX =
+                    new Timeline(
+                            new KeyFrame(
+                                    Duration.ZERO,
+                                    new KeyValue(
+                                            blob.translateXProperty(), -range, Interpolator.EASE_BOTH)),
+                            new KeyFrame(
+                                    Duration.seconds(period),
+                                    new KeyValue(
+                                            blob.translateXProperty(), range, Interpolator.EASE_BOTH)));
+            driftX.setAutoReverse(true);
+            driftX.setCycleCount(Animation.INDEFINITE);
+            // Y 轴周期取 X 轴的 0.62 倍，两轴叠加后轨迹不重复，流动更自然。
+            Timeline driftY =
+                    new Timeline(
+                            new KeyFrame(
+                                    Duration.ZERO,
+                                    new KeyValue(
+                                            blob.translateYProperty(),
+                                            range * 0.5,
+                                            Interpolator.EASE_BOTH)),
+                            new KeyFrame(
+                                    Duration.seconds(period * 0.62),
+                                    new KeyValue(
+                                            blob.translateYProperty(),
+                                            -range * 0.5,
+                                            Interpolator.EASE_BOTH)));
+            driftY.setAutoReverse(true);
+            driftY.setCycleCount(Animation.INDEFINITE);
+            Timeline pulse =
+                    new Timeline(
+                            new KeyFrame(
+                                    Duration.ZERO,
+                                    new KeyValue(
+                                            blob.opacityProperty(), 0.72, Interpolator.EASE_BOTH)),
+                            new KeyFrame(
+                                    Duration.seconds(4 + i * 1.3),
+                                    new KeyValue(
+                                            blob.opacityProperty(), 1.0, Interpolator.EASE_BOTH)));
+            pulse.setAutoReverse(true);
+            pulse.setCycleCount(Animation.INDEFINITE);
+            driftX.play();
+            driftY.play();
+            pulse.play();
         }
     }
 

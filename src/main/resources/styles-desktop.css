@@ -15,19 +15,6 @@
     -app-badge-std-bg: rgba(143, 156, 174, 0.15);
     -app-badge-std-text: #8F9CAE;
 
-    --app-background: #0B0E14;
-    --app-surface: #131924;
-    --app-raised: #1B2432;
-    --app-border: rgba(255, 255, 255, 0.08);
-    --app-accent: #4FA5FF;
-    --app-accent-glow: #2CE6E6;
-    --app-text: #F4F7FB;
-    --app-secondary: #8F9CAE;
-    --app-badge-flac-bg: rgba(44, 230, 230, 0.15);
-    --app-badge-flac-text: #2CE6E6;
-    --app-badge-std-bg: rgba(143, 156, 174, 0.15);
-    --app-badge-std-text: #8F9CAE;
-
     -fx-background-color: -app-background;
     -fx-font-family: "Segoe UI Variable", "Microsoft YaHei UI", sans-serif;
 }

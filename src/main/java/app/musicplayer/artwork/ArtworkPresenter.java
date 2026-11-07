@@ -37,7 +37,7 @@ public final class ArtworkPresenter implements AutoCloseable {
     private int[] currentSize;
     private boolean closed;
     private Window window;
-    private Consumer<Color> onColorExtracted;
+    private Consumer<Color[]> onColorExtracted;
     private final ChangeListener<Number> scaleChanged = (ignored, old, next) -> show(currentSource);
     private final ChangeListener<Number> sizeChanged = (ignored, old, next) -> show(currentSource);
 
@@ -50,7 +50,7 @@ public final class ArtworkPresenter implements AutoCloseable {
     }
 
     /** 设置提取到主色调时的回调监听器。 */
-    public void setOnColorExtracted(Consumer<Color> listener) {
+    public void setOnColorExtracted(Consumer<Color[]> listener) {
         this.onColorExtracted = listener;
     }
 
@@ -79,7 +79,7 @@ public final class ArtworkPresenter implements AutoCloseable {
             Platform.runLater(
                     () -> {
                         if (onColorExtracted != null) {
-                            onColorExtracted.accept(DominantColorExtractor.DEFAULT_AMBIENT_COLOR);
+                            onColorExtracted.accept(DominantColorExtractor.extractPalette(null));
                         }
                     });
             return;
@@ -89,7 +89,7 @@ public final class ArtworkPresenter implements AutoCloseable {
             display(existing);
             worker.execute(
                     () -> {
-                        Color ambient = DominantColorExtractor.extract(existing);
+                        Color[] ambient = DominantColorExtractor.extractPalette(existing);
                         Platform.runLater(
                                 () -> {
                                     if (!closed
@@ -120,7 +120,7 @@ public final class ArtworkPresenter implements AutoCloseable {
                                                         load(currentKey, resolvedSource, currentSize);
                                                     } else if (onColorExtracted != null) {
                                                         onColorExtracted.accept(
-                                                                DominantColorExtractor.DEFAULT_AMBIENT_COLOR);
+                                                                DominantColorExtractor.extractPalette(null));
                                                     }
                                                 }
                                             }));
@@ -133,7 +133,7 @@ public final class ArtworkPresenter implements AutoCloseable {
                         worker,
                         () -> {
                             Image image = ArtworkDecoder.decode(source, size[0], size[1]);
-                            Color ambient = DominantColorExtractor.extract(image);
+                            Color[] ambient = DominantColorExtractor.extractPalette(image);
                             return new DecodedArtwork(image, ambient);
                         })
                 .thenAccept(
@@ -198,5 +198,5 @@ public final class ArtworkPresenter implements AutoCloseable {
         display(null);
     }
 
-    private record DecodedArtwork(Image image, Color ambient) {}
+    private record DecodedArtwork(Image image, Color[] ambient) {}
 }
