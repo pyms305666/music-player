@@ -15,7 +15,7 @@
             <corners
                 android:topLeftRadius="20dp"
                 android:topRightRadius="20dp" />
-            <solid android:color="@color/surface" />
+            <solid android:color="@color/surface_glass" />
         </shape>
     </item>
 </layer-list>

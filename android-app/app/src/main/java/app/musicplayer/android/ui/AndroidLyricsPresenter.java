@@ -19,9 +19,12 @@ import app.musicplayer.model.Lyrics;
  * keep characters stable, replace only two highlight spans.
  */
 public final class AndroidLyricsPresenter implements AutoCloseable {
+    /** 非焦点歌词的褪光白色（45% 透明度），与桌面端歌词规范一致。 */
+    private static final int CONTEXT_COLOR = 0x73FFFFFF;
+
     private final TextView text;
     private final ScrollView scroll;
-    private final ForegroundColorSpan color = new ForegroundColorSpan(Color.rgb(44, 230, 230));
+    private final ForegroundColorSpan color = new ForegroundColorSpan(Color.WHITE);
     private final StyleSpan bold = new StyleSpan(android.graphics.Typeface.BOLD);
     private final ViewTreeObserver.OnPreDrawListener beforeDraw =
             () -> {
@@ -59,6 +62,8 @@ public final class AndroidLyricsPresenter implements AutoCloseable {
         text.setText(
                 characters,
                 value.timed() ? TextView.BufferType.SPANNABLE : TextView.BufferType.NORMAL);
+        // 带时间戳歌词按"非焦点褪光 + 焦点纯白"呈现；无时间戳歌词整体保持纯白可读。
+        text.setTextColor(value.timed() ? CONTEXT_COLOR : Color.WHITE);
         buffer = value.timed() ? (Spannable) text.getText() : null;
         active = -1;
         scrollPending = false;

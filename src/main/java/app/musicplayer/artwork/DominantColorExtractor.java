@@ -7,7 +7,7 @@ import javafx.scene.paint.Color;
 /**
  * 桌面端封面主色调提取器。
  * 对封面图像进行快速采样，计算平均 RGB 并转换为 HSB，
- * 并对饱和度（0.30 - 0.70）与明度（0.20 - 0.40）进行安全夹取，防止暗淡无光或高亮眩光。
+ * 并对饱和度（0.30 - 0.70）与明度（0.15 - 0.35）进行安全夹取，防止暗淡无光或高亮眩光。
  */
 public final class DominantColorExtractor {
     public static final Color DEFAULT_AMBIENT_COLOR = Color.rgb(79, 165, 255);
@@ -69,9 +69,14 @@ public final class DominantColorExtractor {
         double avgB = Math.min(1.0, Math.max(0.0, totalB / count));
         Color avgColor = Color.color(avgR, avgG, avgB);
 
+        // 近灰白封面没有可靠色相，直接回退默认幽蓝，避免 HSB 色相归零时产生脏红色光晕。
+        if (avgColor.getSaturation() < 0.10) {
+            return DEFAULT_AMBIENT_COLOR;
+        }
+
         double hue = avgColor.getHue();
         double saturation = Math.max(0.30, Math.min(0.70, avgColor.getSaturation()));
-        double brightness = Math.max(0.20, Math.min(0.40, avgColor.getBrightness()));
+        double brightness = Math.max(0.15, Math.min(0.35, avgColor.getBrightness()));
 
         return Color.hsb(hue, saturation, brightness);
     }

@@ -286,14 +286,15 @@
 }
 
 .desktop-root .lyrics-view .list-cell {
-    -fx-text-fill: -app-secondary;
+    -fx-text-fill: rgba(255, 255, 255, 0.45);
     -fx-padding: 9 12;
 }
 
 .desktop-root .lyrics-view .list-cell:filled:selected {
     -fx-background-color: transparent;
-    -fx-text-fill: -app-accent-glow;
+    -fx-text-fill: #FFFFFF;
     -fx-font-weight: 700;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.5), 10, 0.35, 0, 0);
 }
 
 .desktop-root .lyrics-toolbar {

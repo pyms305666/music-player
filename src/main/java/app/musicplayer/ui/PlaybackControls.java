@@ -36,6 +36,7 @@ public final class PlaybackControls extends VBox {
     private final Label timeLabel = new Label("00:00 / 00:00");
     private final Label trackTitleLabel = new Label("未播放歌曲");
     private final Label trackArtistLabel = new Label("选择歌曲开始播放");
+    private final Label qualityBadge = new Label();
     private final ImageView trackThumbView = new ImageView();
     private final Label trackThumbPlaceholder = new Label("♫");
     private final StackPane trackThumbBox = new StackPane(trackThumbPlaceholder, trackThumbView);
@@ -165,8 +166,13 @@ public final class PlaybackControls extends VBox {
             progressSpacer.setManaged(false);
             trackTitleLabel.getStyleClass().add("player-track-title");
             trackArtistLabel.getStyleClass().add("player-track-artist");
+            // 音质徽章与歌名同行展示，样式复用曲库列表的胶囊徽章体系。
+            qualityBadge.setVisible(false);
+            qualityBadge.setManaged(false);
+            HBox titleRow = new HBox(6, trackTitleLabel, qualityBadge);
+            titleRow.setAlignment(Pos.CENTER_LEFT);
             HBox trackInfo =
-                    new HBox(10, trackThumbBox, new VBox(2, trackTitleLabel, trackArtistLabel));
+                    new HBox(10, trackThumbBox, new VBox(2, titleRow, trackArtistLabel));
             trackInfo.getStyleClass().add("player-track-info");
             trackInfo.setAlignment(Pos.CENTER_LEFT);
             trackInfo.setMinWidth(190);
@@ -227,6 +233,23 @@ public final class PlaybackControls extends VBox {
         if (title == null || title.isBlank()) {
             setArtwork(null);
         }
+    }
+
+    /** 更新播放条音质徽章；标签为空或空白时隐藏徽章。 */
+    public void setQualityBadge(String label, boolean lossless) {
+        if (label == null || label.isBlank()) {
+            qualityBadge.setText(null);
+            qualityBadge.getStyleClass().clear();
+            qualityBadge.setVisible(false);
+            qualityBadge.setManaged(false);
+            return;
+        }
+        qualityBadge.setText(label);
+        qualityBadge
+                .getStyleClass()
+                .setAll(lossless ? AudioFormatBadge.STYLE_FLAC : AudioFormatBadge.STYLE_STANDARD);
+        qualityBadge.setVisible(true);
+        qualityBadge.setManaged(true);
     }
 
     /** 更新控制栏缩略图。 */

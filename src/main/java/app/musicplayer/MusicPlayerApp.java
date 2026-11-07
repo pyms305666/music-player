@@ -22,6 +22,7 @@ import app.musicplayer.playlist.PlaylistSort;
 import app.musicplayer.playlist.SearchSnapshot;
 import app.musicplayer.playlist.SortDirection;
 import app.musicplayer.playlist.TrackLibraryService;
+import app.musicplayer.ui.AudioFormatBadge;
 import app.musicplayer.ui.DesktopOnlineTasks;
 import app.musicplayer.ui.MobileViewSwitcher;
 import app.musicplayer.ui.MobileWindowSizer;
@@ -805,10 +806,10 @@ public final class MusicPlayerApp extends Application {
             clip.setArcWidth(24);
             clip.setArcHeight(24);
             artworkImageView.setClip(clip);
-            lyricsShell.getChildren().add(lyricsToolbar);
-            StackPane.setAlignment(lyricsToolbar, Pos.TOP_RIGHT);
-            StackPane.setMargin(lyricsToolbar, new Insets(8, 12, 0, 0));
-            nowPlaying = new VBox(16, desktopHero, lyricsShell);
+            // 工具栏独占一行放在歌词卡片上方，避免悬浮按钮遮挡滚动的歌词文字。
+            HBox lyricsToolbarRow = new HBox(lyricsToolbar);
+            lyricsToolbarRow.setAlignment(Pos.CENTER_RIGHT);
+            nowPlaying = new VBox(16, desktopHero, lyricsToolbarRow, lyricsShell);
         }
         nowPlaying.getStyleClass().add("content-foreground");
         nowPlaying.setPadding(layoutMode.isMobile() ? new Insets(24, 22, 16, 22) : new Insets(24));
@@ -1157,6 +1158,7 @@ public final class MusicPlayerApp extends Application {
         titleLabel.setText(currentTrack.title());
         artistLabel.setText(currentTrack.artist());
         playbackControls.setTrackInfo(currentTrack.title(), currentTrack.artist());
+        playbackControls.setQualityBadge(null, false);
         progressSlider.setValue(0);
         timeLabel.setText("00:00 / 00:00");
         showArtwork(null);
@@ -1189,6 +1191,7 @@ public final class MusicPlayerApp extends Application {
                                             if (resolution.correctedExtension())
                                                 statusLabel.setText("已按实际音频格式准备播放");
                                             playbackResolution = resolution;
+                                            applyPlaybackQualityBadge(track, resolution.path());
                                             createPlayer(track, resolution.path(), request);
                                         }));
     }
@@ -1571,7 +1574,7 @@ public final class MusicPlayerApp extends Application {
             String gradient =
                     String.format(
                             Locale.ROOT,
-                            "-fx-background-color: radial-gradient(focus-angle 0deg, focus-distance 0%%, center 65%% 25%%, radius 65%%, rgba(%d, %d, %d, 0.25) 0%%, rgba(11, 14, 20, 0.98) 100%%);",
+                            "-fx-background-color: radial-gradient(focus-angle 0deg, focus-distance 0%%, center 65%% 25%%, radius 78%%, rgba(%d, %d, %d, 0.40) 0%%, rgba(11, 14, 20, 0.98) 100%%);",
                             r,
                             g,
                             b);
@@ -1582,13 +1585,43 @@ public final class MusicPlayerApp extends Application {
             DropShadow glow =
                     new DropShadow(
                             BlurType.GAUSSIAN,
-                            Color.color(effective.getRed(), effective.getGreen(), effective.getBlue(), 0.35),
-                            24,
-                            0.12,
+                            Color.color(effective.getRed(), effective.getGreen(), effective.getBlue(), 0.50),
+                            30,
+                            0.15,
                             0,
                             4);
             artworkTile.setEffect(glow);
         }
+    }
+
+    /** 异步按实际文件头检测音质并更新播放条徽章；文件头识别不出时按扩展名兜底。 */
+    private void applyPlaybackQualityBadge(Track track, Path playbackPath) {
+        CompletableFuture.supplyAsync(
+                        () -> {
+                            AudioFileInspector.QualityInfo quality =
+                                    audioFileInspector.qualityLabel(playbackPath);
+                            return quality != null
+                                    ? quality
+                                    : toQualityInfo(AudioFormatBadge.resolve(track.path()));
+                        },
+                        libraryExecutor)
+                .whenComplete(
+                        (quality, error) ->
+                                Platform.runLater(
+                                        () -> {
+                                            if (closing || currentTrack != track || quality == null)
+                                                return;
+                                            playbackControls.setQualityBadge(
+                                                    quality.label(), quality.lossless());
+                                        }));
+    }
+
+    /** 把扩展名徽章信息转成播放条音质徽章信息。 */
+    private static AudioFileInspector.QualityInfo toQualityInfo(
+            AudioFormatBadge.AudioFormatInfo info) {
+        return info == null
+                ? null
+                : new AudioFileInspector.QualityInfo(info.label(), info.isLossless());
     }
 
     /** 把实际播放位置交给歌词时间轴，更新活动行。 */
@@ -1710,6 +1743,7 @@ public final class MusicPlayerApp extends Application {
                                                     playbackContextLabel.setText("未播放");
                                                 playlistPane.setCurrentTrack(null);
                                                 playbackControls.setTrackInfo(null, null);
+                                                playbackControls.setQualityBadge(null, false);
                                                 playbackControls.setPlaying(false);
                                                 titleLabel.setText("未播放歌曲");
                                                 artistLabel.setText("当前歌曲已从歌单和缓存移除");

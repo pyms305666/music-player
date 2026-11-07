@@ -210,12 +210,14 @@
 .lyrics-view .list-cell {
     -fx-font-size: 17px;
     -fx-padding: 9 14;
+    -fx-text-fill: rgba(255, 255, 255, 0.45);
 }
 
 .lyrics-view .list-cell:filled:selected {
     -fx-background-color: transparent;
-    -fx-text-fill: #2CE6E6;
+    -fx-text-fill: #FFFFFF;
     -fx-font-weight: 800;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.5), 10, 0.35, 0, 0);
 }
 
 .online-results-view .list-cell {

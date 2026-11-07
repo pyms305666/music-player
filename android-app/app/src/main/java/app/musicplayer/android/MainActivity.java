@@ -7,6 +7,11 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
@@ -67,6 +72,10 @@ import app.musicplayer.playlist.PlaylistSort;
 import app.musicplayer.playlist.SortDirection;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -124,6 +133,8 @@ public final class MainActivity extends AppCompatActivity {
     private TextView artistText;
     private TextView currentTrackBadge;
     private View artworkGlow;
+    /** 无封面或取色失败时使用的默认环境光色，与桌面端默认幽蓝一致。 */
+    private static final int AMBIENT_DEFAULT_COLOR = 0x4FA5FF;
     private TextView lyricsText;
     private TextView currentTimeText;
     private TextView durationText;
@@ -262,8 +273,9 @@ public final class MainActivity extends AppCompatActivity {
         artworkView.getLayoutParams().height = dp(artworkDp);
         artworkView.requestLayout();
         if (artworkGlow != null && artworkGlow.getLayoutParams() != null) {
-            artworkGlow.getLayoutParams().width = dp(artworkDp + 24);
-            artworkGlow.getLayoutParams().height = dp(artworkDp + 24);
+            // 光晕比封面大出 72dp，保证四周各留 36dp 可见光环，而不是被封面几乎完全遮住。
+            artworkGlow.getLayoutParams().width = dp(artworkDp + 72);
+            artworkGlow.getLayoutParams().height = dp(artworkDp + 72);
             artworkGlow.requestLayout();
         }
     }
@@ -846,11 +858,102 @@ public final class MainActivity extends AppCompatActivity {
                                         }));
     }
 
-    /** 加载指定封面，空地址或失败时使用现有占位规则。 */
+    /** 加载指定封面，空地址或失败时使用现有占位规则，并按封面主色驱动背景流光。 */
     private void loadArtwork(Object source) {
         artworkView.setPadding(0, 0, 0, 0);
         ImageViewCompat.setImageTintList(artworkView, null);
-        Glide.with(this).load(source).centerCrop().into(artworkView);
+        Glide.with(this)
+                .load(source)
+                .centerCrop()
+                .listener(
+                        new RequestListener<Drawable>() {
+                            /** 加载失败时恢复默认幽蓝流光；返回 false 让 Glide 继续走占位流程。 */
+                            @Override
+                            public boolean onLoadFailed(
+                                    @Nullable GlideException exception,
+                                    Object model,
+                                    Target<Drawable> target,
+                                    boolean isFirstResource) {
+                                applyArtworkGlow(AMBIENT_DEFAULT_COLOR);
+                                return false;
+                            }
+
+                            /** 加载成功时异步采样封面主色，采样完成后再更新流光。 */
+                            @Override
+                            public boolean onResourceReady(
+                                    Drawable resource,
+                                    Object model,
+                                    Target<Drawable> target,
+                                    DataSource dataSource,
+                                    boolean isFirstResource) {
+                                Bitmap bitmap =
+                                        resource instanceof BitmapDrawable drawable
+                                                ? drawable.getBitmap()
+                                                : null;
+                                if (bitmap == null || bitmap.getWidth() <= 0) {
+                                    applyArtworkGlow(AMBIENT_DEFAULT_COLOR);
+                                    return false;
+                                }
+                                libraryExecutor.execute(
+                                        () -> {
+                                            int ambient = sampleAmbientColor(bitmap);
+                                            runOnUiThread(() -> applyArtworkGlow(ambient));
+                                        });
+                                return false;
+                            }
+                        })
+                .into(artworkView);
+    }
+
+    /** 把封面降采样为 16x16 后取平均色，并按桌面同一规则夹取饱和度与明度。 */
+    private static int sampleAmbientColor(Bitmap bitmap) {
+        try {
+            Bitmap small = Bitmap.createScaledBitmap(bitmap, 16, 16, true);
+            long red = 0;
+            long green = 0;
+            long blue = 0;
+            int count = 0;
+            for (int y = 0; y < small.getHeight(); y++) {
+                for (int x = 0; x < small.getWidth(); x++) {
+                    int pixel = small.getPixel(x, y);
+                    if (Color.alpha(pixel) < 25) continue;
+                    red += Color.red(pixel);
+                    green += Color.green(pixel);
+                    blue += Color.blue(pixel);
+                    count++;
+                }
+            }
+            if (count == 0) return AMBIENT_DEFAULT_COLOR;
+            float[] hsv = new float[3];
+            Color.RGBToHSV(
+                    (int) (red / count), (int) (green / count), (int) (blue / count), hsv);
+            // 近灰白封面没有可靠色相，回退默认幽蓝，避免色相归零产生脏红色光晕。
+            if (hsv[1] < 0.10f) return AMBIENT_DEFAULT_COLOR;
+            hsv[1] = Math.max(0.30f, Math.min(0.70f, hsv[1]));
+            hsv[2] = Math.max(0.15f, Math.min(0.35f, hsv[2]));
+            return Color.HSVToColor(hsv);
+        } catch (Exception ignored) {
+            return AMBIENT_DEFAULT_COLOR;
+        }
+    }
+
+    /** 用环境光颜色重建封面背后的径向流光层；小面积光环提亮到可见范围，默认色时即恢复初始幽蓝。 */
+    private void applyArtworkGlow(int ambientColor) {
+        if (artworkGlow == null) return;
+        // 取样色按规范压暗后适合大面积背景，直接用在小光环上会不可见，这里只对渲染色提亮。
+        float[] hsv = new float[3];
+        Color.colorToHSV(ambientColor, hsv);
+        hsv[2] = Math.max(0.45f, Math.min(0.70f, hsv[2]));
+        int glowColor = Color.HSVToColor(hsv);
+        GradientDrawable glow = new GradientDrawable();
+        glow.setShape(GradientDrawable.OVAL);
+        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        glow.setGradientCenter(0.5f, 0.5f);
+        glow.setColors(
+                new int[] {(0x99 << 24) | (glowColor & 0x00FFFFFF), 0x00000000});
+        int radiusPx = artworkGlow.getWidth() > 0 ? artworkGlow.getWidth() / 2 : dp(158);
+        glow.setGradientRadius(radiusPx);
+        artworkGlow.setBackground(glow);
     }
 
     /** 显示默认封面占位，清除上一首歌曲的图像。 */
@@ -861,6 +964,7 @@ public final class MainActivity extends AppCompatActivity {
         ImageViewCompat.setImageTintList(
                 artworkView, null);
         artworkView.setImageResource(R.drawable.vinyl_placeholder);
+        applyArtworkGlow(AMBIENT_DEFAULT_COLOR);
     }
 
     /** 从当前搜索输入启动在线查询，结果由专用协调器更新。 */

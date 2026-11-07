@@ -258,12 +258,14 @@ def package(args):
         tasks.append("-PzaQaVersionCode=" + str(args.qa_code))
     if os.name == "nt":
         # Existing PowerShell helper handles non-ASCII Gradle classpaths and restores environment.
+        # pwsh (PowerShell 7) 优先；未安装时退回系统自带的 Windows PowerShell，两者均可执行 Invoke-ZaGradle。
+        shell = shutil.which("pwsh") or "powershell.exe"
         command = (
             ". (Join-Path $PWD 'scripts/build-common.ps1'); Invoke-ZaGradle $PWD 'android-app' @("
             + ",".join("'" + t + "'" for t in tasks)
             + ")"
         )
-        run(["pwsh", "-NoProfile", "-Command", command], env=env)
+        run([shell, "-NoProfile", "-Command", command], env=env)
     else:
         run(
             [

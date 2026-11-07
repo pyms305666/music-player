@@ -28,7 +28,7 @@ class DominantColorExtractorTest {
     }
 
     @Test
-    void brightWhiteImageClampedToMaxBrightness() {
+    void brightWhiteImageFallsBackToDefaultAmbientColor() {
         WritableImage white = new WritableImage(32, 32);
         PixelWriter writer = white.getPixelWriter();
         for (int y = 0; y < 32; y++) {
@@ -37,16 +37,13 @@ class DominantColorExtractorTest {
             }
         }
 
+        // 近灰白封面饱和度低于 0.10，应回退默认幽蓝，避免色相归零产生脏红光晕。
         Color color = DominantColorExtractor.extract(white);
-        assertNotNull(color);
-        assertTrue(color.getBrightness() <= 0.45, "Max brightness must be clamped <= 0.45, actual: " + color.getBrightness());
-        assertTrue(color.getBrightness() >= 0.20, "Brightness must be >= 0.20, actual: " + color.getBrightness());
-        assertTrue(color.getSaturation() >= 0.30 && color.getSaturation() <= 0.70,
-                "Saturation must be clamped in [0.30, 0.70], actual: " + color.getSaturation());
+        assertEquals(DominantColorExtractor.DEFAULT_AMBIENT_COLOR, color);
     }
 
     @Test
-    void pureBlackImageClampedToMinBrightness() {
+    void pureBlackImageFallsBackToDefaultAmbientColor() {
         WritableImage black = new WritableImage(32, 32);
         PixelWriter writer = black.getPixelWriter();
         for (int y = 0; y < 32; y++) {
@@ -56,11 +53,7 @@ class DominantColorExtractorTest {
         }
 
         Color color = DominantColorExtractor.extract(black);
-        assertNotNull(color);
-        assertTrue(color.getBrightness() >= 0.20, "Min brightness must be clamped >= 0.20, actual: " + color.getBrightness());
-        assertTrue(color.getBrightness() <= 0.40, "Brightness must be <= 0.40, actual: " + color.getBrightness());
-        assertTrue(color.getSaturation() >= 0.30 && color.getSaturation() <= 0.70,
-                "Saturation must be clamped in [0.30, 0.70], actual: " + color.getSaturation());
+        assertEquals(DominantColorExtractor.DEFAULT_AMBIENT_COLOR, color);
     }
 
     @Test
@@ -78,7 +71,7 @@ class DominantColorExtractorTest {
         double hue = color.getHue();
         assertTrue(hue <= 5.0 || hue >= 355.0, "Red hue should be around 0 deg, actual: " + hue);
         assertEquals(0.70, color.getSaturation(), 0.01, "Saturation should be clamped to max 0.70");
-        assertEquals(0.40, color.getBrightness(), 0.01, "Brightness should be clamped to max 0.40");
+        assertEquals(0.35, color.getBrightness(), 0.01, "Brightness should be clamped to max 0.35");
     }
 
     @Test
@@ -95,6 +88,6 @@ class DominantColorExtractorTest {
         assertNotNull(color);
         assertEquals(240.0, color.getHue(), 5.0, "Blue hue should be ~240 deg");
         assertEquals(0.70, color.getSaturation(), 0.01, "Saturation should be clamped to max 0.70");
-        assertEquals(0.40, color.getBrightness(), 0.01, "Brightness should be clamped to max 0.40");
+        assertEquals(0.35, color.getBrightness(), 0.01, "Brightness should be clamped to max 0.35");
     }
 }
