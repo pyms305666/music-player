@@ -38,7 +38,7 @@
 - 用户验收 4.3.6 后要求正式发布。版本升至 4.3.7（versionCode 40307），发布说明见 `docs/release-4.3.7.md`。
 - `scripts/android-signing.py` 在未安装 PowerShell 7 的机器上会失败，已增加回退：优先 `pwsh`，缺失时使用系统自带 Windows PowerShell 执行既有 `Invoke-ZaGradle` 流程，构建与签名行为不变。
 - 流程：提交全部 UI 改动与文档 → 从干净源码重建 Windows 安装包（`package.ps1`）与正式签名 Android APK（`scripts/android-signing.py`，DPAPI 签名材料 + 密钥轮换链校验）→ 推送 `codex/playlist-import` → 等待该提交的 `build.yml` CI 通过 → `scripts/publish-release.ps1` 创建并核验 GitHub Release。
-- 实时发布状态以 GitHub Release 与 CI 页面为准。
+- 发布结果：源码提交 `2ff1a18`（远端分支与提交一致），CI [Build and verify #42336659462](https://github.com/pyms305666/music-player/actions/runs/42336659462) 通过；[Release 4.3.7](https://github.com/pyms305666/music-player/releases/tag/4.3.7) 已发布为 latest，附件 `ZA-Music-Windows-4.3.7.exe`（70,684,672 字节）、`ZA-Music-Android-4.3.7.apk`（19,414,797 字节，正式签名）、`build-info.json` 与 `SHA256SUMS.txt`，脚本已逐项核对远端附件散列与标签指向。`gh auth login` 在用户设备上以浏览器设备流完成。
 
 ## 2026-11-01：歌手搜索与歌曲下载优化
 
